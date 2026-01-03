@@ -6,7 +6,7 @@ A production-ready Docker Compose template for deploying web applications with r
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-org/peer-mesh-docker-lab.git
+git clone https://github.com/peermesh/docker-lab.git
 cd peer-mesh-docker-lab
 
 # Copy environment template

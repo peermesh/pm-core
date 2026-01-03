@@ -1,13 +1,34 @@
-# Peer Mesh Docker Lab
+# Docker Lab
 
-A production-ready Docker Compose template for deploying web applications with reverse proxy, databases, caching, and automated backups. Clone it, configure it, deploy it.
+Production-ready Docker Compose boilerplate for self-hosted applications. Clone it, configure it, deploy it.
+
+## What This Repository Is
+
+**A production-grade Docker infrastructure foundation.** This repository provides:
+
+- Battle-tested Docker Compose configurations for common deployment patterns
+- Traefik reverse proxy with automatic TLS certificate management
+- Docker secrets-based credential management
+- Resource-based profiles (lite/core/full) for different deployment targets
+- Database profiles (PostgreSQL, MySQL, MongoDB, Redis) as composable modules
+- Healthcheck-based startup ordering for reliable deployments
+- Network isolation patterns for security
+
+This is infrastructure boilerplate - a starting point you clone and customize for your specific application needs.
+
+## What This Repository Is NOT
+
+- **Not app-specific automation** - You bring your own application containers
+- **Not magic** - You still need to understand Docker, networking, and your application requirements
+- **Not a one-size-fits-all solution** - Some configurations will need adjustment for your use case
+- **Not a managed service** - You are responsible for updates, backups, and monitoring
 
 ## Quick Start
 
 ```bash
 # Clone the repository
 git clone https://github.com/peermesh/docker-lab.git
-cd peer-mesh-docker-lab
+cd docker-lab
 
 # Copy environment template
 cp .env.example .env
@@ -24,7 +45,7 @@ docker compose ps
 
 Your services are now running with Traefik reverse proxy at ports 80/443.
 
-## What's Included
+## Features
 
 - **Reverse Proxy** (Traefik) - Automatic HTTPS via Let's Encrypt, request routing
 - **Authentication** (Authelia) - Single sign-on, 2FA support
@@ -88,7 +109,10 @@ See `examples/` for complete configurations.
 - [Configuration Reference](docs/CONFIGURATION.md) - Environment variables and options
 - [Profiles Guide](docs/PROFILES.md) - Choosing and customizing profiles
 - [Security Guide](docs/SECURITY.md) - Security architecture and hardening
+- [Secrets Management](docs/SECRETS-MANAGEMENT.md) - Docker secrets patterns
+- [Deployment Guide](docs/DEPLOYMENT.md) - Production deployment guidance
 - [Troubleshooting](docs/TROUBLESHOOTING.md) - Common issues and solutions
+- [Architecture Decisions](docs/decisions/) - ADR documentation
 
 ## Requirements
 
@@ -97,10 +121,14 @@ See `examples/` for complete configurations.
 - 2GB RAM minimum (4GB+ recommended)
 - Linux, macOS, or Windows with WSL2
 
+## Contributing
+
+Contributions welcome. Please:
+
+1. Fork the repository
+2. Create a feature branch
+3. Submit a pull request with clear description
+
 ## License
 
 MIT License - Use it for anything.
-
-## Contributing
-
-See `.dev/` directory for development documentation and contribution guidelines.

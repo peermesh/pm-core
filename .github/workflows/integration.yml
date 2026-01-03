@@ -1,0 +1,114 @@
+name: Integration
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'docker-compose*.yml'
+      - 'Dockerfile*'
+      - '.env.example'
+      - 'profiles/**'
+      - 'config/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  healthcheck:
+    name: Container Health (${{ matrix.profile }}, ${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # AMD64 tests
+          - profile: lite
+            arch: amd64
+            runner: ubuntu-latest
+          - profile: core
+            arch: amd64
+            runner: ubuntu-latest
+          # ARM64 tests (when self-hosted runners available, or use QEMU)
+          - profile: lite
+            arch: arm64
+            runner: ubuntu-latest
+            emulate: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up QEMU (ARM64 emulation)
+        if: matrix.emulate == true
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Create .env from example
+        run: |
+          cp .env.example .env
+          # Set minimal required variables for CI
+          echo "COMPOSE_PROJECT_NAME=pmdl-ci" >> .env
+
+      - name: Start containers
+        run: |
+          docker compose --profile ${{ matrix.profile }} up -d --wait --wait-timeout 120
+        env:
+          DOCKER_DEFAULT_PLATFORM: linux/${{ matrix.arch }}
+
+      - name: Verify healthchecks
+        run: |
+          # Wait for all containers to be healthy
+          timeout 180 bash -c '
+            while true; do
+              unhealthy=$(docker compose --profile ${{ matrix.profile }} ps --format json | \
+                jq -r "select(.Health != \"healthy\" and .Health != \"\") | .Name" | wc -l)
+              if [ "$unhealthy" -eq 0 ]; then
+                echo "All containers healthy"
+                break
+              fi
+              echo "Waiting for $unhealthy containers..."
+              sleep 10
+            done
+          '
+
+      - name: Show container status
+        if: always()
+        run: |
+          docker compose --profile ${{ matrix.profile }} ps -a
+          echo "---"
+          docker compose --profile ${{ matrix.profile }} logs --tail=50
+
+      - name: Cleanup
+        if: always()
+        run: |
+          docker compose --profile ${{ matrix.profile }} down -v --remove-orphans
+
+  compose-build:
+    name: Build Images (${{ matrix.arch }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        arch: [amd64, arm64]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: all
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build images (no push)
+        run: |
+          docker compose build --no-cache
+        env:
+          DOCKER_DEFAULT_PLATFORM: linux/${{ matrix.arch }}

@@ -1,0 +1,209 @@
+# ==============================================================
+# Redis 7 - Docker Compose Fragment
+# ==============================================================
+# Profile Version: 1.0
+# Documentation: profiles/redis/PROFILE-SPEC.md
+#
+# Usage:
+#   Include this file in your main docker-compose.yml using:
+#
+#   include:
+#     - path: ./profiles/redis/docker-compose.redis.yml
+#
+#   Or merge manually into your compose file.
+#
+# Configuration Options:
+#   - PERSISTENT: Default configuration with RDB persistence
+#   - EPHEMERAL: Pure cache mode with no persistence (see profiles section)
+# ==============================================================
+
+services:
+  # ==============================================================
+  # Redis - Primary Configuration (Persistent Mode)
+  # ==============================================================
+  # Use this for: Session storage, job queues, data that should survive restarts
+  redis:
+    image: redis:7-alpine
+    container_name: pmdl_redis
+
+    # Use init script for secrets-aware startup
+    # This script reads password from /run/secrets/redis_password
+    entrypoint: ["/bin/sh", "/init-scripts/01-init-redis.sh"]
+
+    # Secrets configuration
+    secrets:
+      - redis_password
+
+    # Volumes
+    volumes:
+      # Data persistence
+      - pmdl_redis_data:/data
+      # Init scripts (read-only)
+      - ./profiles/redis/init-scripts:/init-scripts:ro
+      # Healthcheck script (read-only)
+      - ./profiles/redis/healthcheck-scripts/healthcheck.sh:/healthcheck.sh:ro
+
+    # Health check (secrets-compatible via script)
+    healthcheck:
+      test: ["CMD", "/healthcheck.sh"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
+    # Network isolation - internal app network only
+    networks:
+      - app-internal
+
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+
+    # Restart policy
+    restart: unless-stopped
+
+    # Logging: Prevent unbounded log growth
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+    # Profile support - activate with: docker compose --profile cache up
+    profiles:
+      - full
+      - core
+      - cache
+
+  # ==============================================================
+  # Redis Ephemeral - Alternative Configuration (No Persistence)
+  # ==============================================================
+  # Use this for: Pure caching where data loss on restart is acceptable
+  # Activate with: docker compose --profile ephemeral-cache up redis-ephemeral
+  redis-ephemeral:
+    image: redis:7-alpine
+    container_name: pmdl_redis_ephemeral
+
+    # Direct command without authentication (internal-only use)
+    command:
+      - redis-server
+      - --protected-mode
+      - "no"
+      - --maxmemory
+      - "400mb"
+      - --maxmemory-policy
+      - "allkeys-lru"
+      - --save
+      - ""
+      - --appendonly
+      - "no"
+      - --tcp-keepalive
+      - "60"
+
+    # Use tmpfs for ephemeral storage
+    tmpfs:
+      - /data:size=512M,mode=1777
+
+    # Simple health check (no auth needed)
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
+    # Network isolation
+    networks:
+      - app-internal
+
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+
+    # Restart policy
+    restart: unless-stopped
+
+    # Logging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+    # Only include when ephemeral-cache profile is active
+    profiles:
+      - ephemeral-cache
+      - lite
+
+  # ==============================================================
+  # Redis Exporter - Prometheus Metrics (Optional)
+  # ==============================================================
+  # Activate with: docker compose --profile monitoring up
+  redis-exporter:
+    image: oliver006/redis_exporter:latest
+    container_name: pmdl_redis_exporter
+
+    environment:
+      REDIS_ADDR: "redis:6379"
+      REDIS_PASSWORD_FILE: /run/secrets/redis_password
+
+    secrets:
+      - redis_password
+
+    networks:
+      - app-internal
+      - monitoring
+
+    # Expose metrics on localhost only
+    ports:
+      - "127.0.0.1:9121:9121"
+
+    depends_on:
+      redis:
+        condition: service_healthy
+
+    restart: unless-stopped
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "2"
+
+    profiles:
+      - monitoring
+      - full
+
+# ==============================================================
+# Secrets
+# ==============================================================
+secrets:
+  redis_password:
+    file: ./secrets/redis_password
+
+# ==============================================================
+# Volumes
+# ==============================================================
+volumes:
+  pmdl_redis_data:
+    driver: local
+    name: pmdl_redis_data
+
+# ==============================================================
+# Networks
+# ==============================================================
+networks:
+  app-internal:
+    internal: true
+    name: pmdl_app-internal
+
+  monitoring:
+    name: pmdl_monitoring

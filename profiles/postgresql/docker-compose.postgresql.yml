@@ -1,0 +1,242 @@
+# ==============================================================
+# PostgreSQL 16 with pgvector - Docker Compose Fragment
+# ==============================================================
+# Copy this file or merge into your main docker-compose.yml
+#
+# Profile Version: 1.0
+# Documentation: profiles/postgresql/PROFILE-SPEC.md
+# Image: pgvector/pgvector:pg16 (PostgreSQL 16 + pgvector extension)
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.postgresql.yml up -d
+#
+# Prerequisites:
+#   1. Generate secrets: ./scripts/generate-secrets.sh
+#   2. Create network: docker network create pmdl_db-internal --internal
+#   3. Ensure init scripts are in place
+# ==============================================================
+
+# ==============================================================
+# Extension Fields (YAML Anchors for reuse)
+# ==============================================================
+
+x-postgres-healthcheck: &postgres-healthcheck
+  interval: 10s
+  timeout: 5s
+  retries: 5
+  start_period: 60s
+
+x-postgres-logging: &postgres-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+# ==============================================================
+# Services
+# ==============================================================
+
+services:
+  # =============================================================
+  # PostgreSQL 16 with pgvector
+  # =============================================================
+  # Primary relational database for:
+  # - Matrix Synapse (federation)
+  # - LibreChat (relational data + vector embeddings)
+  # - Any application requiring SQL + vectors
+  # =============================================================
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: pmdl_postgres
+
+    # ---------------------------------------------------------
+    # Secrets Configuration
+    # ---------------------------------------------------------
+    # All passwords read from files, never environment variables
+    secrets:
+      - postgres_password
+      - synapse_db_password
+      - librechat_db_password
+
+    # ---------------------------------------------------------
+    # Environment
+    # ---------------------------------------------------------
+    environment:
+      # Superuser configuration
+      POSTGRES_USER: postgres
+      POSTGRES_DB: postgres
+      # Password from secret file (NOT raw value)
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+      # Init configuration
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=en_US.UTF-8"
+
+    # ---------------------------------------------------------
+    # Performance Tuning (Full Profile: 2GB container)
+    # ---------------------------------------------------------
+    # Adjust values for different profiles:
+    #   Core (1GB): shared_buffers=256MB, effective_cache_size=768MB
+    #   Full (2GB): shared_buffers=512MB, effective_cache_size=1536MB
+    #   Large (4GB): shared_buffers=1024MB, effective_cache_size=3072MB
+    command:
+      - "postgres"
+      # Memory settings
+      - "-c"
+      - "shared_buffers=512MB"
+      - "-c"
+      - "effective_cache_size=1536MB"
+      - "-c"
+      - "work_mem=8MB"
+      - "-c"
+      - "maintenance_work_mem=128MB"
+      # Connection limits
+      - "-c"
+      - "max_connections=100"
+      # I/O optimization (for SSDs)
+      - "-c"
+      - "random_page_cost=1.1"
+      - "-c"
+      - "effective_io_concurrency=200"
+      # Parallel query settings
+      - "-c"
+      - "max_parallel_workers_per_gather=2"
+      - "-c"
+      - "max_parallel_maintenance_workers=2"
+      # WAL settings
+      - "-c"
+      - "wal_buffers=16MB"
+      - "-c"
+      - "checkpoint_completion_target=0.9"
+      # Autovacuum tuning
+      - "-c"
+      - "autovacuum_vacuum_scale_factor=0.1"
+      - "-c"
+      - "autovacuum_analyze_scale_factor=0.05"
+      # Statistics (optional - enable for monitoring)
+      # - "-c"
+      # - "shared_preload_libraries=pg_stat_statements"
+      # - "-c"
+      # - "pg_stat_statements.track=all"
+
+    # ---------------------------------------------------------
+    # Volumes
+    # ---------------------------------------------------------
+    volumes:
+      # Data volume (persistent)
+      - pmdl_postgres_data:/var/lib/postgresql/data
+      # Initialization scripts (run on empty volume only)
+      - ./profiles/postgresql/init-scripts:/docker-entrypoint-initdb.d:ro
+      # Healthcheck script (secrets-aware)
+      - ./profiles/postgresql/healthcheck-scripts/healthcheck.sh:/healthcheck.sh:ro
+
+    # ---------------------------------------------------------
+    # Shared Memory
+    # ---------------------------------------------------------
+    # PostgreSQL requires /dev/shm for inter-process communication
+    # Docker default (64MB) is insufficient under load
+    shm_size: 256mb
+
+    # ---------------------------------------------------------
+    # Health Check
+    # ---------------------------------------------------------
+    # Uses pg_isready which doesn't require authentication
+    # Compatible with _FILE secrets pattern
+    healthcheck:
+      <<: *postgres-healthcheck
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+
+    # ---------------------------------------------------------
+    # Network Isolation
+    # ---------------------------------------------------------
+    # PostgreSQL is internal-only, no port exposure
+    networks:
+      - db-internal
+
+    # ---------------------------------------------------------
+    # Resource Constraints
+    # ---------------------------------------------------------
+    # Full profile allocation (adjust for other profiles)
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 1G
+
+    # ---------------------------------------------------------
+    # Restart Policy
+    # ---------------------------------------------------------
+    restart: unless-stopped
+
+    # ---------------------------------------------------------
+    # Logging
+    # ---------------------------------------------------------
+    logging:
+      <<: *postgres-logging
+
+# ==============================================================
+# Core Profile Override (1GB container)
+# ==============================================================
+# Uncomment this section for smaller deployments
+#
+#   postgres:
+#     command:
+#       - "postgres"
+#       - "-c"
+#       - "shared_buffers=256MB"
+#       - "-c"
+#       - "effective_cache_size=768MB"
+#       - "-c"
+#       - "work_mem=4MB"
+#       - "-c"
+#       - "maintenance_work_mem=64MB"
+#       - "-c"
+#       - "max_connections=50"
+#     shm_size: 128mb
+#     deploy:
+#       resources:
+#         limits:
+#           memory: 1G
+#         reservations:
+#           memory: 512M
+
+# ==============================================================
+# Secrets
+# ==============================================================
+
+secrets:
+  # PostgreSQL superuser password
+  postgres_password:
+    file: ./secrets/postgres_password
+
+  # Application-specific database passwords
+  synapse_db_password:
+    file: ./secrets/synapse_db_password
+
+  librechat_db_password:
+    file: ./secrets/librechat_db_password
+
+# ==============================================================
+# Volumes
+# ==============================================================
+
+volumes:
+  # PostgreSQL data volume
+  # Contains: databases, WAL, configurations
+  pmdl_postgres_data:
+    driver: local
+    # For attached block storage, use:
+    # driver_opts:
+    #   type: none
+    #   device: /mnt/block-storage/postgres
+    #   o: bind
+
+# ==============================================================
+# Networks
+# ==============================================================
+
+networks:
+  # Internal database network
+  # No external access - applications must join this network
+  db-internal:
+    internal: true
+    name: pmdl_db-internal

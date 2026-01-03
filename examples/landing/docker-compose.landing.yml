@@ -1,0 +1,57 @@
+# ==============================================================
+# Landing Page - Docker Compose Fragment
+# ==============================================================
+# Simple nginx container serving a static dashboard page
+# Shows all deployed services with links
+#
+# Usage:
+#   docker compose -f docker-compose.yml \
+#                  -f .dev/examples/landing/docker-compose.landing.yml \
+#                  up -d
+# ==============================================================
+
+services:
+  landing:
+    image: nginx:alpine
+    container_name: pmdl_landing
+
+    volumes:
+      - ./.dev/examples/landing/html:/usr/share/nginx/html:ro
+
+    networks:
+      - proxy-external
+
+    deploy:
+      resources:
+        limits:
+          memory: 32M
+        reservations:
+          memory: 16M
+
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+    restart: unless-stopped
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "1m"
+        max-file: "1"
+
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.landing.rule=Host(`${DOMAIN}`) || Host(`landing.${DOMAIN}`)"
+      - "traefik.http.routers.landing.entrypoints=websecure"
+      - "traefik.http.routers.landing.tls=true"
+      - "traefik.http.routers.landing.tls.certresolver=letsencrypt"
+      - "traefik.http.services.landing.loadbalancer.server.port=80"
+
+networks:
+  proxy-external:
+    external: true
+    name: pmdl_proxy-external

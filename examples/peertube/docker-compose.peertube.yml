@@ -1,0 +1,160 @@
+# ==============================================================
+# PeerTube - Docker Compose Fragment
+# ==============================================================
+# ActivityPub-federated video streaming platform
+# P2P video delivery via WebTorrent/HLS
+#
+# Profile Dependency: PostgreSQL profile required
+# ==============================================================
+
+services:
+  # =============================================================
+  # PeerTube
+  # =============================================================
+  peertube:
+    image: chocobozzz/peertube:production-bookworm
+    container_name: pmdl_peertube
+
+    profiles:
+      - peertube
+      - full
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+      peertube-redis:
+        condition: service_healthy
+
+    environment:
+      # Database
+      PEERTUBE_DB_USERNAME: peertube
+      PEERTUBE_DB_PASSWORD: ${PEERTUBE_DB_PASSWORD:-peertube_secret_password}
+      PEERTUBE_DB_HOSTNAME: postgres
+      PEERTUBE_DB_NAME: peertube
+
+      # Redis
+      PEERTUBE_REDIS_HOSTNAME: peertube-redis
+
+      # Web server
+      PEERTUBE_WEBSERVER_HOSTNAME: peertube.${DOMAIN}
+      PEERTUBE_WEBSERVER_PORT: 443
+      PEERTUBE_WEBSERVER_HTTPS: "true"
+
+      # Trust proxy (behind Traefik)
+      PEERTUBE_TRUST_PROXY: '["127.0.0.1", "loopback", "172.16.0.0/12"]'
+
+      # Admin
+      PEERTUBE_ADMIN_EMAIL: admin@${DOMAIN}
+
+      # Secrets
+      PEERTUBE_SECRET: ${PEERTUBE_SECRET:-change_this_to_a_random_string_of_at_least_32_chars}
+
+      # Disable telemetry
+      PEERTUBE_INSTANCE_NO_TELEMETRY: "true"
+
+    volumes:
+      - pmdl_peertube_data:/data
+      - pmdl_peertube_config:/config
+
+    networks:
+      - proxy-external
+      - db-internal
+      - peertube-internal
+
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 512M
+
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fSs http://localhost:9000/api/v1/config || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+
+    restart: unless-stopped
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+    labels:
+      - "traefik.enable=true"
+      # Main router
+      - "traefik.http.routers.peertube.rule=Host(`peertube.${DOMAIN}`)"
+      - "traefik.http.routers.peertube.entrypoints=websecure"
+      - "traefik.http.routers.peertube.tls=true"
+      - "traefik.http.routers.peertube.tls.certresolver=letsencrypt"
+      - "traefik.http.services.peertube.loadbalancer.server.port=9000"
+
+  # =============================================================
+  # Redis for PeerTube
+  # =============================================================
+  peertube-redis:
+    image: redis:7-alpine
+    container_name: pmdl_peertube_redis
+
+    profiles:
+      - peertube
+      - full
+
+    volumes:
+      - pmdl_peertube_redis:/data
+
+    networks:
+      - peertube-internal
+
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 64M
+
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+    restart: unless-stopped
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "3"
+
+# ==============================================================
+# Volumes
+# ==============================================================
+
+volumes:
+  pmdl_peertube_data:
+    driver: local
+  pmdl_peertube_config:
+    driver: local
+  pmdl_peertube_redis:
+    driver: local
+
+# ==============================================================
+# Networks
+# ==============================================================
+
+networks:
+  proxy-external:
+    external: true
+    name: pmdl_proxy-external
+
+  db-internal:
+    external: true
+    name: pmdl_db-internal
+
+  peertube-internal:
+    driver: bridge

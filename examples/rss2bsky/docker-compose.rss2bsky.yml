@@ -1,0 +1,114 @@
+# ==============================================================
+# rss2bsky - RSS to Bluesky Syndication - Docker Compose Fragment
+# ==============================================================
+# Lightweight cron-based RSS to Bluesky cross-posting
+# Syndicates GoToSocial/Mastodon/WriteFreely posts to Bluesky
+#
+# Example Version: 1.0
+# Documentation: examples/rss2bsky/README.md
+#
+# Usage:
+#   docker compose -f docker-compose.yml \
+#                  -f .dev/examples/rss2bsky/docker-compose.rss2bsky.yml \
+#                  --profile rss2bsky up -d
+#
+# Prerequisites:
+#   1. GoToSocial or WriteFreely running (for RSS feed)
+#   2. Bluesky account with app password
+#   3. Configure .env with RSS2BSKY_* variables
+#
+# Resource Profile:
+#   - Idle: 2-5MB (alpine crond)
+#   - Active: ~20MB (during Python execution)
+#   - Peak: ~30MB (parsing large feeds)
+# ==============================================================
+
+# ==============================================================
+# Extension Fields (YAML Anchors for reuse)
+# ==============================================================
+
+x-rss2bsky-logging: &rss2bsky-logging
+  driver: "json-file"
+  options:
+    max-size: "5m"
+    max-file: "3"
+
+# ==============================================================
+# Services
+# ==============================================================
+
+services:
+  # =============================================================
+  # rss2bsky - RSS to Bluesky Bridge
+  # =============================================================
+  # Lightweight Python-based RSS to Bluesky syndication
+  # Uses alpine + crond for minimal resource usage
+  # Runs every 15 minutes by default (configurable)
+  # =============================================================
+  rss2bsky:
+    build:
+      context: .dev/examples/rss2bsky
+      dockerfile: Dockerfile
+    container_name: pmdl_rss2bsky
+
+    profiles:
+      - rss2bsky
+      - full
+
+    environment:
+      # Bluesky credentials
+      R2B_HANDLE: ${RSS2BSKY_HANDLE}
+      R2B_PASSWORD: ${RSS2BSKY_APP_PASSWORD}
+
+      # RSS feed URL (GoToSocial: https://social.domain/@user.rss)
+      R2B_FEED_URL: ${RSS2BSKY_FEED_URL}
+
+      # Optional: Only crosspost items after this date (RFC format)
+      # Example: "Mon, 01 Jan 2024 00:00:00 +0000"
+      R2B_START_POST_DATE: ${RSS2BSKY_START_DATE:-}
+
+      # Cron schedule (default: every 15 minutes)
+      RSS2BSKY_CRON: ${RSS2BSKY_CRON:-*/15 * * * *}
+
+      # Timezone
+      TZ: ${TZ:-UTC}
+
+    volumes:
+      # Persist state to track already-posted items
+      - pmdl_rss2bsky_data:/app/data
+
+    networks:
+      - proxy-external
+
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+        reservations:
+          memory: 16M
+
+    restart: unless-stopped
+    logging:
+      <<: *rss2bsky-logging
+
+    labels:
+      # No Traefik needed - this is a background worker
+      - "traefik.enable=false"
+      - "com.centurylinklabs.watchtower.enable=false"
+
+# ==============================================================
+# Volumes
+# ==============================================================
+
+volumes:
+  pmdl_rss2bsky_data:
+    driver: local
+
+# ==============================================================
+# Networks (reference existing)
+# ==============================================================
+
+networks:
+  proxy-external:
+    external: true
+    name: pmdl_proxy-external

@@ -1,0 +1,172 @@
+# ==============================================================
+# Solid Community Server - Docker Compose Fragment
+# ==============================================================
+# Decentralized data storage server implementing the Solid specification
+#
+# Example Version: 1.0
+# Documentation: examples/solid/README.md
+#
+# Usage:
+#   docker compose -f docker-compose.yml \
+#                  -f examples/solid/docker-compose.solid.yml \
+#                  --profile solid up -d
+#
+# Prerequisites:
+#   1. Foundation running (Traefik)
+#   2. Configure .env from .env.example
+# ==============================================================
+
+# ==============================================================
+# Extension Fields (YAML Anchors for reuse)
+# ==============================================================
+
+x-solid-healthcheck: &solid-healthcheck
+  interval: 30s
+  timeout: 10s
+  retries: 5
+  start_period: 30s
+
+x-solid-logging: &solid-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+# ==============================================================
+# Services
+# ==============================================================
+
+services:
+  # =============================================================
+  # Solid Community Server
+  # =============================================================
+  # Decentralized data storage implementing the Solid specification
+  # - Provides personal data pods
+  # - Supports WebID authentication
+  # - Implements Linked Data Platform (LDP)
+  # =============================================================
+  solid:
+    image: solidproject/community-server:7
+    container_name: pmdl_solid
+
+    # ---------------------------------------------------------
+    # Profile (optional - only starts with --profile solid)
+    # ---------------------------------------------------------
+    profiles:
+      - solid
+      - full
+
+    # ---------------------------------------------------------
+    # Environment Configuration
+    # ---------------------------------------------------------
+    environment:
+      # Base URL for the server (must match Traefik host)
+      CSS_BASE_URL: https://solid.${DOMAIN}/
+
+      # Logging level (info, debug, warn, error)
+      CSS_LOGGING_LEVEL: info
+
+    # ---------------------------------------------------------
+    # Command Arguments
+    # ---------------------------------------------------------
+    # Community Solid Server configuration
+    # -c file: Use file-based storage (default)
+    # -c memory: Use in-memory storage (for testing)
+    # --seedConfig: Path to seed config for initial users (optional)
+    command:
+      - -c
+      - config/file.json
+      - -f
+      - /data
+
+    # ---------------------------------------------------------
+    # Volumes
+    # ---------------------------------------------------------
+    volumes:
+      # Solid pods data storage
+      - pmdl_solid_data:/data
+
+    # ---------------------------------------------------------
+    # Network Configuration
+    # ---------------------------------------------------------
+    networks:
+      # Public network for Traefik access
+      - proxy-external
+
+    # ---------------------------------------------------------
+    # Resource Limits
+    # ---------------------------------------------------------
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+
+    # ---------------------------------------------------------
+    # Health Check
+    # ---------------------------------------------------------
+    # NOTE: Using nc port check instead of HTTP endpoint because:
+    # - Solid with CSS_BASE_URL set rejects requests to localhost as "outside identifier space"
+    # - Simple port check is sufficient for Traefik routing
+    healthcheck:
+      <<: *solid-healthcheck
+      test: ["CMD-SHELL", "nc -z localhost 3000 || exit 1"]
+
+    # ---------------------------------------------------------
+    # Restart Policy
+    # ---------------------------------------------------------
+    restart: unless-stopped
+
+    # ---------------------------------------------------------
+    # Logging
+    # ---------------------------------------------------------
+    logging:
+      <<: *solid-logging
+
+    # ---------------------------------------------------------
+    # Traefik Labels
+    # ---------------------------------------------------------
+    labels:
+      # Enable Traefik
+      - "traefik.enable=true"
+
+      # ---------------------------------------------------------
+      # Main Router (Solid Server)
+      # ---------------------------------------------------------
+      - "traefik.http.routers.solid.rule=Host(`solid.${DOMAIN}`)"
+      - "traefik.http.routers.solid.entrypoints=websecure"
+      - "traefik.http.routers.solid.tls=true"
+      - "traefik.http.routers.solid.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.solid.service=solid"
+
+      # ---------------------------------------------------------
+      # Service Definition
+      # ---------------------------------------------------------
+      - "traefik.http.services.solid.loadbalancer.server.port=3000"
+
+      # ---------------------------------------------------------
+      # Watchtower Label (opt-in auto updates)
+      # ---------------------------------------------------------
+      - "com.centurylinklabs.watchtower.enable=false"
+
+# ==============================================================
+# Volumes
+# ==============================================================
+
+volumes:
+  # Solid data volume
+  # Contains: User pods, WebID profiles, resources
+  pmdl_solid_data:
+    driver: local
+
+# ==============================================================
+# Networks (reference existing)
+# ==============================================================
+# These networks are defined in the foundation.
+# We only reference them here.
+
+networks:
+  proxy-external:
+    external: true
+    name: pmdl_proxy-external

@@ -1,0 +1,128 @@
+# ==============================================================
+# [TECHNOLOGY NAME] - Docker Compose Example
+# ==============================================================
+#
+# This is a complete, copy-paste ready example.
+# Replace all [PLACEHOLDERS] with actual values.
+#
+# Documentation: profiles/[tech]/PROFILE-SPEC.md
+# ==============================================================
+
+services:
+  # ============================================================
+  # [TECHNOLOGY] Service
+  # ============================================================
+  example-service:
+    image: "[image]:[tag]"
+    container_name: example-[tech]
+
+    # Security: Run as non-root user
+    # Find the correct UID/GID for your technology
+    user: "[uid]:[gid]"
+
+    # Secrets: File-based, never environment variables
+    secrets:
+      - example_password
+      - example_app_password
+
+    # Environment: Use _FILE suffix for secrets
+    environment:
+      # Authentication (via file)
+      # Replace [ROOT_PASSWORD] with actual var name, e.g., POSTGRES_PASSWORD
+      "[ROOT_PASSWORD]_FILE": /run/secrets/example_password
+      "[APP_PASSWORD]_FILE": /run/secrets/example_app_password
+
+      # Non-secret configuration
+      # Replace [DATABASE_NAME] with actual var name, e.g., POSTGRES_DB
+      "[DATABASE_NAME]": example_db
+      "[USER_NAME]": example_user
+
+      # Performance tuning (adjust based on sizing calculator)
+      "[MEMORY_PARAM]": "256MB"
+      "[CONNECTION_LIMIT]": "100"
+
+    # Volumes: Persistent data and init scripts
+    volumes:
+      # Named volume for data persistence
+      - example_data:/var/lib/[tech]/data
+
+      # Init scripts (read-only mount)
+      - ./init-scripts:/docker-entrypoint-initdb.d:ro
+
+      # Custom healthcheck script
+      - ./healthcheck-scripts/healthcheck.sh:/healthcheck.sh:ro
+
+    # Health check: Must work with _FILE secrets
+    healthcheck:
+      # Use script that reads from /run/secrets/
+      test: ["CMD", "/healthcheck.sh"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+
+    # Network: Place in appropriate zone
+    networks:
+      - db-internal
+
+    # Ports: Only expose if absolutely necessary
+    # For internal-only services, omit this section
+    # ports:
+    #   - "127.0.0.1:[host_port]:[container_port]"
+
+    # Resource limits: From sizing calculator
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          # cpus: "1.0"  # Uncomment if needed
+        reservations:
+          memory: 256M
+
+    # Restart policy: Recover from crashes
+    restart: unless-stopped
+
+    # Logging: Prevent unbounded log growth
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+# ==============================================================
+# Secrets Definitions
+# ==============================================================
+# Files must exist in ./secrets/ before docker compose up
+# Generate with: ./scripts/generate-secrets.sh
+
+secrets:
+  example_password:
+    file: ./secrets/example_password
+  example_app_password:
+    file: ./secrets/example_app_password
+
+# ==============================================================
+# Volumes
+# ==============================================================
+
+volumes:
+  example_data:
+    driver: local
+    # For attached block storage, use:
+    # driver_opts:
+    #   type: none
+    #   device: /mnt/block-storage/[tech]
+    #   o: bind
+
+# ==============================================================
+# Networks
+# ==============================================================
+# Reference existing networks or define inline
+
+networks:
+  db-internal:
+    # If using external network (recommended):
+    external: true
+    # If defining inline:
+    # driver: bridge
+    # internal: true  # No internet access

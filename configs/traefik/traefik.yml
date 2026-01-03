@@ -1,0 +1,19 @@
+# Traefik Static Configuration
+#
+# IMPORTANT: This file should remain minimal or be removed entirely.
+#
+# During VPS testing (2026-01-01), we discovered that when this file exists
+# with content, Traefik may not properly initialize all entrypoints from CLI args.
+# Symptoms: Only port 80 listens, ports 443/8448/8080 don't bind.
+# Solution: Remove/rename this file, or keep it completely empty.
+#
+# All Traefik configuration is provided via command-line arguments in
+# docker-compose.yml to keep everything in one place.
+#
+# See: https://doc.traefik.io/traefik/getting-started/configuration-overview/
+# See: .dev/ai/audits/2026-01-01-vps-security-testing-audit.md
+
+# Minimal config - DO NOT add entrypoints or providers here
+global:
+  checkNewVersion: false
+  sendAnonymousUsage: false

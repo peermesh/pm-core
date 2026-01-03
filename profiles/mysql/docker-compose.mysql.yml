@@ -1,0 +1,158 @@
+# ==============================================================
+# MySQL 8.0 - Docker Compose Fragment
+# ==============================================================
+# Profile Version: 1.0
+# Documentation: profiles/mysql/PROFILE-SPEC.md
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f profiles/mysql/docker-compose.mysql.yml up -d
+#
+# Or merge into main compose file.
+# ==============================================================
+
+# ==============================================================
+# YAML Anchors for Health Checks (per D4.1)
+# ==============================================================
+x-healthcheck-db: &healthcheck-db
+  interval: 10s
+  timeout: 5s
+  retries: 5
+  start_period: 60s
+
+services:
+  # =============================================================
+  # MySQL 8.0 - Primary Consumer: Ghost CMS
+  # =============================================================
+  mysql:
+    image: mysql:8.0
+    container_name: pmdl_mysql
+
+    # ─────────────────────────────────────────────────────────
+    # Secrets Configuration (per D3.1)
+    # All credentials via _FILE suffix - NEVER plaintext
+    # ─────────────────────────────────────────────────────────
+    secrets:
+      - mysql_root_password
+      - mysql_app_password
+
+    environment:
+      # Authentication via file-based secrets
+      MYSQL_ROOT_PASSWORD_FILE: /run/secrets/mysql_root_password
+      MYSQL_PASSWORD_FILE: /run/secrets/mysql_app_password
+
+      # Database configuration
+      MYSQL_DATABASE: ghost
+      MYSQL_USER: ghost
+
+      # Timezone
+      TZ: UTC
+
+    # ─────────────────────────────────────────────────────────
+    # Performance Tuning (per D2.2)
+    # Full Profile: 1.5GB container, 1GB buffer pool
+    # ─────────────────────────────────────────────────────────
+    command:
+      # InnoDB buffer pool: 70% of container limit
+      - "--innodb-buffer-pool-size=1073741824"  # 1GB
+
+      # Disable performance_schema to save ~400MB
+      - "--performance-schema=OFF"
+
+      # Connection limit (Ghost + admin)
+      - "--max-connections=50"
+
+      # I/O optimization for balanced durability
+      # Value 2: flush to OS buffer per commit, fsync once/second
+      - "--innodb-flush-log-at-trx-commit=2"
+
+      # Single node - disable binary logging
+      - "--skip-log-bin"
+
+      # Security hardening
+      - "--skip-symbolic-links"
+      - "--secure-file-priv=/var/lib/mysql-files"
+
+      # Character set for proper UTF-8 support
+      - "--character-set-server=utf8mb4"
+      - "--collation-server=utf8mb4_unicode_ci"
+
+      # Faster startup - skip DNS lookups
+      - "--skip-name-resolve"
+
+    # ─────────────────────────────────────────────────────────
+    # Volumes (per D9)
+    # ─────────────────────────────────────────────────────────
+    volumes:
+      # Persistent data volume
+      - pmdl_mysql_data:/var/lib/mysql
+
+      # Init scripts (run on first start with empty volume)
+      - ./profiles/mysql/init-scripts:/docker-entrypoint-initdb.d:ro
+
+      # Healthcheck script (secrets-aware)
+      - ./profiles/mysql/healthcheck-scripts/healthcheck.sh:/healthcheck.sh:ro
+
+    # ─────────────────────────────────────────────────────────
+    # Health Check (per D4.1)
+    # CRITICAL: Uses socket-based ping, NOT $MYSQL_PASSWORD
+    # ─────────────────────────────────────────────────────────
+    healthcheck:
+      <<: *healthcheck-db
+      test: ["CMD", "/healthcheck.sh"]
+
+    # ─────────────────────────────────────────────────────────
+    # Network Isolation (per D3.3)
+    # Database-only network, no external exposure
+    # ─────────────────────────────────────────────────────────
+    networks:
+      - db-internal
+
+    # ─────────────────────────────────────────────────────────
+    # Resource Limits (per D4.2, D10)
+    # Full Profile allocation
+    # ─────────────────────────────────────────────────────────
+    deploy:
+      resources:
+        limits:
+          memory: 1536M
+        reservations:
+          memory: 768M
+
+    # Restart policy
+    restart: unless-stopped
+
+    # Logging: Prevent unbounded log growth
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+# =============================================================
+# Secrets Definitions
+# =============================================================
+secrets:
+  mysql_root_password:
+    file: ./secrets/mysql_root_password
+  mysql_app_password:
+    file: ./secrets/mysql_app_password
+
+# =============================================================
+# Volumes
+# =============================================================
+volumes:
+  pmdl_mysql_data:
+    driver: local
+    # For attached block storage, use:
+    # driver_opts:
+    #   type: none
+    #   device: /mnt/block-storage/mysql
+    #   o: bind
+
+# =============================================================
+# Networks
+# =============================================================
+networks:
+  db-internal:
+    internal: true
+    name: pmdl_db_internal

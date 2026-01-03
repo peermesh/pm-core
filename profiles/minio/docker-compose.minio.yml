@@ -1,0 +1,211 @@
+# ==============================================================
+# MinIO S3-Compatible Object Storage - Docker Compose Fragment
+# ==============================================================
+# Copy this file or merge into your main docker-compose.yml
+#
+# Profile Version: 1.0
+# Documentation: profiles/minio/PROFILE-SPEC.md
+# Image: minio/minio:latest
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.minio.yml up -d
+#
+# Prerequisites:
+#   1. Generate secrets: ./scripts/generate-secrets.sh
+#   2. Create networks: docker network create pmdl_app-internal
+#   3. Ensure healthcheck script is in place
+# ==============================================================
+
+# ==============================================================
+# Extension Fields (YAML Anchors for reuse)
+# ==============================================================
+
+x-minio-healthcheck: &minio-healthcheck
+  interval: 30s
+  timeout: 10s
+  retries: 3
+  start_period: 30s
+
+x-minio-logging: &minio-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+# ==============================================================
+# Services
+# ==============================================================
+
+services:
+  # =============================================================
+  # MinIO S3-Compatible Object Storage
+  # =============================================================
+  # Primary use cases:
+  # - Backup destination for database dumps
+  # - User file uploads and media storage
+  # - Static asset hosting
+  # - Local S3-compatible development environment
+  # =============================================================
+  minio:
+    image: minio/minio:latest
+    container_name: pmdl_minio
+
+    # ---------------------------------------------------------
+    # Server Command
+    # ---------------------------------------------------------
+    # Single server mode with web console enabled
+    # For erasure coding (HA), use: server /data{1...4}
+    command: server /data --console-address ":9001"
+
+    # ---------------------------------------------------------
+    # Secrets Configuration
+    # ---------------------------------------------------------
+    # All credentials read from files, never environment variables
+    secrets:
+      - minio_root_user
+      - minio_root_password
+
+    # ---------------------------------------------------------
+    # Environment
+    # ---------------------------------------------------------
+    environment:
+      # Root credentials from secret files (NEVER plain text)
+      MINIO_ROOT_USER_FILE: /run/secrets/minio_root_user
+      MINIO_ROOT_PASSWORD_FILE: /run/secrets/minio_root_password
+
+      # Console settings
+      MINIO_BROWSER: "on"  # Enable web console (disable in hardened production)
+
+      # Prometheus metrics (optional - set to 'jwt' for authenticated metrics)
+      MINIO_PROMETHEUS_AUTH_TYPE: public
+
+      # Region (optional - for S3 compatibility)
+      MINIO_REGION: us-east-1
+
+    # ---------------------------------------------------------
+    # Volumes
+    # ---------------------------------------------------------
+    volumes:
+      # Data volume (persistent object storage)
+      - pmdl_minio_data:/data
+      # Healthcheck script (optional - for enhanced checks)
+      - ./profiles/minio/healthcheck-scripts/healthcheck.sh:/healthcheck.sh:ro
+
+    # ---------------------------------------------------------
+    # Health Check
+    # ---------------------------------------------------------
+    # Uses MinIO's built-in health endpoint
+    # Does not require authentication
+    healthcheck:
+      <<: *minio-healthcheck
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+
+    # ---------------------------------------------------------
+    # Network Configuration
+    # ---------------------------------------------------------
+    # app-internal: For applications to access S3 API
+    # backend: For reverse proxy routing to console
+    networks:
+      - app-internal
+      - backend
+
+    # ---------------------------------------------------------
+    # Port Exposure
+    # ---------------------------------------------------------
+    # Development: Expose both ports locally
+    # Production: Use reverse proxy, remove direct port exposure
+    ports:
+      - "127.0.0.1:9000:9000"   # S3 API endpoint
+      - "127.0.0.1:9001:9001"   # Web Console (dev only)
+
+    # ---------------------------------------------------------
+    # Resource Constraints
+    # ---------------------------------------------------------
+    # MinIO is memory-efficient; scale based on object count
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+
+    # ---------------------------------------------------------
+    # Restart Policy
+    # ---------------------------------------------------------
+    restart: unless-stopped
+
+    # ---------------------------------------------------------
+    # Logging
+    # ---------------------------------------------------------
+    logging:
+      <<: *minio-logging
+
+# ==============================================================
+# Production Profile Override (Hardened)
+# ==============================================================
+# Uncomment for production deployments:
+#
+#   minio:
+#     environment:
+#       MINIO_BROWSER: "off"           # Disable console in prod
+#       MINIO_PROMETHEUS_AUTH_TYPE: jwt # Require auth for metrics
+#     ports: []                         # No direct exposure
+#     labels:
+#       - "traefik.enable=true"
+#       - "traefik.http.routers.minio-api.rule=Host(`s3.example.com`)"
+#       - "traefik.http.services.minio-api.loadbalancer.server.port=9000"
+
+# ==============================================================
+# Erasure Coding Profile (High Availability)
+# ==============================================================
+# For redundant storage with 4 drives:
+#
+#   minio:
+#     command: server /data{1...4} --console-address ":9001"
+#     volumes:
+#       - /mnt/disk1/minio:/data1
+#       - /mnt/disk2/minio:/data2
+#       - /mnt/disk3/minio:/data3
+#       - /mnt/disk4/minio:/data4
+
+# ==============================================================
+# Secrets
+# ==============================================================
+
+secrets:
+  # MinIO admin username
+  minio_root_user:
+    file: ./secrets/minio_root_user
+
+  # MinIO admin password (32+ characters recommended)
+  minio_root_password:
+    file: ./secrets/minio_root_password
+
+# ==============================================================
+# Volumes
+# ==============================================================
+
+volumes:
+  # MinIO data volume
+  # Contains: all stored objects and metadata
+  pmdl_minio_data:
+    driver: local
+    # For attached block storage, use:
+    # driver_opts:
+    #   type: none
+    #   device: /mnt/block-storage/minio
+    #   o: bind
+
+# ==============================================================
+# Networks
+# ==============================================================
+
+networks:
+  # Application internal network
+  # Services access MinIO S3 API on this network
+  app-internal:
+    name: pmdl_app-internal
+
+  # Backend network for reverse proxy routing
+  backend:
+    name: pmdl_backend

@@ -1,0 +1,334 @@
+# ==============================================================
+# Matrix Synapse + Element Web - Docker Compose Fragment
+# ==============================================================
+# Matrix homeserver for decentralized communication
+# Federation-capable, OIDC-enabled
+# Includes Element Web client for browser access
+#
+# Example Version: 1.1
+# Documentation: examples/matrix/README.md
+# Profile Dependency: PostgreSQL profile required
+#
+# Usage:
+#   docker compose -f docker-compose.yml \
+#                  -f profiles/postgresql/docker-compose.postgresql.yml \
+#                  -f examples/matrix/docker-compose.matrix.yml \
+#                  --profile matrix up -d
+#
+# Prerequisites:
+#   1. Foundation running (Traefik)
+#   2. PostgreSQL profile active
+#   3. Generate homeserver.yaml first (see README)
+#   4. All required secrets exist (run generate-secrets.sh)
+#   5. Configure .env from .env.example
+#   6. Update element-config.json with your domain
+# ==============================================================
+
+# ==============================================================
+# Extension Fields (YAML Anchors for reuse)
+# ==============================================================
+
+x-synapse-healthcheck: &synapse-healthcheck
+  interval: 30s
+  timeout: 10s
+  retries: 5
+  start_period: 120s  # Synapse takes longer to start
+
+x-element-healthcheck: &element-healthcheck
+  interval: 30s
+  timeout: 5s
+  retries: 3
+  start_period: 10s
+
+x-synapse-logging: &synapse-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+x-element-logging: &element-logging
+  driver: "json-file"
+  options:
+    max-size: "5m"
+    max-file: "3"
+
+# ==============================================================
+# Services
+# ==============================================================
+
+services:
+  # =============================================================
+  # Matrix Synapse Homeserver
+  # =============================================================
+  # Matrix homeserver implementation
+  # - Federation with other Matrix servers
+  # - OIDC authentication via Authelia
+  # - PostgreSQL for data storage
+  # =============================================================
+  synapse:
+    image: matrixdotorg/synapse:latest
+    container_name: pmdl_synapse
+
+    # ---------------------------------------------------------
+    # Profile (optional - only starts with --profile matrix)
+    # ---------------------------------------------------------
+    profiles:
+      - matrix
+      - full
+
+    # ---------------------------------------------------------
+    # Dependencies
+    # ---------------------------------------------------------
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+    # ---------------------------------------------------------
+    # Environment Configuration
+    # ---------------------------------------------------------
+    environment:
+      # Server name (must match homeserver.yaml)
+      SYNAPSE_SERVER_NAME: ${SYNAPSE_SERVER_NAME:-matrix.localhost}
+
+      # Disable stat reporting
+      SYNAPSE_REPORT_STATS: ${SYNAPSE_REPORT_STATS:-no}
+
+      # UID/GID for file permissions
+      UID: 991
+      GID: 991
+
+    # ---------------------------------------------------------
+    # Secrets
+    # ---------------------------------------------------------
+    secrets:
+      - synapse_db_password
+      - synapse_signing_key
+      - synapse_registration_shared_secret
+      # - oidc_client_matrix  # Uncomment when using OIDC/Authelia
+
+    # ---------------------------------------------------------
+    # Volumes
+    # ---------------------------------------------------------
+    volumes:
+      # Main data directory (config, media, logs)
+      - pmdl_synapse_data:/data
+      # Configuration (must be generated first)
+      - ./.dev/examples/matrix/config/homeserver.yaml:/data/homeserver.yaml:ro
+      - ./.dev/examples/matrix/config/log.config:/data/log.config:ro
+      - ./.dev/examples/matrix/config/signing.key:/data/signing.key:ro
+
+    # ---------------------------------------------------------
+    # Network Configuration
+    # ---------------------------------------------------------
+    networks:
+      # Public network for Traefik access
+      - proxy-external
+      # Internal network for database access
+      - db-internal
+
+    # ---------------------------------------------------------
+    # Resource Limits
+    # ---------------------------------------------------------
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 1G
+
+    # ---------------------------------------------------------
+    # Health Check
+    # ---------------------------------------------------------
+    healthcheck:
+      <<: *synapse-healthcheck
+      test: ["CMD-SHELL", "curl -fSs http://localhost:8008/health || exit 1"]
+
+    # ---------------------------------------------------------
+    # Restart Policy
+    # ---------------------------------------------------------
+    restart: unless-stopped
+
+    # ---------------------------------------------------------
+    # Logging
+    # ---------------------------------------------------------
+    logging:
+      <<: *synapse-logging
+
+    # ---------------------------------------------------------
+    # Traefik Labels
+    # ---------------------------------------------------------
+    labels:
+      # Enable Traefik
+      - "traefik.enable=true"
+
+      # ---------------------------------------------------------
+      # Client-Server API Router (HTTPS)
+      # ---------------------------------------------------------
+      - "traefik.http.routers.synapse.rule=Host(`matrix.${DOMAIN}`)"
+      - "traefik.http.routers.synapse.entrypoints=websecure"
+      - "traefik.http.routers.synapse.tls=true"
+      - "traefik.http.routers.synapse.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.synapse.service=synapse"
+
+      # ---------------------------------------------------------
+      # Federation API Router (HTTPS on 8448)
+      # ---------------------------------------------------------
+      # Federation traffic comes on port 8448
+      # Requires Traefik to listen on 8448 entrypoint
+      - "traefik.http.routers.synapse-federation.rule=Host(`matrix.${DOMAIN}`)"
+      - "traefik.http.routers.synapse-federation.entrypoints=matrix-fed"
+      - "traefik.http.routers.synapse-federation.tls=true"
+      - "traefik.http.routers.synapse-federation.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.synapse-federation.service=synapse"
+
+      # ---------------------------------------------------------
+      # Service Definition
+      # ---------------------------------------------------------
+      - "traefik.http.services.synapse.loadbalancer.server.port=8008"
+
+      # ---------------------------------------------------------
+      # Watchtower Label (opt-in auto updates)
+      # ---------------------------------------------------------
+      - "com.centurylinklabs.watchtower.enable=false"
+
+  # =============================================================
+  # Element Web Client
+  # =============================================================
+  # Web-based Matrix client for browser access
+  # - Connects to local Synapse homeserver
+  # - Lightweight static web application
+  # - Full Matrix feature support
+  # =============================================================
+  element-web:
+    image: vectorim/element-web:latest
+    container_name: pmdl_element
+
+    # ---------------------------------------------------------
+    # Profile (optional - only starts with --profile matrix)
+    # ---------------------------------------------------------
+    profiles:
+      - matrix
+      - full
+
+    # ---------------------------------------------------------
+    # Dependencies
+    # ---------------------------------------------------------
+    depends_on:
+      synapse:
+        condition: service_healthy
+
+    # ---------------------------------------------------------
+    # Volumes
+    # ---------------------------------------------------------
+    volumes:
+      # Element configuration
+      - ./.dev/examples/matrix/config/element-config.json:/app/config.json:ro
+
+    # ---------------------------------------------------------
+    # Network Configuration
+    # ---------------------------------------------------------
+    networks:
+      # Public network for Traefik access
+      - proxy-external
+
+    # ---------------------------------------------------------
+    # Resource Limits
+    # ---------------------------------------------------------
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+        reservations:
+          memory: 64M
+
+    # ---------------------------------------------------------
+    # Health Check
+    # ---------------------------------------------------------
+    healthcheck:
+      <<: *element-healthcheck
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:80/ || exit 1"]
+
+    # ---------------------------------------------------------
+    # Restart Policy
+    # ---------------------------------------------------------
+    restart: unless-stopped
+
+    # ---------------------------------------------------------
+    # Logging
+    # ---------------------------------------------------------
+    logging:
+      <<: *element-logging
+
+    # ---------------------------------------------------------
+    # Traefik Labels
+    # ---------------------------------------------------------
+    labels:
+      # Enable Traefik
+      - "traefik.enable=true"
+
+      # ---------------------------------------------------------
+      # Element Web Router (HTTPS)
+      # ---------------------------------------------------------
+      - "traefik.http.routers.element.rule=Host(`element.${DOMAIN}`)"
+      - "traefik.http.routers.element.entrypoints=websecure"
+      - "traefik.http.routers.element.tls=true"
+      - "traefik.http.routers.element.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.element.service=element"
+
+      # ---------------------------------------------------------
+      # Service Definition
+      # ---------------------------------------------------------
+      - "traefik.http.services.element.loadbalancer.server.port=80"
+
+      # ---------------------------------------------------------
+      # Watchtower Label (opt-in auto updates)
+      # ---------------------------------------------------------
+      - "com.centurylinklabs.watchtower.enable=false"
+
+# ==============================================================
+# Secrets
+# ==============================================================
+
+secrets:
+  # PostgreSQL password for synapse user
+  synapse_db_password:
+    file: ./secrets/synapse_db_password
+
+  # Server signing key
+  synapse_signing_key:
+    file: ./secrets/synapse_signing_key
+
+  # Registration shared secret (for admin registration)
+  synapse_registration_shared_secret:
+    file: ./secrets/synapse_registration_shared_secret
+
+  # OIDC client secret (shared with Authelia) - uncomment when using OIDC
+  # oidc_client_matrix:
+  #   file: ./secrets/oidc_client_matrix
+
+# ==============================================================
+# Volumes
+# ==============================================================
+
+volumes:
+  # Synapse data volume
+  # Contains: media, logs, sqlite (if not using postgres)
+  pmdl_synapse_data:
+    driver: local
+
+# ==============================================================
+# Networks (reference existing)
+# ==============================================================
+
+networks:
+  proxy-external:
+    external: true
+    name: pmdl_proxy-external
+
+  db-internal:
+    external: true
+    name: pmdl_db-internal
+
+  # auth-internal:  # Uncomment when using OIDC/Authelia
+  #   external: true
+  #   name: pmdl_auth-internal

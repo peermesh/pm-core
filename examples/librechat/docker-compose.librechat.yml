@@ -1,0 +1,274 @@
+# ==============================================================
+# LibreChat - Docker Compose Fragment
+# ==============================================================
+# Open-source AI assistant interface
+# Supports: OpenAI, Anthropic, Azure, Google, Ollama
+#
+# Example Version: 1.0
+# Documentation: examples/librechat/README.md
+# Profile Dependencies: MongoDB + PostgreSQL (with pgvector)
+#
+# Usage:
+#   docker compose -f docker-compose.yml \
+#                  -f profiles/mongodb/docker-compose.mongodb.yml \
+#                  -f profiles/postgresql/docker-compose.postgresql.yml \
+#                  -f examples/librechat/docker-compose.librechat.yml \
+#                  --profile librechat up -d
+#
+# Prerequisites:
+#   1. Foundation running (Traefik)
+#   2. MongoDB and PostgreSQL profiles active
+#   3. All required secrets exist (run generate-secrets.sh)
+#   4. Configure .env from .env.example
+# ==============================================================
+
+# ==============================================================
+# Extension Fields (YAML Anchors for reuse)
+# ==============================================================
+
+x-librechat-healthcheck: &librechat-healthcheck
+  interval: 30s
+  timeout: 10s
+  retries: 5
+  start_period: 60s
+
+x-librechat-logging: &librechat-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+# ==============================================================
+# Services
+# ==============================================================
+
+services:
+  # =============================================================
+  # LibreChat
+  # =============================================================
+  # AI assistant interface with multi-provider support
+  # - MongoDB for conversation storage
+  # - PostgreSQL for vector embeddings (RAG)
+  # - OIDC authentication via Authelia
+  # =============================================================
+  librechat:
+    image: ghcr.io/danny-avila/librechat-dev:latest
+    container_name: pmdl_librechat
+
+    # ---------------------------------------------------------
+    # Profile (optional - only starts with --profile librechat)
+    # ---------------------------------------------------------
+    profiles:
+      - librechat
+      - full
+
+    # ---------------------------------------------------------
+    # Dependencies
+    # ---------------------------------------------------------
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+
+    # ---------------------------------------------------------
+    # Environment Configuration
+    # ---------------------------------------------------------
+    environment:
+      # Application host
+      HOST: 0.0.0.0
+      PORT: 3080
+      NODE_ENV: production
+
+      # MongoDB connection
+      MONGO_URI: mongodb://librechat:${MONGODB_LIBRECHAT_PASSWORD}@mongodb:27017/librechat?authSource=admin
+
+      # PostgreSQL connection (for pgvector/RAG)
+      POSTGRES_DB: librechat
+      POSTGRES_USER: librechat
+      POSTGRES_PASSWORD_FILE: /run/secrets/librechat_db_password
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+
+      # Encryption keys (for stored API keys)
+      CREDS_KEY_FILE: /run/secrets/librechat_creds_key
+      CREDS_IV_FILE: /run/secrets/librechat_creds_iv
+      JWT_SECRET_FILE: /run/secrets/librechat_jwt_secret
+
+      # OIDC Configuration (Optional - configure when Authelia available)
+      # OPENID_ISSUER: https://auth.${DOMAIN}
+      # OPENID_CLIENT_ID: librechat
+      # OPENID_CLIENT_SECRET_FILE: /run/secrets/oidc_client_librechat
+      # OPENID_CALLBACK_URL: https://chat.${DOMAIN}/oauth/callback
+      # OPENID_SCOPE: openid profile email
+      # OPENID_BUTTON_LABEL: Login with SSO
+      ALLOW_SOCIAL_LOGIN: ${ALLOW_SOCIAL_LOGIN:-false}
+      ALLOW_SOCIAL_REGISTRATION: ${ALLOW_SOCIAL_REGISTRATION:-false}
+
+      # Domain for session
+      DOMAIN_CLIENT: https://chat.${DOMAIN}
+      DOMAIN_SERVER: https://chat.${DOMAIN}
+
+      # AI Provider API Keys (optional - can use secret files)
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+      AZURE_API_KEY: ${AZURE_API_KEY:-}
+
+      # Ollama (if using local models)
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-}
+
+      # Registration
+      ALLOW_REGISTRATION: ${ALLOW_REGISTRATION:-true}
+      ALLOW_UNVERIFIED_EMAIL_LOGIN: ${ALLOW_UNVERIFIED_EMAIL_LOGIN:-true}
+
+      # Features
+      SEARCH: true
+      MEILI_HOST: ${MEILI_HOST:-}
+      MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:-}
+
+      # Rate limiting
+      MESSAGE_RATE_LIMIT: 20
+      MESSAGE_RATE_WINDOW: 1
+
+      # File handling
+      ALLOW_FILE_UPLOAD: true
+      FILE_SIZE_LIMIT: 10485760
+
+    # ---------------------------------------------------------
+    # Secrets
+    # ---------------------------------------------------------
+    secrets:
+      - librechat_db_password
+      - librechat_creds_key
+      - librechat_creds_iv
+      - librechat_jwt_secret
+      # - oidc_client_librechat  # Uncomment when using OIDC/Authelia
+
+    # ---------------------------------------------------------
+    # Volumes
+    # ---------------------------------------------------------
+    volumes:
+      # Uploaded images
+      - pmdl_librechat_images:/app/client/public/images
+      # Application logs
+      - pmdl_librechat_logs:/app/api/logs
+      # Optional: custom configuration
+      # - ./librechat.yaml:/app/librechat.yaml:ro
+
+    # ---------------------------------------------------------
+    # Network Configuration
+    # ---------------------------------------------------------
+    networks:
+      # Public network for Traefik access
+      - proxy-external
+      # Internal network for database access
+      - db-internal
+
+    # ---------------------------------------------------------
+    # Resource Limits
+    # ---------------------------------------------------------
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+
+    # ---------------------------------------------------------
+    # Health Check
+    # ---------------------------------------------------------
+    healthcheck:
+      <<: *librechat-healthcheck
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:3080/api/health || exit 1"]
+
+    # ---------------------------------------------------------
+    # Restart Policy
+    # ---------------------------------------------------------
+    restart: unless-stopped
+
+    # ---------------------------------------------------------
+    # Logging
+    # ---------------------------------------------------------
+    logging:
+      <<: *librechat-logging
+
+    # ---------------------------------------------------------
+    # Traefik Labels
+    # ---------------------------------------------------------
+    labels:
+      # Enable Traefik
+      - "traefik.enable=true"
+
+      # ---------------------------------------------------------
+      # Main Router
+      # ---------------------------------------------------------
+      - "traefik.http.routers.librechat.rule=Host(`chat.${DOMAIN}`)"
+      - "traefik.http.routers.librechat.entrypoints=websecure"
+      - "traefik.http.routers.librechat.tls=true"
+      - "traefik.http.routers.librechat.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.librechat.service=librechat"
+
+      # ---------------------------------------------------------
+      # Service Definition
+      # ---------------------------------------------------------
+      - "traefik.http.services.librechat.loadbalancer.server.port=3080"
+
+      # ---------------------------------------------------------
+      # Watchtower Label (opt-in auto updates)
+      # ---------------------------------------------------------
+      - "com.centurylinklabs.watchtower.enable=false"
+
+# ==============================================================
+# Secrets
+# ==============================================================
+
+secrets:
+  # PostgreSQL password for librechat user
+  librechat_db_password:
+    file: ./secrets/librechat_db_password
+
+  # Encryption keys for stored credentials
+  librechat_creds_key:
+    file: ./secrets/librechat_creds_key
+
+  librechat_creds_iv:
+    file: ./secrets/librechat_creds_iv
+
+  # JWT signing secret
+  librechat_jwt_secret:
+    file: ./secrets/librechat_jwt_secret
+
+  # OIDC client secret (shared with Authelia) - uncomment when using OIDC
+  # oidc_client_librechat:
+  #   file: ./secrets/oidc_client_librechat
+
+# ==============================================================
+# Volumes
+# ==============================================================
+
+volumes:
+  # LibreChat uploaded images
+  pmdl_librechat_images:
+    driver: local
+
+  # LibreChat application logs
+  pmdl_librechat_logs:
+    driver: local
+
+# ==============================================================
+# Networks (reference existing)
+# ==============================================================
+
+networks:
+  proxy-external:
+    external: true
+    name: pmdl_proxy-external
+
+  db-internal:
+    external: true
+    name: pmdl_db-internal
+
+  # auth-internal:  # Uncomment when using OIDC/Authelia
+  #   external: true
+  #   name: pmdl_auth-internal

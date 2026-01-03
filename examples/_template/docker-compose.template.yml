@@ -1,0 +1,248 @@
+# ==============================================================
+# Application Template - Docker Compose Fragment
+# ==============================================================
+# Template for adding new applications to the foundation
+#
+# Instructions:
+#   1. Copy this file to examples/myapp/docker-compose.myapp.yml
+#   2. Replace all occurrences of:
+#      - MYAPP/myapp -> your app name
+#      - 8080 -> your app's port
+#   3. Configure database dependency (PostgreSQL, MySQL, or MongoDB)
+#   4. Set up Traefik labels for routing
+#   5. Generate required secrets
+#
+# Documentation: examples/_template/README.md
+# ==============================================================
+
+# ==============================================================
+# Extension Fields (YAML Anchors for reuse)
+# ==============================================================
+
+x-myapp-healthcheck: &myapp-healthcheck
+  interval: 30s
+  timeout: 10s
+  retries: 5
+  start_period: 60s
+
+x-myapp-logging: &myapp-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+# ==============================================================
+# Services
+# ==============================================================
+
+services:
+  # =============================================================
+  # Your Application
+  # =============================================================
+  # Description: [What your app does]
+  # Database: [PostgreSQL/MySQL/MongoDB]
+  # Auth: [OIDC/ForwardAuth/None]
+  # =============================================================
+  myapp:
+    # ---------------------------------------------------------
+    # Image
+    # ---------------------------------------------------------
+    # Use official image from Docker Hub or GHCR
+    image: organization/myapp:latest
+    container_name: pmdl_myapp
+
+    # ---------------------------------------------------------
+    # Profile
+    # ---------------------------------------------------------
+    # Makes this service optional (only starts with --profile myapp)
+    profiles:
+      - myapp
+      - full
+
+    # ---------------------------------------------------------
+    # Dependencies
+    # ---------------------------------------------------------
+    # Wait for database to be healthy before starting
+    depends_on:
+      # Uncomment the database you need:
+
+      # PostgreSQL
+      # postgres:
+      #   condition: service_healthy
+
+      # MySQL
+      # mysql:
+      #   condition: service_healthy
+
+      # MongoDB
+      # mongodb:
+      #   condition: service_healthy
+
+    # ---------------------------------------------------------
+    # Environment
+    # ---------------------------------------------------------
+    environment:
+      # Node environment
+      NODE_ENV: production
+
+      # Database connection (choose one)
+      # PostgreSQL:
+      # DATABASE_URL: postgresql://myapp:${MYAPP_DB_PASSWORD}@postgres:5432/myapp
+
+      # MySQL:
+      # DATABASE_HOST: mysql
+      # DATABASE_PORT: 3306
+      # DATABASE_NAME: myapp
+      # DATABASE_USER: myapp
+      # DATABASE_PASSWORD_FILE: /run/secrets/myapp_db_password
+
+      # MongoDB:
+      # MONGODB_URI: mongodb://myapp:${MYAPP_DB_PASSWORD}@mongodb:27017/myapp?authSource=admin
+
+      # Application settings
+      # APP_URL: https://myapp.${DOMAIN}
+      # APP_SECRET_FILE: /run/secrets/myapp_secret
+
+    # ---------------------------------------------------------
+    # Secrets
+    # ---------------------------------------------------------
+    secrets:
+      - myapp_db_password
+      # - myapp_secret
+      # - oidc_client_myapp  # If using OIDC
+
+    # ---------------------------------------------------------
+    # Volumes
+    # ---------------------------------------------------------
+    volumes:
+      # Persistent data
+      - pmdl_myapp_data:/app/data
+      # Logs (optional)
+      - pmdl_myapp_logs:/app/logs
+
+    # ---------------------------------------------------------
+    # Network Configuration
+    # ---------------------------------------------------------
+    networks:
+      # Required: Traefik access
+      - proxy-external
+      # Required: Database access
+      - db-internal
+      # Optional: Authelia OIDC access
+      # - auth-internal
+
+    # ---------------------------------------------------------
+    # Resource Limits
+    # ---------------------------------------------------------
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+
+    # ---------------------------------------------------------
+    # Health Check
+    # ---------------------------------------------------------
+    healthcheck:
+      <<: *myapp-healthcheck
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
+
+    # ---------------------------------------------------------
+    # Restart Policy
+    # ---------------------------------------------------------
+    restart: unless-stopped
+
+    # ---------------------------------------------------------
+    # Logging
+    # ---------------------------------------------------------
+    logging:
+      <<: *myapp-logging
+
+    # ---------------------------------------------------------
+    # Traefik Labels
+    # ---------------------------------------------------------
+    labels:
+      # Enable Traefik
+      - "traefik.enable=true"
+
+      # ---------------------------------------------------------
+      # Main Router (public access)
+      # ---------------------------------------------------------
+      - "traefik.http.routers.myapp.rule=Host(`myapp.${DOMAIN}`)"
+      - "traefik.http.routers.myapp.entrypoints=websecure"
+      - "traefik.http.routers.myapp.tls=true"
+      - "traefik.http.routers.myapp.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.myapp.service=myapp"
+      - "traefik.http.routers.myapp.priority=10"
+
+      # ---------------------------------------------------------
+      # Protected Admin Router (Authelia required)
+      # ---------------------------------------------------------
+      # Uncomment to protect admin paths:
+      # - "traefik.http.routers.myapp-admin.rule=Host(`myapp.${DOMAIN}`) && PathPrefix(`/admin`)"
+      # - "traefik.http.routers.myapp-admin.entrypoints=websecure"
+      # - "traefik.http.routers.myapp-admin.tls=true"
+      # - "traefik.http.routers.myapp-admin.tls.certresolver=letsencrypt"
+      # - "traefik.http.routers.myapp-admin.middlewares=authelia@file"
+      # - "traefik.http.routers.myapp-admin.service=myapp"
+      # - "traefik.http.routers.myapp-admin.priority=100"
+
+      # ---------------------------------------------------------
+      # Service Definition
+      # ---------------------------------------------------------
+      - "traefik.http.services.myapp.loadbalancer.server.port=8080"
+
+      # ---------------------------------------------------------
+      # Watchtower Label
+      # ---------------------------------------------------------
+      # Set to true to enable auto-updates
+      - "com.centurylinklabs.watchtower.enable=false"
+
+# ==============================================================
+# Secrets
+# ==============================================================
+
+secrets:
+  # Database password
+  myapp_db_password:
+    file: ./secrets/myapp_db_password
+
+  # Application secret (optional)
+  # myapp_secret:
+  #   file: ./secrets/myapp_secret
+
+  # OIDC client secret (optional)
+  # oidc_client_myapp:
+  #   file: ./secrets/oidc_client_myapp
+
+# ==============================================================
+# Volumes
+# ==============================================================
+
+volumes:
+  # Application data
+  pmdl_myapp_data:
+    driver: local
+
+  # Application logs
+  pmdl_myapp_logs:
+    driver: local
+
+# ==============================================================
+# Networks (reference existing)
+# ==============================================================
+
+networks:
+  proxy-external:
+    external: true
+    name: pmdl_proxy-external
+
+  db-internal:
+    external: true
+    name: pmdl_db-internal
+
+  # Uncomment if using OIDC
+  # auth-internal:
+  #   external: true
+  #   name: pmdl_auth-internal

@@ -1,0 +1,79 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., v1.2.3)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "version=${{ inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Generate changelog
+        id: changelog
+        uses: mikepenz/release-changelog-builder-action@v4
+        with:
+          configuration: ".github/changelog-config.json"
+          toTag: ${{ steps.version.outputs.version }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create checksums
+        run: |
+          # Create checksums for key configuration files
+          sha256sum docker-compose*.yml > checksums.sha256
+          sha256sum .env.example >> checksums.sha256
+
+      - name: Create GitHub Release
+        uses: ncipollo/release-action@v1
+        with:
+          name: ${{ steps.version.outputs.version }}
+          tag: ${{ steps.version.outputs.version }}
+          body: |
+            ## What's Changed
+
+            ${{ steps.changelog.outputs.changelog }}
+
+            ## Verification
+
+            Verify file integrity with:
+            ```bash
+            sha256sum -c checksums.sha256
+            ```
+
+            ## Quick Start
+
+            ```bash
+            git clone https://github.com/grigb/peer-mesh-docker-lab.git
+            cd peer-mesh-docker-lab
+            cp .env.example .env
+            docker compose --profile core up -d
+            ```
+          artifacts: checksums.sha256
+          generateReleaseNotes: false
+          draft: false
+          token: ${{ secrets.GITHUB_TOKEN }}

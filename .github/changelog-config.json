@@ -1,0 +1,26 @@
+{
+  "categories": [
+    {
+      "title": "## Features",
+      "labels": ["enhancement", "feature"]
+    },
+    {
+      "title": "## Bug Fixes",
+      "labels": ["bug", "fix"]
+    },
+    {
+      "title": "## Security",
+      "labels": ["security"]
+    },
+    {
+      "title": "## Documentation",
+      "labels": ["documentation", "docs"]
+    },
+    {
+      "title": "## Maintenance",
+      "labels": ["chore", "maintenance", "dependencies"]
+    }
+  ],
+  "template": "#{{CHANGELOG}}\n\n**Full Changelog**: #{{RELEASE_DIFF}}",
+  "pr_template": "- #{{TITLE}} (#{{NUMBER}}) @#{{AUTHOR}}"
+}

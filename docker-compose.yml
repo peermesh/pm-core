@@ -1,0 +1,461 @@
+# ==============================================================
+# Peer Mesh Docker Lab - Root Compose File
+# ==============================================================
+#
+# PROFILES AVAILABLE:
+#   Foundation (always on):
+#     - Traefik reverse proxy
+#     - Docker socket proxy
+#     - Networks
+#
+#   Supporting Tech (select what your app needs):
+#     postgresql  - PostgreSQL 16 with pgvector
+#     mysql       - MySQL 8.0
+#     mongodb     - MongoDB 6.0
+#     redis       - Redis 7 / Valkey
+#     minio       - S3-compatible object storage
+#
+#   Feature Profiles:
+#     monitoring  - Prometheus, Grafana, Loki
+#     backup      - Automated backup container
+#     dev         - Adminer, Mailhog, debug tools
+#
+# ACTIVATION:
+#   1. Copy .env.example to .env
+#   2. Run ./scripts/generate-secrets.sh
+#   3. Set COMPOSE_PROFILES=postgresql,redis,backup
+#   4. Run: docker compose up -d
+#
+# ==============================================================
+
+# --------------------------------------------------------------
+# Extension Fields (Reusable Configurations)
+# --------------------------------------------------------------
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+x-healthcheck-defaults: &healthcheck-defaults
+  interval: 30s
+  timeout: 10s
+  retries: 5
+  start_period: 60s
+
+x-healthcheck-database: &healthcheck-database
+  interval: 30s
+  timeout: 10s
+  retries: 5
+  start_period: 120s
+
+x-security-opts: &security-opts
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
+
+x-restart-policy: &restart-policy
+  restart: unless-stopped
+
+# Combined base for secured services (security-opts + restart-policy)
+x-secured-service: &secured-service
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
+  restart: unless-stopped
+
+# Traefik label presets
+x-traefik-https: &traefik-https-labels
+  traefik.enable: "true"
+  traefik.http.routers.${SERVICE_NAME:-app}.entrypoints: websecure
+  traefik.http.routers.${SERVICE_NAME:-app}.tls.certresolver: letsencrypt
+
+# --------------------------------------------------------------
+# SERVICES
+# --------------------------------------------------------------
+
+services:
+  # ============================================================
+  # FOUNDATION LAYER (Always On)
+  # ============================================================
+
+  # Docker Socket Proxy - Secure Docker API access for Traefik
+  socket-proxy:
+    image: tecnativa/docker-socket-proxy:0.2
+    container_name: pmdl_socket-proxy
+    restart: unless-stopped
+    # Exception: Must run as root to access Docker socket
+    user: "0:0"
+    environment:
+      # Read-only access for service discovery
+      CONTAINERS: 1
+      NETWORKS: 1
+      INFO: 1
+      VERSION: 1
+      # Everything else disabled
+      SERVICES: 0
+      TASKS: 0
+      SWARM: 0
+      VOLUMES: 0
+      POST: 0
+      BUILD: 0
+      COMMIT: 0
+      CONFIGS: 0
+      DISTRIBUTION: 0
+      EXEC: 0
+      GRPC: 0
+      IMAGES: 0
+      NODES: 0
+      PLUGINS: 0
+      SECRETS: 0
+      SESSION: 0
+      SYSTEM: 0
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - socket-proxy
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          memory: 32M
+        reservations:
+          memory: 16M
+
+  # Traefik Reverse Proxy
+  # NOTE: Using v2.11 instead of v3.2 due to Docker API compatibility issue.
+  # Traefik v3.2 uses Docker API client v1.24, but Docker 29.x requires minimum v1.44.
+  # Error: "client version 1.24 is too old. Minimum supported API version is 1.44"
+  # See: .dev/ai/audits/2026-01-01-vps-security-testing-audit.md
+  traefik:
+    image: traefik:v2.11
+    container_name: pmdl_traefik
+    <<: *secured-service
+    # user: "65534:65534"  # nobody user - disabled for initial testing
+    depends_on:
+      socket-proxy:
+        condition: service_started
+    command:
+      # Docker provider via socket-proxy
+      - "--providers.docker=true"
+      - "--providers.docker.endpoint=tcp://socket-proxy:2375"
+      - "--providers.docker.exposedbydefault=false"
+      - "--providers.docker.network=pmdl_proxy-external"
+
+      # Entrypoints
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--entrypoints.matrix-fed.address=:8448"
+
+      # HTTP to HTTPS redirect
+      - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
+
+      # TLS certificates via Let's Encrypt
+      - "--certificatesresolvers.letsencrypt.acme.email=${ADMIN_EMAIL}"
+      - "--certificatesresolvers.letsencrypt.acme.storage=/acme/acme.json"
+      - "--certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web"
+
+      # Dashboard (localhost only by default)
+      - "--api.dashboard=true"
+      - "--api.insecure=true"  # Required for local dashboard access
+
+      # Health check endpoint
+      - "--ping=true"
+      - "--ping.entrypoint=web"  # Use the web entrypoint for ping
+
+      # Logging
+      - "--log.level=${TRAEFIK_LOG_LEVEL:-INFO}"
+      - "--accesslog=true"
+      - "--accesslog.format=json"
+
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8448:8448"
+      - "127.0.0.1:${TRAEFIK_DASHBOARD_PORT:-8080}:8080"  # Dashboard on localhost only
+
+    volumes:
+      - pmdl_traefik_acme:/acme
+      - ./configs/traefik:/etc/traefik:ro
+
+    networks:
+      - socket-proxy
+      - proxy-external
+
+    logging: *default-logging
+
+    healthcheck:
+      <<: *healthcheck-defaults
+      test: ["CMD-SHELL", "nc -z localhost 80 || exit 1"]
+      start_period: 10s
+
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 64M
+
+    labels:
+      - "traefik.enable=true"
+      # Dashboard router (optional, for remote access)
+      - "traefik.http.routers.traefik-dashboard.rule=Host(`traefik.${DOMAIN}`)"
+      - "traefik.http.routers.traefik-dashboard.entrypoints=websecure"
+      - "traefik.http.routers.traefik-dashboard.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.traefik-dashboard.service=api@internal"
+      - "traefik.http.routers.traefik-dashboard.middlewares=dashboard-auth"
+      - "traefik.http.middlewares.dashboard-auth.basicauth.users=${TRAEFIK_DASHBOARD_AUTH:-}"
+
+  # ============================================================
+  # SUPPORTING TECH PROFILES
+  # ============================================================
+
+  # PostgreSQL with pgvector
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: pmdl_postgres
+    profiles:
+      - postgresql
+    restart: unless-stopped  # PostgreSQL needs to run its entrypoint as root initially
+    secrets:
+      - postgres_password
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_DB: postgres
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8"
+    command:
+      - "postgres"
+      - "-c"
+      - "shared_buffers=${POSTGRES_SHARED_BUFFERS:-256MB}"
+      - "-c"
+      - "effective_cache_size=${POSTGRES_EFFECTIVE_CACHE:-768MB}"
+      - "-c"
+      - "work_mem=${POSTGRES_WORK_MEM:-4MB}"
+      - "-c"
+      - "maintenance_work_mem=${POSTGRES_MAINTENANCE_WORK_MEM:-64MB}"
+      - "-c"
+      - "max_connections=${POSTGRES_MAX_CONNECTIONS:-100}"
+      - "-c"
+      - "random_page_cost=1.1"
+      - "-c"
+      - "effective_io_concurrency=200"
+    volumes:
+      - pmdl_postgres_data:/var/lib/postgresql/data
+      - ./.dev/profiles/postgresql/init-scripts:/docker-entrypoint-initdb.d:ro
+    shm_size: 256mb
+    healthcheck:
+      <<: *healthcheck-database
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+    networks:
+      - db-internal
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          memory: ${POSTGRES_MEMORY_LIMIT:-1G}
+        reservations:
+          memory: ${POSTGRES_MEMORY_RESERVATION:-512M}
+
+  # MySQL 8.0
+  mysql:
+    image: mysql:8.0
+    container_name: pmdl_mysql
+    profiles:
+      - mysql
+    restart: unless-stopped
+    secrets:
+      - mysql_root_password
+    environment:
+      MYSQL_ROOT_PASSWORD_FILE: /run/secrets/mysql_root_password
+    command:
+      - "--innodb-buffer-pool-size=${MYSQL_BUFFER_POOL_SIZE:-256M}"
+      - "--max-connections=${MYSQL_MAX_CONNECTIONS:-100}"
+    volumes:
+      - pmdl_mysql_data:/var/lib/mysql
+      - ./.dev/profiles/mysql/init-scripts:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      <<: *healthcheck-database
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+    networks:
+      - db-internal
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          memory: ${MYSQL_MEMORY_LIMIT:-1G}
+        reservations:
+          memory: ${MYSQL_MEMORY_RESERVATION:-512M}
+
+  # MongoDB 6.0
+  mongodb:
+    image: mongo:6.0
+    container_name: pmdl_mongodb
+    profiles:
+      - mongodb
+    restart: unless-stopped
+    secrets:
+      - mongodb_root_password
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD_FILE: /run/secrets/mongodb_root_password
+    command: ["--wiredTigerCacheSizeGB", "${MONGODB_CACHE_SIZE_GB:-0.25}"]
+    volumes:
+      - pmdl_mongodb_data:/data/db
+      - ./.dev/profiles/mongodb/init-scripts:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      <<: *healthcheck-database
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+    networks:
+      - db-internal
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          memory: ${MONGODB_MEMORY_LIMIT:-1G}
+        reservations:
+          memory: ${MONGODB_MEMORY_RESERVATION:-512M}
+
+  # Redis 7
+  redis:
+    image: redis:7-alpine
+    container_name: pmdl_redis
+    profiles:
+      - redis
+    <<: *secured-service
+    user: "999:999"
+    command:
+      - redis-server
+      - --maxmemory
+      - ${REDIS_MAXMEMORY:-128mb}
+      - --maxmemory-policy
+      - allkeys-lru
+      - --appendonly
+      - "yes"
+    volumes:
+      - pmdl_redis_data:/data
+    healthcheck:
+      <<: *healthcheck-defaults
+      test: ["CMD", "redis-cli", "ping"]
+      start_period: 10s
+    networks:
+      - app-internal
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          memory: ${REDIS_MEMORY_LIMIT:-256M}
+        reservations:
+          memory: ${REDIS_MEMORY_RESERVATION:-64M}
+
+  # MinIO S3-compatible storage
+  minio:
+    image: minio/minio:latest
+    container_name: pmdl_minio
+    profiles:
+      - minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    secrets:
+      - minio_root_user
+      - minio_root_password
+    environment:
+      MINIO_ROOT_USER_FILE: /run/secrets/minio_root_user
+      MINIO_ROOT_PASSWORD_FILE: /run/secrets/minio_root_password
+    volumes:
+      - pmdl_minio_data:/data
+    healthcheck:
+      <<: *healthcheck-defaults
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      start_period: 30s
+    networks:
+      - app-internal
+      - proxy-external
+    logging: *default-logging
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.minio-api.rule=Host(`s3.${DOMAIN}`)"
+      - "traefik.http.routers.minio-api.entrypoints=websecure"
+      - "traefik.http.routers.minio-api.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.minio-api.service=minio-api"
+      - "traefik.http.services.minio-api.loadbalancer.server.port=9000"
+      - "traefik.http.routers.minio-console.rule=Host(`minio.${DOMAIN}`)"
+      - "traefik.http.routers.minio-console.entrypoints=websecure"
+      - "traefik.http.routers.minio-console.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.minio-console.service=minio-console"
+      - "traefik.http.services.minio-console.loadbalancer.server.port=9001"
+    deploy:
+      resources:
+        limits:
+          memory: ${MINIO_MEMORY_LIMIT:-512M}
+        reservations:
+          memory: ${MINIO_MEMORY_RESERVATION:-128M}
+
+# --------------------------------------------------------------
+# SECRETS
+# --------------------------------------------------------------
+
+secrets:
+  postgres_password:
+    file: ./secrets/postgres_password
+  mysql_root_password:
+    file: ./secrets/mysql_root_password
+  mongodb_root_password:
+    file: ./secrets/mongodb_root_password
+  minio_root_user:
+    file: ./secrets/minio_root_user
+  minio_root_password:
+    file: ./secrets/minio_root_password
+
+# --------------------------------------------------------------
+# VOLUMES
+# --------------------------------------------------------------
+
+volumes:
+  # Foundation
+  pmdl_traefik_acme:
+    driver: local
+
+  # Supporting Tech
+  pmdl_postgres_data:
+    driver: local
+  pmdl_mysql_data:
+    driver: local
+  pmdl_mongodb_data:
+    driver: local
+  pmdl_redis_data:
+    driver: local
+  pmdl_minio_data:
+    driver: local
+
+# --------------------------------------------------------------
+# NETWORKS
+# --------------------------------------------------------------
+
+networks:
+  # Internal network for Docker socket proxy
+  # Only socket-proxy and traefik should be on this network
+  socket-proxy:
+    internal: true
+    name: pmdl_socket-proxy
+
+  # Database network - only databases and apps that need DB access
+  # Not accessible from internet or proxy
+  db-internal:
+    internal: true
+    name: pmdl_db-internal
+
+  # App-to-app communication network
+  # Internal services that don't need direct internet access
+  app-internal:
+    internal: true
+    name: pmdl_app-internal
+
+  # Proxy-external network - services that need Traefik routing
+  # This is where services that have Traefik labels should be
+  proxy-external:
+    name: pmdl_proxy-external

@@ -1,0 +1,232 @@
+# ==============================================================
+# Ghost CMS - Docker Compose Fragment
+# ==============================================================
+# Modern publishing platform for blogs and publications
+#
+# Example Version: 1.0
+# Documentation: examples/ghost/README.md
+# Profile Dependency: MySQL profile required
+#
+# Usage:
+#   docker compose -f docker-compose.yml \
+#                  -f profiles/mysql/docker-compose.mysql.yml \
+#                  -f examples/ghost/docker-compose.ghost.yml \
+#                  --profile ghost up -d
+#
+# Prerequisites:
+#   1. Foundation running (Traefik)
+#   2. MySQL profile active
+#   3. secrets/ghost_db_password exists (run generate-secrets.sh)
+#   4. Configure .env from .env.example
+# ==============================================================
+
+# ==============================================================
+# Extension Fields (YAML Anchors for reuse)
+# ==============================================================
+
+x-ghost-healthcheck: &ghost-healthcheck
+  interval: 30s
+  timeout: 10s
+  retries: 5
+  start_period: 60s
+
+x-ghost-logging: &ghost-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+# ==============================================================
+# Services
+# ==============================================================
+
+services:
+  # =============================================================
+  # Ghost CMS
+  # =============================================================
+  # Modern publishing platform
+  # - Uses MySQL for content storage
+  # - Magic links for subscriber auth
+  # - Admin protected by Authelia
+  # =============================================================
+  ghost:
+    image: ghost:5-alpine
+    container_name: pmdl_ghost
+
+    # ---------------------------------------------------------
+    # Profile (optional - only starts with --profile ghost)
+    # ---------------------------------------------------------
+    profiles:
+      - ghost
+      - full
+
+    # ---------------------------------------------------------
+    # Dependencies
+    # ---------------------------------------------------------
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+    # ---------------------------------------------------------
+    # Environment Configuration
+    # ---------------------------------------------------------
+    environment:
+      # Database connection
+      database__client: mysql
+      database__connection__host: mysql
+      database__connection__port: 3306
+      database__connection__database: ghost
+      database__connection__user: ghost
+      # Password read from secret file by entrypoint
+      database__connection__password__file: /run/secrets/ghost_db_password
+
+      # URL configuration (MUST match Traefik host)
+      url: ${GHOST_URL:-https://ghost.localhost}
+
+      # Node environment
+      NODE_ENV: production
+
+      # Mail configuration
+      mail__transport: ${GHOST_MAIL_TRANSPORT:-Direct}
+      mail__options__host: ${GHOST_MAIL_HOST:-}
+      mail__options__port: ${GHOST_MAIL_PORT:-587}
+      mail__options__auth__user: ${GHOST_MAIL_USER:-}
+      mail__options__auth__pass__file: /run/secrets/ghost_mail_password
+      mail__from: ${GHOST_MAIL_FROM:-noreply@localhost}
+
+      # Privacy settings
+      privacy__useGravatar: false
+      privacy__useUpdateCheck: true
+
+    # ---------------------------------------------------------
+    # Secrets
+    # ---------------------------------------------------------
+    secrets:
+      - ghost_db_password
+      - ghost_mail_password
+
+    # ---------------------------------------------------------
+    # Volumes
+    # ---------------------------------------------------------
+    volumes:
+      # Ghost content: themes, images, data
+      - pmdl_ghost_content:/var/lib/ghost/content
+
+    # ---------------------------------------------------------
+    # Network Configuration
+    # ---------------------------------------------------------
+    networks:
+      # Public network for Traefik access
+      - proxy-external
+      # Internal network for database access
+      - db-internal
+
+    # ---------------------------------------------------------
+    # Resource Limits
+    # ---------------------------------------------------------
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+
+    # ---------------------------------------------------------
+    # Health Check
+    # ---------------------------------------------------------
+    # NOTE: Using nc port check instead of HTTP endpoint because:
+    # - Ghost configured with HTTPS URL returns 301 redirects on HTTP requests
+    # - wget --spider treats 301 as failure
+    # - Simple port check is sufficient for Traefik routing
+    healthcheck:
+      <<: *ghost-healthcheck
+      test: ["CMD-SHELL", "nc -z localhost 2368 || exit 1"]
+
+    # ---------------------------------------------------------
+    # Restart Policy
+    # ---------------------------------------------------------
+    restart: unless-stopped
+
+    # ---------------------------------------------------------
+    # Logging
+    # ---------------------------------------------------------
+    logging:
+      <<: *ghost-logging
+
+    # ---------------------------------------------------------
+    # Traefik Labels
+    # ---------------------------------------------------------
+    labels:
+      # Enable Traefik
+      - "traefik.enable=true"
+
+      # ---------------------------------------------------------
+      # Public Blog Router (no auth required)
+      # ---------------------------------------------------------
+      - "traefik.http.routers.ghost.rule=Host(`ghost.${DOMAIN}`)"
+      - "traefik.http.routers.ghost.entrypoints=websecure"
+      - "traefik.http.routers.ghost.tls=true"
+      - "traefik.http.routers.ghost.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.ghost.service=ghost"
+      - "traefik.http.routers.ghost.priority=10"
+
+      # ---------------------------------------------------------
+      # Protected Admin Router (Optional - Authelia)
+      # ---------------------------------------------------------
+      # Uncomment these lines when Authelia is configured
+      # Higher priority catches /ghost/* before public router
+      # - "traefik.http.routers.ghost-admin.rule=Host(`ghost.${DOMAIN}`) && PathPrefix(`/ghost`)"
+      # - "traefik.http.routers.ghost-admin.entrypoints=websecure"
+      # - "traefik.http.routers.ghost-admin.tls=true"
+      # - "traefik.http.routers.ghost-admin.tls.certresolver=letsencrypt"
+      # - "traefik.http.routers.ghost-admin.middlewares=authelia@file"
+      # - "traefik.http.routers.ghost-admin.service=ghost"
+      # - "traefik.http.routers.ghost-admin.priority=100"
+
+      # ---------------------------------------------------------
+      # Service Definition
+      # ---------------------------------------------------------
+      - "traefik.http.services.ghost.loadbalancer.server.port=2368"
+
+      # ---------------------------------------------------------
+      # Watchtower Label (opt-in auto updates)
+      # ---------------------------------------------------------
+      - "com.centurylinklabs.watchtower.enable=false"
+
+# ==============================================================
+# Secrets
+# ==============================================================
+
+secrets:
+  # Ghost database password (must match MySQL profile)
+  ghost_db_password:
+    file: ./secrets/ghost_db_password
+
+  # Ghost mail password (optional, for SMTP)
+  ghost_mail_password:
+    file: ./secrets/ghost_mail_password
+
+# ==============================================================
+# Volumes
+# ==============================================================
+
+volumes:
+  # Ghost content volume
+  # Contains: themes, images, files, configuration
+  pmdl_ghost_content:
+    driver: local
+
+# ==============================================================
+# Networks (reference existing)
+# ==============================================================
+# These networks are defined in the foundation and MySQL profile.
+# We only reference them here.
+
+networks:
+  proxy-external:
+    external: true
+    name: pmdl_proxy-external
+
+  db-internal:
+    external: true
+    name: pmdl_db-internal

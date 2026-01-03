@@ -1,0 +1,14 @@
+# Deploy Keys Directory
+#
+# Store SSH deploy keys here for pull-based deployment.
+# Keys are gitignored - only .gitkeep is committed.
+#
+# Naming convention:
+#   deploy_key           - Active deploy key (private)
+#   deploy_key.pub       - Public key (for GitHub)
+#   deploy_key_YYYYMMDD  - Dated backup during rotation
+#
+# Generate a new deploy key:
+#   ssh-keygen -t ed25519 -f deploy/keys/deploy_key -N "" -C "deploy-$(date +%Y%m%d)"
+#
+# See ADR-009 for credential rotation procedures.

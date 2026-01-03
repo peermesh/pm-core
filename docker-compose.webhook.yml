@@ -1,0 +1,189 @@
+# ==============================================================
+# Webhook Auto-Deploy Service - Docker Compose Include
+# ==============================================================
+# Lightweight webhook server for automated deployments via Git push.
+# Uses adnanh/webhook to receive GitHub/GitLab webhooks and trigger
+# deployment scripts.
+#
+# ACTIVATION:
+#   COMPOSE_PROFILES=webhook docker compose up -d
+#
+# PREREQUISITES:
+#   1. Create webhook configuration: deploy/webhook/hooks.json
+#   2. Create deploy script: deploy/webhook/deploy.sh
+#   3. Generate webhook secret: ./scripts/generate-secrets.sh
+#
+# SECURITY NOTES:
+#   - Requires Docker socket access for compose commands
+#   - Secret-based authentication prevents unauthorized triggers
+#   - Read-only mounts where possible
+#
+# Documentation: docs/webhook.md
+# ==============================================================
+
+# ==============================================================
+# Extension Fields
+# ==============================================================
+
+x-webhook-logging: &webhook-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+x-webhook-healthcheck: &webhook-healthcheck
+  interval: 30s
+  timeout: 10s
+  retries: 3
+  start_period: 15s
+
+# ==============================================================
+# Services
+# ==============================================================
+
+services:
+  # =============================================================
+  # Webhook Server
+  # =============================================================
+  # Lightweight webhook receiver for automated deployments.
+  # Listens for GitHub/GitLab push events and runs deploy scripts.
+  # =============================================================
+  webhook:
+    build:
+      context: ./deploy/webhook
+      dockerfile: Dockerfile
+    image: ${COMPOSE_PROJECT_NAME:-pmdl}-webhook:latest
+    container_name: ${COMPOSE_PROJECT_NAME:-pmdl}_webhook
+
+    # ---------------------------------------------------------
+    # Profile (opt-in)
+    # ---------------------------------------------------------
+    profiles:
+      - webhook
+
+    # ---------------------------------------------------------
+    # Restart Policy
+    # ---------------------------------------------------------
+    restart: unless-stopped
+
+    # ---------------------------------------------------------
+    # Security Configuration
+    # ---------------------------------------------------------
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    # Note: Cannot use read_only: true due to webhook needing /tmp
+    # Note: Cannot run as non-root due to Docker socket access requirements
+
+    # ---------------------------------------------------------
+    # Command
+    # ---------------------------------------------------------
+    # -verbose for debugging, -hotreload to pick up config changes
+    command:
+      - "-verbose"
+      - "-hotreload"
+      - "-hooks=/etc/webhook/hooks.json"
+      - "-port=9000"
+
+    # ---------------------------------------------------------
+    # Environment
+    # ---------------------------------------------------------
+    environment:
+      # Webhook secret for validating incoming requests
+      # Can be overridden via .env or secrets file
+      WEBHOOK_SECRET: ${WEBHOOK_SECRET:-}
+
+    # ---------------------------------------------------------
+    # Secrets (alternative to environment variable)
+    # ---------------------------------------------------------
+    # Uncomment to use Docker secrets instead of env var:
+    # secrets:
+    #   - webhook_secret
+
+    # ---------------------------------------------------------
+    # Volumes
+    # ---------------------------------------------------------
+    volumes:
+      # Webhook configuration (hooks definitions)
+      - ./deploy/webhook/hooks.json:/etc/webhook/hooks.json:ro
+      # Deployment script(s)
+      - ./deploy/webhook/deploy.sh:/scripts/deploy.sh:ro
+      # Docker socket for compose commands (required for deployments)
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      # Repository directory for git operations
+      - .:/app:rw
+
+    # ---------------------------------------------------------
+    # Working Directory
+    # ---------------------------------------------------------
+    working_dir: /app
+
+    # ---------------------------------------------------------
+    # Network Configuration
+    # ---------------------------------------------------------
+    networks:
+      # External access via Traefik
+      - proxy-external
+
+    # ---------------------------------------------------------
+    # Resource Limits
+    # ---------------------------------------------------------
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+        reservations:
+          memory: 32M
+
+    # ---------------------------------------------------------
+    # Health Check
+    # ---------------------------------------------------------
+    healthcheck:
+      <<: *webhook-healthcheck
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:9000/hooks/health || exit 1"]
+
+    # ---------------------------------------------------------
+    # Logging
+    # ---------------------------------------------------------
+    logging: *webhook-logging
+
+    # ---------------------------------------------------------
+    # Traefik Labels
+    # ---------------------------------------------------------
+    labels:
+      # Enable Traefik
+      - "traefik.enable=true"
+
+      # ---------------------------------------------------------
+      # Router: webhook.${DOMAIN}
+      # ---------------------------------------------------------
+      # Consistent with project pattern (all services use subdomains)
+      # URL: https://webhook.example.com/hooks/deploy
+      - "traefik.http.routers.webhook.rule=Host(`webhook.${DOMAIN}`)"
+      - "traefik.http.routers.webhook.entrypoints=websecure"
+      - "traefik.http.routers.webhook.tls=true"
+      - "traefik.http.routers.webhook.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.webhook.service=webhook"
+
+      # ---------------------------------------------------------
+      # Service Definition
+      # ---------------------------------------------------------
+      - "traefik.http.services.webhook.loadbalancer.server.port=9000"
+
+# ==============================================================
+# Secrets (optional - uncomment if using Docker secrets)
+# ==============================================================
+
+# secrets:
+#   webhook_secret:
+#     file: ./secrets/webhook_secret
+
+# ==============================================================
+# Networks (reference existing)
+# ==============================================================
+
+networks:
+  proxy-external:
+    external: true
+    name: pmdl_proxy-external

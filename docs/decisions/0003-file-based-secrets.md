@@ -163,6 +163,38 @@ services:
 | Ghost | No | Entrypoint wrapper script |
 | Generic | Varies | Test and document per-application |
 
+### Exceptions: Applications Without _FILE Support
+
+Some applications do not support the `_FILE` suffix convention and require the actual secret value in environment variables. Ghost is a notable example.
+
+**Ghost Exception**:
+
+Ghost requires database credentials directly in environment variables (`database__connection__password`). It does not support reading from `/run/secrets/`.
+
+**Workaround**: Use an entrypoint wrapper script that reads the secret file and exports it as an environment variable before starting the application:
+
+```dockerfile
+# Custom entrypoint wrapper
+#!/bin/sh
+if [ -f /run/secrets/ghost_db_password ]; then
+  export database__connection__password=$(cat /run/secrets/ghost_db_password)
+fi
+exec docker-entrypoint.sh "$@"
+```
+
+```yaml
+# docker-compose.yml
+services:
+  ghost:
+    image: ghost:5-alpine
+    secrets:
+      - ghost_db_password
+    entrypoint: ["/custom-entrypoint.sh"]
+    command: ["node", "current/index.js"]
+```
+
+This pattern maintains secret isolation (not in `docker inspect`) while accommodating applications that lack native `_FILE` support. The secret is only exposed in the container's environment after startup, not in the compose definition.
+
 ---
 
 ## References

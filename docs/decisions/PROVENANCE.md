@@ -180,14 +180,15 @@ Each ADR in this directory traces back to formal decision documents:
 
 | Public ADR | Research Origin |
 |------------|-----------------|
-| `0001-reverse-proxy.md` | D1.1 Reverse Proxy decision (Wave 2) |
-| `0100-database-engines.md` | D2.1 Database Selection (Wave 1), D2.6 PostgreSQL Extensions (Wave 2) |
-| `0200-authentication.md` | D3.4 Authentication (Wave 2), D3.1 Secret Management (Wave 0) |
-| `0201-secrets-management.md` | D3.1 Secret Management (Wave 0) |
-| `0202-container-security.md` | D3.2 Container Security (Wave 0) |
-| `0006-network-topology.md` | D3.3 Network Isolation (Wave 3), D1.2 Federation Networking (Wave 3) |
-| `0300-backup-strategy.md` | D2.4 Backup Recovery (Wave 2), D9 Storage Strategy (Foundation) |
-| `0400-composition-pattern.md` | D5.1 Service Composition (Wave 0), D10 Resource Calculator (Foundation) |
+| `0001-traefik-reverse-proxy.md` | D1.1 Reverse Proxy decision (Wave 2) |
+| `0002-four-network-topology.md` | D3.3 Network Isolation (Wave 3), D1.2 Federation Networking (Wave 3) |
+| `0003-file-based-secrets.md` | D3.1 Secret Management (Wave 0) |
+| `0004-docker-socket-proxy.md` | D3.2 Container Security (Wave 0) |
+| `0100-multi-database-profiles.md` | D2.1 Database Selection (Wave 1), D2.6 PostgreSQL Extensions (Wave 2) |
+| `0200-non-root-containers.md` | D3.2 Container Security (Wave 0) |
+| `0201-security-anchors.md` | D3.1 Secret Management (Wave 0), D3.2 Container Security (Wave 0) |
+| `0300-health-check-strategy.md` | D4.1 Health Checks (Wave 1), D2.4 Backup Recovery (Wave 2) |
+| `0400-profile-system.md` | D5.1 Service Composition (Wave 0), D10 Resource Calculator (Foundation) |
 
 The full research archive is maintained separately and includes:
 

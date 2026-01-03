@@ -230,6 +230,33 @@ services:
 | Traefik | 15s | 5s | 3 | 10s |
 | Applications | 30s | 10s | 3 | 60s |
 
+### URL Path vs Port-Only Health Checks
+
+**Warning**: URL-based health checks (e.g., `wget http://localhost:3000/health`) can fail for services configured with HTTPS external URLs.
+
+**Known Issues**:
+
+| Application | Issue | Cause |
+|-------------|-------|-------|
+| Ghost | Returns 301 redirect | Ghost redirects HTTP to configured external HTTPS URL |
+| Solid Server | "Outside identifier space" error | CSS validates request against configured base URL |
+
+**Symptoms**: Container repeatedly marked unhealthy despite service functioning correctly. Health check logs show 301 redirects or 400-level errors.
+
+**Recommendation**: For services with URL health check issues, use port-only checks with netcat:
+
+```yaml
+# Port-only health check (avoids URL redirect issues)
+healthcheck:
+  test: ["CMD-SHELL", "nc -z localhost 2368 || exit 1"]
+  interval: 30s
+  timeout: 10s
+  retries: 3
+  start_period: 60s
+```
+
+This verifies the port is accepting connections without triggering application-level URL validation or redirects.
+
 ---
 
 ## References

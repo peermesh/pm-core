@@ -99,6 +99,23 @@ Traefik was selected because it provides native Docker integration without plugi
 - Docker socket access through socket-proxy container (see ADR-0004)
 - ACME certificates stored in named volume with 600 permissions
 
+### Version Compatibility Warning
+
+**Traefik v3.2 is incompatible with Docker 29.x** due to Docker API version mismatch. Traefik v3.2's Docker client uses API v1.24, but Docker 29.x requires API v1.44 or higher.
+
+**Symptoms**: Traefik container fails to start or cannot communicate with Docker socket proxy.
+
+**Workaround**: Use Traefik v2.11 until this is resolved upstream.
+
+```yaml
+# Use v2.11 instead of v3.2
+services:
+  traefik:
+    image: traefik:v2.11
+```
+
+This issue affects Docker Engine 29.x releases (May 2025+). Monitor the [Traefik GitHub issues](https://github.com/traefik/traefik/issues) for resolution status.
+
 ---
 
 ## References

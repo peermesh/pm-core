@@ -189,6 +189,7 @@ Each ADR in this directory traces back to formal decision documents:
 | `0201-security-anchors.md` | D3.1 Secret Management (Wave 0), D3.2 Container Security (Wave 0) |
 | `0300-health-check-strategy.md` | D4.1 Health Checks (Wave 1), D2.4 Backup Recovery (Wave 2) |
 | `0400-profile-system.md` | D5.1 Service Composition (Wave 0), D10 Resource Calculator (Foundation) |
+| `0202-sops-age-secrets-encryption.md` | Secrets Management Tooling Research (2026-01-03) |
 
 The full research archive is maintained separately and includes:
 

@@ -14,10 +14,23 @@ id_dsa*
 id_ecdsa*
 id_ed25519*
 
-# Secrets directory (keep structure, ignore actual secrets)
+# Secrets directory (keep structure and tooling, ignore actual secrets)
 secrets/*
 !secrets/.gitkeep
 !secrets/README.md
+!secrets/justfile
+!secrets/.sops.yaml.example
+!secrets/lib/
+secrets/lib/*
+!secrets/lib/secrets-lib.sh
+!secrets/keys/
+secrets/keys/*
+!secrets/keys/public/
+secrets/keys/public/*
+!secrets/keys/public/.gitkeep
+secrets/*.enc.yaml
+secrets/*.enc.env
+secrets/audit.log
 
 # Backup Files (Auto-added by Smart Commit)
 *.backup

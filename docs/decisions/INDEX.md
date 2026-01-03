@@ -37,6 +37,7 @@ Security architecture and hardening decisions.
 |-----|-------|--------|------|
 | [0200](./0200-non-root-containers.md) | Non-Root Container Execution | **accepted** | 2026-01-02 |
 | [0201](./0201-security-anchors.md) | Security Anchors Pattern | **accepted** | 2026-01-02 |
+| [0202](./0202-sops-age-secrets-encryption.md) | SOPS and Age Secrets Encryption | **accepted** | 2026-01-03 |
 
 ---
 

@@ -1,0 +1,246 @@
+# =============================================================================
+# GitHub Actions CI/CD Workflow for Docker Compose VPS Deployment
+# =============================================================================
+#
+# This workflow automates deployment of a Docker Compose project to a VPS.
+#
+# REQUIRED GITHUB SECRETS (Settings > Secrets and variables > Actions):
+# -----------------------------------------------------------------------------
+# 1. SSH_PRIVATE_KEY - Your private SSH key for VPS access
+#    - Generate with: ssh-keygen -t ed25519 -C "github-actions-deploy"
+#    - Add public key to VPS: ~/.ssh/authorized_keys
+#    - Copy entire private key including BEGIN/END lines
+#
+# 2. VPS_HOST - The VPS IP address or hostname
+#    - Example: 37.27.208.228
+#
+# 3. VPS_USER - SSH username for VPS access
+#    - Example: root
+#
+# 4. VPS_PATH (optional) - Deployment directory path
+#    - Default: /opt/docker-lab
+#    - Only needed if path differs from default
+#
+# SETUP INSTRUCTIONS:
+# -----------------------------------------------------------------------------
+# 1. Go to your GitHub repository
+# 2. Navigate to Settings > Secrets and variables > Actions
+# 3. Click "New repository secret" for each secret above
+# 4. Ensure your VPS has:
+#    - Docker and Docker Compose installed
+#    - Git installed
+#    - SSH key authentication configured
+#    - The project cloned to the deployment path
+#
+# =============================================================================
+
+name: Deploy to VPS
+
+# Trigger: Deploy on push to main branch
+on:
+  push:
+    branches:
+      - main
+    # Optional: Only deploy when specific paths change
+    # paths:
+    #   - 'docker-compose.yml'
+    #   - 'docker-compose.*.yml'
+    #   - '.env.example'
+    #   - 'services/**'
+
+  # Allow manual deployment from GitHub Actions tab
+  workflow_dispatch:
+    inputs:
+      skip_health_check:
+        description: 'Skip health check verification'
+        required: false
+        default: 'false'
+        type: boolean
+
+# Ensure only one deployment runs at a time
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false  # Don't cancel in-progress deployments
+
+jobs:
+  deploy:
+    name: Deploy Docker Compose Stack
+    runs-on: ubuntu-latest
+
+    # Set timeout to prevent hanging deployments
+    timeout-minutes: 15
+
+    steps:
+      # Step 1: Checkout repository (for workflow file access)
+      # This step checks out the repo so we have access to any deployment scripts
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Step 2: Configure SSH agent with private key
+      # This sets up SSH authentication for connecting to the VPS
+      - name: Setup SSH agent
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      # Step 3: Add VPS host to known_hosts to prevent interactive prompts
+      # This prevents "host authenticity" prompts during deployment
+      - name: Add VPS to known hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+
+      # Step 4: Deploy to VPS
+      # This is the main deployment step that:
+      # - SSHs into the VPS
+      # - Navigates to the project directory
+      # - Pulls latest code from git
+      # - Pulls latest Docker images
+      # - Restarts containers with new images
+      - name: Deploy to VPS
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+        run: |
+          echo "Deploying to $VPS_HOST..."
+
+          DEPLOY_PATH="${{ secrets.VPS_PATH || '/opt/docker-lab' }}"
+          ssh $VPS_USER@$VPS_HOST << ENDSSH
+            set -e  # Exit on any error
+
+            echo "=== Navigating to project directory ==="
+            cd $DEPLOY_PATH
+
+            echo "=== Current directory: \$(pwd) ==="
+
+            echo "=== Pulling latest code from git ==="
+            git fetch origin main
+            git reset --hard origin/main
+
+            echo "=== Pulling latest Docker images ==="
+            docker compose pull
+
+            echo "=== Stopping old containers and starting new ones ==="
+            docker compose up -d --remove-orphans
+
+            echo "=== Cleaning up unused Docker resources ==="
+            docker image prune -f
+
+            echo "=== Deployment complete ==="
+          ENDSSH
+
+      # Step 5: Wait for services to initialize
+      # Give containers time to start up before health checks
+      - name: Wait for services to start
+        if: ${{ github.event.inputs.skip_health_check != 'true' }}
+        run: sleep 30
+
+      # Step 6: Health check verification
+      # Verifies that containers are running properly after deployment
+      - name: Verify deployment health
+        if: ${{ github.event.inputs.skip_health_check != 'true' }}
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+        run: |
+          echo "Running health checks..."
+
+          DEPLOY_PATH="${{ secrets.VPS_PATH || '/opt/docker-lab' }}"
+          ssh $VPS_USER@$VPS_HOST << ENDSSH
+            set -e
+
+            cd $DEPLOY_PATH
+
+            echo "=== Container Status ==="
+            docker compose ps
+
+            echo ""
+            echo "=== Checking for unhealthy containers ==="
+
+            # Get count of running containers
+            RUNNING=\$(docker compose ps --format json | jq -s 'map(select(.State == "running")) | length')
+            TOTAL=\$(docker compose ps --format json | jq -s 'length')
+
+            echo "Running containers: \$RUNNING / \$TOTAL"
+
+            # Check for any containers that are not running
+            FAILED=\$(docker compose ps --format json | jq -s 'map(select(.State != "running")) | length')
+
+            if [ "\$FAILED" -gt 0 ]; then
+              echo ""
+              echo "WARNING: Some containers are not running:"
+              docker compose ps --format json | jq -r 'select(.State != "running") | "\(.Name): \(.State)"'
+
+              echo ""
+              echo "=== Recent logs from failed containers ==="
+              docker compose logs --tail=50 2>/dev/null || true
+
+              exit 1
+            fi
+
+            echo ""
+            echo "=== All containers are healthy! ==="
+
+            # Optional: Check specific service health endpoints
+            # Uncomment and modify as needed for your services
+            # echo "Checking web service health..."
+            # curl -f http://localhost:80/health || exit 1
+
+          ENDSSH
+
+      # Step 7: Deployment summary
+      # Provides a summary of the deployment for the GitHub Actions log
+      - name: Deployment summary
+        if: always()
+        run: |
+          echo "## Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Target**: ${{ secrets.VPS_HOST }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Path**: ${{ secrets.VPS_PATH || '/opt/docker-lab' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch**: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Triggered by**: ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Status**: ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
+
+      # Step 8: Notify on failure (optional)
+      # Uncomment to enable Slack/Discord notifications on deployment failure
+      # - name: Notify on failure
+      #   if: failure()
+      #   uses: 8398a7/action-slack@v3
+      #   with:
+      #     status: ${{ job.status }}
+      #     channel: '#deployments'
+      #     mention: 'here'
+      #   env:
+      #     SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+# =============================================================================
+# TROUBLESHOOTING
+# =============================================================================
+#
+# SSH Connection Issues:
+# - Verify SSH_PRIVATE_KEY has proper BEGIN/END markers
+# - Check that public key is in VPS ~/.ssh/authorized_keys
+# - Ensure VPS firewall allows SSH from GitHub Actions IPs
+#
+# Permission Denied:
+# - Verify VPS_USER has access to VPS_PATH directory
+# - Check Docker socket permissions: usermod -aG docker $USER
+#
+# Git Pull Fails:
+# - Ensure VPS has git installed
+# - Check repository permissions on VPS
+# - Verify no uncommitted local changes on VPS
+#
+# Docker Issues:
+# - Verify Docker and Docker Compose are installed
+# - Check disk space: df -h
+# - View logs: docker compose logs -f
+#
+# Health Check Fails:
+# - Check container logs: docker compose logs [service]
+# - Verify port bindings: docker compose ps
+# - Increase wait time before health checks
+#
+# =============================================================================

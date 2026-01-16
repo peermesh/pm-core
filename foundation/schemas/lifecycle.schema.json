@@ -1,0 +1,116 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://peermesh.io/foundation/v1/lifecycle.schema.json",
+  "title": "PeerMesh Module Lifecycle Hooks",
+  "description": "Schema for module lifecycle hook definitions",
+  "type": "object",
+  "properties": {
+    "install": {
+      "$ref": "#/$defs/lifecycleHook",
+      "description": "Called when module is added to the system. One-time setup: create directories, initialize state, run migrations."
+    },
+    "start": {
+      "$ref": "#/$defs/lifecycleHook",
+      "description": "Called when module is activated. Start services, connect to resources, begin processing."
+    },
+    "stop": {
+      "$ref": "#/$defs/lifecycleHook",
+      "description": "Called when module is deactivated. Graceful shutdown: close connections, flush buffers, save state."
+    },
+    "uninstall": {
+      "$ref": "#/$defs/lifecycleHook",
+      "description": "Called when module is removed. Cleanup: remove directories, delete state, drop database schemas."
+    },
+    "health": {
+      "$ref": "#/$defs/lifecycleHook",
+      "description": "Called periodically or on-demand to check module health. Returns health status."
+    },
+    "upgrade": {
+      "$ref": "#/$defs/lifecycleHook",
+      "description": "Called when module version changes. Run version-specific migrations."
+    },
+    "validate": {
+      "$ref": "#/$defs/lifecycleHook",
+      "description": "Called before install to validate configuration and dependencies."
+    }
+  },
+  "$defs": {
+    "lifecycleHook": {
+      "oneOf": [
+        {
+          "type": "string",
+          "pattern": "^\\./",
+          "description": "Path to executable script relative to module root"
+        },
+        {
+          "type": "null",
+          "description": "No hook defined for this lifecycle event"
+        },
+        {
+          "type": "object",
+          "required": ["script"],
+          "properties": {
+            "script": {
+              "type": "string",
+              "pattern": "^\\./",
+              "description": "Path to executable script relative to module root"
+            },
+            "timeout": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 3600,
+              "default": 300,
+              "description": "Maximum execution time in seconds"
+            },
+            "retries": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 10,
+              "default": 0,
+              "description": "Number of retry attempts on failure"
+            },
+            "retryDelay": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 300,
+              "default": 5,
+              "description": "Delay between retries in seconds"
+            },
+            "environment": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              },
+              "description": "Additional environment variables for this hook"
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    }
+  },
+  "additionalProperties": false,
+  "examples": [
+    {
+      "install": "./scripts/install.sh",
+      "start": null,
+      "stop": null,
+      "uninstall": "./scripts/uninstall.sh",
+      "health": "./scripts/health.sh"
+    },
+    {
+      "install": {
+        "script": "./scripts/install.sh",
+        "timeout": 600,
+        "retries": 3,
+        "retryDelay": 10
+      },
+      "start": "./scripts/start.sh",
+      "stop": "./scripts/stop.sh",
+      "health": {
+        "script": "./scripts/health.sh",
+        "timeout": 30
+      }
+    }
+  ]
+}

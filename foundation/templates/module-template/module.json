@@ -1,0 +1,66 @@
+{
+  "$schema": "../../schemas/module.schema.json",
+  "id": "my-module",
+  "version": "0.1.0",
+  "name": "My Module",
+  "description": "A brief description of what this module does",
+  "author": {
+    "name": "Your Name",
+    "email": "your.email@example.com"
+  },
+  "license": "MIT",
+  "repository": "https://github.com/your-org/my-module",
+  "tags": ["example"],
+  "foundation": {
+    "minVersion": "1.0.0"
+  },
+  "requires": {
+    "connections": [],
+    "modules": []
+  },
+  "provides": {
+    "connections": [],
+    "events": [
+      "my-module.example.created",
+      "my-module.example.deleted"
+    ]
+  },
+  "dashboard": {
+    "displayName": "My Module",
+    "icon": "puzzle",
+    "routes": [
+      {
+        "path": "/my-module",
+        "nav": {
+          "label": "My Module",
+          "order": 100
+        }
+      }
+    ]
+  },
+  "lifecycle": {
+    "install": "./scripts/install.sh",
+    "start": null,
+    "stop": null,
+    "uninstall": "./scripts/uninstall.sh",
+    "health": "./scripts/health.sh"
+  },
+  "config": {
+    "version": "1.0",
+    "properties": {
+      "exampleSetting": {
+        "type": "string",
+        "description": "An example configuration setting",
+        "default": "default-value",
+        "env": "MY_MODULE_EXAMPLE_SETTING"
+      },
+      "apiKey": {
+        "type": "string",
+        "description": "API key for external service (user must provide)",
+        "secret": true,
+        "env": "MY_MODULE_API_KEY"
+      }
+    },
+    "required": []
+  }
+}

@@ -1,0 +1,223 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://peermesh.io/foundation/v1/event.schema.json",
+  "title": "PeerMesh Event Format",
+  "description": "Schema for events published on the PeerMesh event bus",
+  "type": "object",
+  "required": ["id", "timestamp", "source", "type"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique event identifier (UUIDv4)"
+    },
+    "timestamp": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Unix timestamp in milliseconds when event was created"
+    },
+    "source": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*[a-z0-9]$|^[a-z0-9]$|^foundation$",
+      "description": "Module ID that emitted this event"
+    },
+    "type": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]+\\.[a-z0-9-]+\\.[a-z0-9-]+$",
+      "description": "Event type in format: source.entity.action"
+    },
+    "specversion": {
+      "type": "string",
+      "const": "1.0",
+      "default": "1.0",
+      "description": "Event format specification version"
+    },
+    "datacontenttype": {
+      "type": "string",
+      "default": "application/json",
+      "description": "Content type of the payload"
+    },
+    "subject": {
+      "type": "string",
+      "description": "Specific subject/resource this event relates to"
+    },
+    "correlationId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "ID linking related events in a workflow"
+    },
+    "causationId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "ID of the event that caused this event"
+    },
+    "payload": {
+      "type": "object",
+      "description": "Event-specific data",
+      "additionalProperties": true
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Additional metadata about the event",
+      "properties": {
+        "version": {
+          "type": "string",
+          "description": "Version of the event schema"
+        },
+        "retryCount": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of delivery attempts"
+        },
+        "originalTimestamp": {
+          "type": "integer",
+          "description": "Original timestamp if event was replayed"
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "standardEventTypes": {
+      "title": "Standard Foundation Event Types",
+      "description": "Event types defined by the foundation core",
+      "type": "string",
+      "enum": [
+        "foundation.module.installed",
+        "foundation.module.started",
+        "foundation.module.stopped",
+        "foundation.module.uninstalled",
+        "foundation.module.health-changed",
+        "foundation.module.config-updated",
+        "foundation.connection.established",
+        "foundation.connection.lost",
+        "foundation.system.startup",
+        "foundation.system.shutdown"
+      ]
+    },
+    "moduleInstalledPayload": {
+      "title": "Module Installed Event Payload",
+      "type": "object",
+      "required": ["moduleId", "version"],
+      "properties": {
+        "moduleId": {
+          "type": "string",
+          "description": "ID of the installed module"
+        },
+        "version": {
+          "type": "string",
+          "description": "Version of the installed module"
+        },
+        "previousVersion": {
+          "type": "string",
+          "description": "Previous version if this is an upgrade"
+        }
+      }
+    },
+    "moduleStartedPayload": {
+      "title": "Module Started Event Payload",
+      "type": "object",
+      "required": ["moduleId"],
+      "properties": {
+        "moduleId": {
+          "type": "string",
+          "description": "ID of the started module"
+        },
+        "startupDuration": {
+          "type": "integer",
+          "description": "Time to start in milliseconds"
+        }
+      }
+    },
+    "moduleStoppedPayload": {
+      "title": "Module Stopped Event Payload",
+      "type": "object",
+      "required": ["moduleId"],
+      "properties": {
+        "moduleId": {
+          "type": "string",
+          "description": "ID of the stopped module"
+        },
+        "reason": {
+          "type": "string",
+          "enum": ["requested", "error", "dependency", "system-shutdown"],
+          "description": "Reason for stopping"
+        }
+      }
+    },
+    "moduleHealthChangedPayload": {
+      "title": "Module Health Changed Event Payload",
+      "type": "object",
+      "required": ["moduleId", "status"],
+      "properties": {
+        "moduleId": {
+          "type": "string",
+          "description": "ID of the module"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["healthy", "degraded", "unhealthy", "unknown"],
+          "description": "New health status"
+        },
+        "previousStatus": {
+          "type": "string",
+          "enum": ["healthy", "degraded", "unhealthy", "unknown"],
+          "description": "Previous health status"
+        },
+        "message": {
+          "type": "string",
+          "description": "Human-readable health message"
+        },
+        "checks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": ["pass", "warn", "fail"]
+              },
+              "message": {
+                "type": "string"
+              }
+            }
+          },
+          "description": "Individual health check results"
+        }
+      }
+    }
+  },
+  "examples": [
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "timestamp": 1705420800000,
+      "source": "foundation",
+      "type": "foundation.module.installed",
+      "specversion": "1.0",
+      "datacontenttype": "application/json",
+      "payload": {
+        "moduleId": "secrets-module",
+        "version": "1.0.0"
+      }
+    },
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440001",
+      "timestamp": 1705420801000,
+      "source": "backup-module",
+      "type": "backup-module.backup.completed",
+      "specversion": "1.0",
+      "subject": "daily-backup-2024-01-16",
+      "correlationId": "550e8400-e29b-41d4-a716-446655440099",
+      "payload": {
+        "backupId": "daily-backup-2024-01-16",
+        "size": 1073741824,
+        "duration": 45000,
+        "destination": "s3://backups/daily/"
+      }
+    }
+  ]
+}

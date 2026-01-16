@@ -1,0 +1,208 @@
+# ==============================================================
+# Identity Provider - Docker Compose Profile
+# ==============================================================
+# Managed Identity System using Community Solid Server
+# Provides WebID-based authentication for the Social Lab project
+#
+# Profile Version: 1.0
+# Documentation: profiles/identity/PROFILE-SPEC.md
+#
+# Usage:
+#   docker compose -f docker-compose.yml \
+#                  -f profiles/identity/docker-compose.identity.yml \
+#                  --profile identity up -d
+#
+# Prerequisites:
+#   1. Foundation running (Traefik)
+#   2. Configure DOMAIN in .env
+#   3. Create config files in profiles/identity/configs/
+# ==============================================================
+
+# ==============================================================
+# Extension Fields (YAML Anchors for reuse)
+# ==============================================================
+
+x-identity-healthcheck: &identity-healthcheck
+  interval: 30s
+  timeout: 10s
+  retries: 5
+  start_period: 30s
+
+x-identity-logging: &identity-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+# ==============================================================
+# Services
+# ==============================================================
+
+services:
+  # =============================================================
+  # Identity Provider (Community Solid Server)
+  # =============================================================
+  # Decentralized identity provider implementing the Solid specification
+  # - Provides WebID-based authentication
+  # - User data pods for personal storage
+  # - OAuth 2.0 / OpenID Connect support
+  #
+  # Access Points:
+  # - Public: https://id.${DOMAIN} (via Traefik)
+  # - Internal: http://identity-provider:3000 (via app-internal network)
+  # =============================================================
+  identity-provider:
+    image: solidproject/community-server:7.0
+    container_name: pmdl_identity
+
+    # ---------------------------------------------------------
+    # Profile Activation
+    # ---------------------------------------------------------
+    profiles:
+      - identity
+      - social
+      - full
+
+    # ---------------------------------------------------------
+    # Environment Configuration
+    # ---------------------------------------------------------
+    environment:
+      # Base URL for the server (must match Traefik host)
+      CSS_BASE_URL: https://id.${DOMAIN}/
+
+      # Logging level (info, debug, warn, error)
+      CSS_LOGGING_LEVEL: ${IDENTITY_LOG_LEVEL:-info}
+
+      # SMTP Configuration for password reset emails
+      # These are optional - only needed for email-based features
+      CSS_EMAIL_SENDER: ${IDENTITY_EMAIL_SENDER:-noreply@${DOMAIN}}
+      CSS_SMTP_HOST: ${IDENTITY_SMTP_HOST:-}
+      CSS_SMTP_PORT: ${IDENTITY_SMTP_PORT:-587}
+      CSS_SMTP_USER: ${IDENTITY_SMTP_USER:-}
+      CSS_SMTP_PASSWORD: ${IDENTITY_SMTP_PASSWORD:-}
+
+    # ---------------------------------------------------------
+    # Command Arguments
+    # ---------------------------------------------------------
+    # Community Solid Server configuration
+    # -c file.json: Use file-based storage with custom config
+    # -f /data: Data storage root directory
+    command:
+      - "-c"
+      - "config/file.json"
+      - "-f"
+      - "/data"
+
+    # ---------------------------------------------------------
+    # Volumes
+    # ---------------------------------------------------------
+    volumes:
+      # User Pods data storage (persistent)
+      - pmdl_identity_data:/data
+
+      # Configuration files (custom server config)
+      - ./profiles/identity/configs:/config:ro
+
+    # ---------------------------------------------------------
+    # Network Configuration
+    # ---------------------------------------------------------
+    networks:
+      # Public network for Traefik HTTPS access
+      - proxy-external
+
+      # Internal network for app-to-app communication
+      # Other services can reach identity-provider:3000
+      - app-internal
+
+    # ---------------------------------------------------------
+    # Resource Limits
+    # ---------------------------------------------------------
+    deploy:
+      resources:
+        limits:
+          memory: ${IDENTITY_MEMORY_LIMIT:-512M}
+        reservations:
+          memory: ${IDENTITY_MEMORY_RESERVATION:-256M}
+
+    # ---------------------------------------------------------
+    # Health Check
+    # ---------------------------------------------------------
+    # NOTE: Using port check instead of HTTP endpoint because:
+    # - CSS with CSS_BASE_URL set rejects requests to localhost
+    # - Simple port check is sufficient for service discovery
+    healthcheck:
+      <<: *identity-healthcheck
+      test: ["CMD-SHELL", "nc -z localhost 3000 || exit 1"]
+
+    # ---------------------------------------------------------
+    # Restart Policy
+    # ---------------------------------------------------------
+    restart: unless-stopped
+
+    # ---------------------------------------------------------
+    # Logging
+    # ---------------------------------------------------------
+    logging:
+      <<: *identity-logging
+
+    # ---------------------------------------------------------
+    # Traefik Labels
+    # ---------------------------------------------------------
+    labels:
+      # Enable Traefik routing
+      - "traefik.enable=true"
+
+      # ---------------------------------------------------------
+      # Main Router (Identity Provider)
+      # ---------------------------------------------------------
+      - "traefik.http.routers.idp.rule=Host(`id.${DOMAIN}`)"
+      - "traefik.http.routers.idp.entrypoints=websecure"
+      - "traefik.http.routers.idp.tls=true"
+      - "traefik.http.routers.idp.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.idp.service=idp"
+
+      # ---------------------------------------------------------
+      # Service Definition
+      # ---------------------------------------------------------
+      - "traefik.http.services.idp.loadbalancer.server.port=3000"
+
+      # ---------------------------------------------------------
+      # Security Headers Middleware
+      # ---------------------------------------------------------
+      - "traefik.http.routers.idp.middlewares=idp-headers"
+      - "traefik.http.middlewares.idp-headers.headers.stsSeconds=31536000"
+      - "traefik.http.middlewares.idp-headers.headers.stsIncludeSubdomains=true"
+      - "traefik.http.middlewares.idp-headers.headers.stsPreload=true"
+
+      # ---------------------------------------------------------
+      # Watchtower Label (opt-in auto updates)
+      # ---------------------------------------------------------
+      - "com.centurylinklabs.watchtower.enable=false"
+
+# ==============================================================
+# Volumes
+# ==============================================================
+
+volumes:
+  # Identity data volume
+  # Contains: User pods, WebID profiles, authentication data
+  pmdl_identity_data:
+    driver: local
+    # For production with attached block storage:
+    # driver_opts:
+    #   type: none
+    #   device: /mnt/block-storage/identity
+    #   o: bind
+
+# ==============================================================
+# Networks (reference existing from foundation)
+# ==============================================================
+
+networks:
+  proxy-external:
+    external: true
+    name: pmdl_proxy-external
+
+  app-internal:
+    external: true
+    name: pmdl_app-internal

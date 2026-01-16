@@ -30,7 +30,7 @@ profiles/
 │   ├── backup-scripts/
 │   └── healthcheck-scripts/
 │
-├── postgresql/                   # Example profile
+├── postgresql/                   # Example database profile
 │   ├── PROFILE-SPEC.md          # Complete PostgreSQL specification
 │   ├── docker-compose.yml       # Ready-to-use fragment
 │   ├── init-scripts/
@@ -44,7 +44,14 @@ profiles/
 ├── mysql/
 ├── mongodb/
 ├── redis/
-└── ...
+├── minio/
+│
+└── identity/                     # Identity provider (Social Lab)
+    ├── PROFILE-SPEC.md          # Identity profile specification
+    ├── docker-compose.identity.yml
+    ├── .env.example
+    └── configs/
+        └── file.json            # CSS configuration
 ```
 
 ---
@@ -104,23 +111,29 @@ These profiles are complete with all sections:
 
 | Profile | Status | Use Case |
 |---------|--------|----------|
-| PostgreSQL | Planned | Relational data, pgvector for embeddings |
-| MySQL | Planned | WordPress, Ghost, traditional web apps |
-| MongoDB | Planned | LibreChat, document-oriented data |
+| PostgreSQL | Available | Relational data, pgvector for embeddings |
+| MySQL | Available | WordPress, Ghost, traditional web apps |
+| MongoDB | Available | LibreChat, document-oriented data |
 
-### Tier 2: Cache & Queue Profiles (Planned)
+### Tier 2: Cache & Storage Profiles
 
 | Profile | Status | Use Case |
 |---------|--------|----------|
-| Redis | Planned | Session storage, caching, pub/sub |
+| Redis | Available | Session storage, caching, pub/sub |
+| MinIO | Available | S3-compatible object storage |
 | RabbitMQ | Planned | Message queuing |
 
-### Tier 3: Specialized Profiles (Future)
+### Tier 3: Identity & Authentication Profiles
+
+| Profile | Status | Use Case |
+|---------|--------|----------|
+| Identity | Available | WebID/Solid identity provider (Social Lab) |
+
+### Tier 4: Specialized Profiles (Future)
 
 | Profile | Status | Use Case |
 |---------|--------|----------|
 | Elasticsearch | Future | Full-text search |
-| MinIO | Future | S3-compatible object storage |
 | InfluxDB | Future | Time-series data |
 
 ---

@@ -104,9 +104,15 @@ generate_dashboard_auth() {
     local password_file="$SECRETS_DIR/dashboard_password"
     local auth_file="$SECRETS_DIR/dashboard_auth"
 
+    # Check required tools upfront
+    if ! command -v openssl >/dev/null 2>&1; then
+        echo -e "  ${RED}[ERROR]${NC} openssl not found. Install with: apt install openssl"
+        return 1
+    fi
+
     # Generate username and password if they don't exist
     if [ ! -f "$username_file" ]; then
-        echo "admin" > "$username_file"
+        printf "admin" > "$username_file"
         chmod 600 "$username_file"
         echo -e "  ${GREEN}[CREATED]${NC} dashboard_username (admin)"
     else
@@ -114,6 +120,7 @@ generate_dashboard_auth() {
     fi
 
     if [ ! -f "$password_file" ]; then
+        # Generate password without newline
         openssl rand -base64 24 | tr -d '\n' > "$password_file"
         chmod 600 "$password_file"
         echo -e "  ${GREEN}[CREATED]${NC} dashboard_password"
@@ -121,32 +128,45 @@ generate_dashboard_auth() {
         echo -e "  ${GREEN}[EXISTS]${NC} dashboard_password"
     fi
 
-    # Generate htpasswd auth string
+    # Read credentials
     local username password hash
+    username=$(cat "$username_file" | tr -d '\n')
+    password=$(cat "$password_file" | tr -d '\n')
 
-    username=$(cat "$username_file")
-    password=$(cat "$password_file")
-
-    # Check if htpasswd is available
-    if command -v htpasswd &> /dev/null; then
-        # Use htpasswd with bcrypt (-B)
+    # Generate htpasswd auth string
+    if command -v htpasswd >/dev/null 2>&1; then
+        # Use htpasswd with bcrypt (-B) - most secure
         hash=$(htpasswd -nbB "$username" "$password" 2>/dev/null)
-    elif command -v openssl &> /dev/null; then
-        # Fallback: use apr1 (MD5) via openssl - less secure but widely available
+        if [ -z "$hash" ]; then
+            echo -e "  ${YELLOW}[WARN]${NC} htpasswd -B failed, trying without bcrypt"
+            hash=$(htpasswd -nb "$username" "$password" 2>/dev/null)
+        fi
+    fi
+
+    # Fallback to openssl if htpasswd failed or unavailable
+    if [ -z "$hash" ]; then
+        echo -e "  ${YELLOW}[INFO]${NC} Using openssl for password hash"
         local salt
-        salt=$(openssl rand -base64 8 | tr -dc 'a-zA-Z0-9' | head -c 8)
-        hash=$(openssl passwd -apr1 -salt "$salt" "$password")
-        hash="${username}:${hash}"
-        echo -e "  ${YELLOW}[WARN]${NC} Using apr1 hash (install apache2-utils for bcrypt)"
-    else
-        echo -e "  ${RED}[ERROR]${NC} Neither htpasswd nor openssl available"
-        return 1
+        salt=$(openssl rand -hex 4)
+        # Use openssl passwd with apr1 algorithm
+        local passhash
+        passhash=$(openssl passwd -apr1 -salt "$salt" "$password" 2>/dev/null)
+        if [ -z "$passhash" ]; then
+            # Try older openssl syntax
+            passhash=$(openssl passwd -1 -salt "$salt" "$password" 2>/dev/null)
+        fi
+        if [ -z "$passhash" ]; then
+            echo -e "  ${RED}[ERROR]${NC} Failed to generate password hash"
+            echo -e "  ${RED}[ERROR]${NC} Install apache2-utils: apt install apache2-utils"
+            return 1
+        fi
+        hash="${username}:${passhash}"
     fi
 
     # Escape $ for .env file (each $ becomes $$)
     local escaped_hash
-    escaped_hash=$(echo "$hash" | sed 's/\$/\$\$/g')
-    echo "$escaped_hash" > "$auth_file"
+    escaped_hash=$(printf '%s' "$hash" | sed 's/\$/\$\$/g')
+    printf '%s' "$escaped_hash" > "$auth_file"
     chmod 600 "$auth_file"
 
     echo -e "  ${GREEN}[CREATED]${NC} dashboard_auth (htpasswd format)"

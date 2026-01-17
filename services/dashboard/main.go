@@ -28,8 +28,12 @@ func main() {
 
 	mux := http.NewServeMux()
 
-	// Health check endpoint
+	// Health check endpoint (no auth required)
 	mux.HandleFunc("/health", healthHandler)
+
+	// Auth endpoints
+	mux.HandleFunc("/api/login", handlers.LoginHandler)
+	mux.HandleFunc("/api/logout", handlers.LogoutHandler)
 
 	// API endpoints
 	mux.HandleFunc("/api/system", handlers.SystemHandler)
@@ -40,9 +44,12 @@ func main() {
 	staticFS := http.FileServer(http.Dir("./static"))
 	mux.Handle("/", staticFS)
 
+	// Wrap with auth middleware
+	handler := handlers.AuthMiddleware(mux)
+
 	server := &http.Server{
 		Addr:         ":" + port,
-		Handler:      mux,
+		Handler:      handler,
 		ReadTimeout:  readTimeout,
 		WriteTimeout: writeTimeout,
 		IdleTimeout:  idleTimeout,

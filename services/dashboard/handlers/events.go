@@ -3,35 +3,19 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
-	"io"
-	"net"
 	"net/http"
-	"os"
-	"strings"
 	"time"
 )
 
 const (
 	containerPollInterval = 10 * time.Second
 	keepaliveInterval     = 30 * time.Second
-	defaultSocketProxyURL = "http://socket-proxy:2375"
 )
 
-type ContainerInfo struct {
-	ID      string            `json:"id"`
-	Names   []string          `json:"names"`
-	Image   string            `json:"image"`
-	State   string            `json:"state"`
-	Status  string            `json:"status"`
-	Created int64             `json:"created"`
-	Ports   []ContainerPort   `json:"ports"`
-	Labels  map[string]string `json:"labels,omitempty"`
-}
-
-type ContainerPort struct {
-	PrivatePort int    `json:"private_port"`
-	PublicPort  int    `json:"public_port,omitempty"`
-	Type        string `json:"type"`
+// SSE events reuse ContainerDetail from containers.go for consistency
+type ContainersSSEEvent struct {
+	Containers []ContainerDetail `json:"containers"`
+	Timestamp  int64             `json:"timestamp"`
 }
 
 type SystemStats struct {
@@ -41,128 +25,46 @@ type SystemStats struct {
 	MemoryTotalMB uint64  `json:"memory_total_mb"`
 }
 
-type ContainersEvent struct {
-	Containers []ContainerInfo `json:"containers"`
-	Timestamp  int64           `json:"timestamp"`
-}
-
 type SystemEvent struct {
 	Stats     SystemStats `json:"stats"`
 	Timestamp int64       `json:"timestamp"`
 }
 
-type eventsClient struct {
-	baseURL    string
-	httpClient *http.Client
-}
+// fetchContainersForSSE reuses the containers client to get detailed container info
+func fetchContainersForSSE() ([]ContainerDetail, error) {
+	client := newContainersClient()
 
-func newEventsClient() *eventsClient {
-	socketProxyURL := os.Getenv("DOCKER_HOST")
-	if socketProxyURL == "" {
-		socketProxyURL = defaultSocketProxyURL
-	}
-	// Convert tcp:// to http:// for Go's http client
-	socketProxyURL = strings.Replace(socketProxyURL, "tcp://", "http://", 1)
-
-	return &eventsClient{
-		baseURL: socketProxyURL,
-		httpClient: &http.Client{
-			Timeout: 10 * time.Second,
-			Transport: &http.Transport{
-				DialContext: (&net.Dialer{
-					Timeout:   5 * time.Second,
-					KeepAlive: 30 * time.Second,
-				}).DialContext,
-				MaxIdleConns:       10,
-				IdleConnTimeout:    90 * time.Second,
-				DisableCompression: true,
-			},
-		},
-	}
-}
-
-func (c *eventsClient) listContainers() ([]ContainerInfo, error) {
-	resp, err := c.httpClient.Get(c.baseURL + "/containers/json?all=true")
+	containers, err := client.listContainers()
 	if err != nil {
-		return nil, fmt.Errorf("failed to list containers: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("docker API error: %s (status %d)", string(body), resp.StatusCode)
+		return nil, err
 	}
 
-	var rawContainers []struct {
-		ID      string   `json:"Id"`
-		Names   []string `json:"Names"`
-		Image   string   `json:"Image"`
-		State   string   `json:"State"`
-		Status  string   `json:"Status"`
-		Created int64    `json:"Created"`
-		Ports   []struct {
-			PrivatePort int    `json:"PrivatePort"`
-			PublicPort  int    `json:"PublicPort"`
-			Type        string `json:"Type"`
-		} `json:"Ports"`
-		Labels map[string]string `json:"Labels"`
+	details := make([]ContainerDetail, 0, len(containers))
+	for _, container := range containers {
+		info := buildContainerDetail(client, container)
+		details = append(details, info)
 	}
 
-	if err := json.NewDecoder(resp.Body).Decode(&rawContainers); err != nil {
-		return nil, fmt.Errorf("failed to decode containers: %w", err)
-	}
-
-	containers := make([]ContainerInfo, len(rawContainers))
-	for i, rc := range rawContainers {
-		ports := make([]ContainerPort, len(rc.Ports))
-		for j, p := range rc.Ports {
-			ports[j] = ContainerPort{
-				PrivatePort: p.PrivatePort,
-				PublicPort:  p.PublicPort,
-				Type:        p.Type,
-			}
-		}
-
-		names := make([]string, len(rc.Names))
-		for j, name := range rc.Names {
-			if len(name) > 0 && name[0] == '/' {
-				names[j] = name[1:]
-			} else {
-				names[j] = name
-			}
-		}
-
-		containers[i] = ContainerInfo{
-			ID:      rc.ID[:12],
-			Names:   names,
-			Image:   rc.Image,
-			State:   rc.State,
-			Status:  rc.Status,
-			Created: rc.Created,
-			Ports:   ports,
-			Labels:  rc.Labels,
-		}
-	}
-
-	return containers, nil
+	return details, nil
 }
 
-func (c *eventsClient) getSystemStats() (*SystemStats, error) {
-	resp, err := c.httpClient.Get(c.baseURL + "/info")
+// fetchSystemStatsForSSE gets basic system stats
+func fetchSystemStatsForSSE() (*SystemStats, error) {
+	client := newContainersClient()
+
+	resp, err := client.httpClient.Get(client.baseURL + "/info")
 	if err != nil {
 		return nil, fmt.Errorf("failed to get system info: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("docker API error: %s (status %d)", string(body), resp.StatusCode)
+		return nil, fmt.Errorf("docker API error (status %d)", resp.StatusCode)
 	}
 
 	var info struct {
-		NCPU        int   `json:"NCPU"`
-		MemTotal    int64 `json:"MemTotal"`
-		MemoryLimit bool  `json:"MemoryLimit"`
+		NCPU     int   `json:"NCPU"`
+		MemTotal int64 `json:"MemTotal"`
 	}
 
 	if err := json.NewDecoder(resp.Body).Decode(&info); err != nil {
@@ -170,15 +72,11 @@ func (c *eventsClient) getSystemStats() (*SystemStats, error) {
 	}
 
 	memTotalMB := uint64(info.MemTotal) / (1024 * 1024)
-	memUsedMB := memTotalMB / 4
-	memPercent := 25.0
-
-	cpuPercent := 15.0
 
 	return &SystemStats{
-		CPUPercent:    cpuPercent,
-		MemoryPercent: memPercent,
-		MemoryUsedMB:  memUsedMB,
+		CPUPercent:    0, // Would need aggregation from container stats
+		MemoryPercent: 0,
+		MemoryUsedMB:  0,
 		MemoryTotalMB: memTotalMB,
 	}, nil
 }
@@ -200,7 +98,6 @@ func EventsHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Connection", "keep-alive")
 	w.Header().Set("X-Accel-Buffering", "no")
 
-	client := newEventsClient()
 	ctx := r.Context()
 
 	pollTicker := time.NewTicker(containerPollInterval)
@@ -210,14 +107,14 @@ func EventsHandler(w http.ResponseWriter, r *http.Request) {
 	defer keepaliveTicker.Stop()
 
 	sendContainersEvent := func() {
-		containers, err := client.listContainers()
+		containers, err := fetchContainersForSSE()
 		if err != nil {
 			writeSSEEvent(w, "error", map[string]string{"message": err.Error()})
 			flusher.Flush()
 			return
 		}
 
-		event := ContainersEvent{
+		event := ContainersSSEEvent{
 			Containers: containers,
 			Timestamp:  time.Now().Unix(),
 		}
@@ -226,7 +123,7 @@ func EventsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sendSystemEvent := func() {
-		stats, err := client.getSystemStats()
+		stats, err := fetchSystemStatsForSSE()
 		if err != nil {
 			writeSSEEvent(w, "error", map[string]string{"message": err.Error()})
 			flusher.Flush()

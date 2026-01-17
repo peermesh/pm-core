@@ -158,21 +158,145 @@ Modules declare which foundation versions they support:
 - `minVersion`: Required. Minimum foundation version.
 - `maxVersion`: Optional. Maximum supported version (for breaking changes).
 
+### Version Checking
+
+Use the version-check script to verify module compatibility:
+
+```bash
+# Check if a module is compatible with current foundation
+./lib/version-check.sh module my-module
+
+# Check against specific foundation version
+./lib/version-check.sh module my-module --foundation-version 1.5.0
+
+# Compare two versions
+./lib/version-check.sh compare 1.0.0 2.0.0
+
+# Check version range
+./lib/version-check.sh range 1.5.0 ">=1.0.0 <2.0.0"
+```
+
+Documentation: [`docs/VERSION-COMPATIBILITY.md`](docs/VERSION-COMPATIBILITY.md)
+
+### 6. Docker Compose Base Patterns
+
+Reusable YAML anchors for consistent module configuration:
+
+```yaml
+include:
+  - path: ../../foundation/docker-compose.base.yml
+
+services:
+  my-service:
+    <<: *module-defaults
+    <<: *resource-limits-lite
+```
+
+Available patterns:
+
+- **Module defaults**: Restart policy, logging configuration
+- **Healthcheck timing**: Fast, default, slow profiles
+- **Resource limits**: Lite (256M), standard (512M), heavy (1G)
+- **Security defaults**: No-new-privileges, capability dropping
+- **Networks**: Internal and external network definitions
+
+Documentation: [`docs/COMPOSE-PATTERNS.md`](docs/COMPOSE-PATTERNS.md)
+
+### 7. Migration System
+
+The foundation includes a complete migration system for version upgrades:
+
+```bash
+# Check current migration status
+./bin/foundation migrate status
+
+# Apply pending migrations
+./bin/foundation migrate up
+
+# Rollback to a previous version
+./bin/foundation migrate down 1.0.0
+
+# Show migration history
+./bin/foundation migrate history
+```
+
+Key features:
+
+- **Automatic Detection**: Detects version changes on startup
+- **Idempotent Migrations**: Safe to run multiple times
+- **Rollback Support**: Downgrade when needed
+- **JSON Output**: Machine-readable output for scripting
+
+Documentation: [`docs/MIGRATION-GUIDE.md`](docs/MIGRATION-GUIDE.md)
+
+### 8. Foundation CLI
+
+The `foundation` command provides a unified interface for all foundation operations:
+
+```bash
+# Show foundation version
+./bin/foundation version
+
+# List installed modules
+./bin/foundation module list
+
+# Validate module manifest
+./bin/foundation module validate ./my-module
+
+# Generate .env files from configuration
+./bin/foundation config env ./my-module
+
+# Validate foundation configuration
+./bin/foundation config validate
+```
+
+Run `./bin/foundation --help` for complete documentation.
+
 ## Directory Structure
 
 ```
 foundation/
 ├── README.md                    # This file
+├── VERSION                      # Current foundation version
+├── docker-compose.base.yml      # Reusable Compose patterns
+├── bin/
+│   ├── foundation               # Main CLI entry point
+│   └── migrate                  # Migration management CLI
 ├── schemas/
 │   ├── module.schema.json       # Module manifest schema
 │   ├── lifecycle.schema.json    # Lifecycle hooks schema
-│   └── event.schema.json        # Event format schema
+│   ├── event.schema.json        # Event format schema
+│   ├── connection.schema.json   # Connection abstraction schema
+│   ├── dashboard.schema.json    # Dashboard registration schema
+│   ├── config.schema.json       # Configuration schema
+│   └── version.schema.json      # Version compatibility schema
+├── lib/
+│   ├── version-check.sh         # Version compatibility checker
+│   ├── connection-resolve.sh    # Connection resolution script
+│   ├── dashboard-register.sh    # Dashboard registration script
+│   ├── env-generate.sh          # Environment generation script
+│   └── eventbus-noop.sh         # No-op event bus fallback
+├── interfaces/
+│   ├── eventbus.ts              # Event bus TypeScript interface
+│   ├── eventbus.py              # Event bus Python interface
+│   ├── connection.ts            # Connection TypeScript interface
+│   ├── connection.py            # Connection Python interface
+│   ├── dashboard.ts             # Dashboard TypeScript interface
+│   └── dashboard.py             # Dashboard Python interface
 ├── docs/
 │   ├── MODULE-MANIFEST.md       # Manifest documentation
-│   └── LIFECYCLE-HOOKS.md       # Lifecycle documentation
+│   ├── LIFECYCLE-HOOKS.md       # Lifecycle documentation
+│   ├── COMPOSE-PATTERNS.md      # Docker Compose patterns
+│   ├── EVENT-BUS-INTERFACE.md   # Event bus documentation
+│   ├── CONNECTION-ABSTRACTION.md # Connection documentation
+│   ├── DASHBOARD-REGISTRATION.md # Dashboard documentation
+│   ├── CONFIGURATION-SCHEMA.md  # Configuration documentation
+│   ├── MIGRATION-GUIDE.md       # Migration system guide
+│   └── VERSION-COMPATIBILITY.md # Version compatibility guide
 └── templates/
     └── module-template/         # New module template
         ├── module.json
+        ├── docker-compose.yml
         └── README.md
 ```
 
@@ -189,6 +313,13 @@ foundation/
 
 - [Module Manifest Reference](docs/MODULE-MANIFEST.md)
 - [Lifecycle Hooks Guide](docs/LIFECYCLE-HOOKS.md)
+- [Docker Compose Patterns](docs/COMPOSE-PATTERNS.md)
+- [Event Bus Interface](docs/EVENT-BUS-INTERFACE.md)
+- [Connection Abstraction](docs/CONNECTION-ABSTRACTION.md)
+- [Dashboard Registration](docs/DASHBOARD-REGISTRATION.md)
+- [Configuration Schema](docs/CONFIGURATION-SCHEMA.md)
+- [Migration Guide](docs/MIGRATION-GUIDE.md)
+- [Version Compatibility](docs/VERSION-COMPATIBILITY.md)
 
 ## License
 

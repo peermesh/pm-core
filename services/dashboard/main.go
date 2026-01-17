@@ -33,6 +33,8 @@ func main() {
 
 	// API endpoints
 	mux.HandleFunc("/api/system", handlers.SystemHandler)
+	mux.HandleFunc("/api/containers", handlers.ContainersHandler)
+	mux.HandleFunc("/api/events", handlers.EventsHandler)
 
 	// Static file server
 	staticFS := http.FileServer(http.Dir("./static"))

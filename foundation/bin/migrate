@@ -1,0 +1,945 @@
+#!/usr/bin/env bash
+#
+# PeerMesh Foundation - Migration CLI
+#
+# This script manages foundation version migrations. It detects the current
+# foundation version, identifies pending migrations, and executes them in order.
+#
+# Usage:
+#   ./migrate <command> [options]
+#
+# Commands:
+#   status      Show current version and pending migrations
+#   up          Run migrations up to version (or latest)
+#   down        Rollback to a specific version
+#   history     Show migration history
+#   version     Show current foundation version
+#
+# Options:
+#   --dry-run   Show what would be done without executing
+#   --force     Run even if migrations appear applied
+#   --quiet     Suppress non-essential output
+#   --json      Output in JSON format
+#   -h, --help  Show this help message
+#
+# Exit codes:
+#   0 - Success
+#   1 - Migration failed
+#   2 - Invalid arguments or configuration
+#   3 - Missing dependencies
+#
+# Examples:
+#   ./migrate status                    # Show current state
+#   ./migrate up                        # Apply all pending migrations
+#   ./migrate up 1.1.0                  # Migrate up to version 1.1.0
+#   ./migrate down 1.0.0                # Rollback to version 1.0.0
+#   ./migrate history                   # Show migration history
+#   ./migrate version                   # Show current version
+#   ./migrate status --json             # JSON output for scripting
+#
+# Environment:
+#   FOUNDATION_DIR        Path to foundation directory (auto-detected)
+#   FOUNDATION_DATA_DIR   Path to migration state directory (default: .foundation)
+#   MIGRATION_LOG_LEVEL   Log level: debug, info, warn, error (default: info)
+#
+
+set -euo pipefail
+
+# Script directory
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Foundation directory (parent of bin/)
+FOUNDATION_DIR="${FOUNDATION_DIR:-$(dirname "$SCRIPT_DIR")}"
+
+# Migration data directory
+FOUNDATION_DATA_DIR="${FOUNDATION_DATA_DIR:-$(dirname "$FOUNDATION_DIR")/.foundation}"
+
+# Migration scripts directory
+MIGRATION_SCRIPTS_DIR="${MIGRATION_SCRIPTS_DIR:-$FOUNDATION_DIR/migrations}"
+
+# VERSION file location
+VERSION_FILE="$FOUNDATION_DIR/VERSION"
+
+# Migration state file
+MIGRATION_STATE_FILE="$FOUNDATION_DATA_DIR/migration-state.json"
+
+# Migration history file
+MIGRATION_HISTORY_FILE="$FOUNDATION_DATA_DIR/migration-history.json"
+
+# Output options
+OUTPUT_JSON=false
+QUIET=false
+DRY_RUN=false
+FORCE=false
+LOG_LEVEL="${MIGRATION_LOG_LEVEL:-info}"
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+BOLD='\033[1m'
+NC='\033[0m' # No Color
+
+# =============================================================================
+# Logging Functions
+# =============================================================================
+
+log_debug() {
+    if [[ "$LOG_LEVEL" == "debug" && "$OUTPUT_JSON" == "false" && "$QUIET" == "false" ]]; then
+        printf "%b[DEBUG]%b %s\n" "$BLUE" "$NC" "$1" >&2
+    fi
+}
+
+log_info() {
+    if [[ "$OUTPUT_JSON" == "false" && "$QUIET" == "false" ]]; then
+        printf "%s\n" "$1"
+    fi
+}
+
+log_success() {
+    if [[ "$OUTPUT_JSON" == "false" ]]; then
+        printf "%b✓%b %s\n" "$GREEN" "$NC" "$1"
+    fi
+}
+
+log_warn() {
+    if [[ "$OUTPUT_JSON" == "false" && "$QUIET" == "false" ]]; then
+        printf "%bWarning:%b %s\n" "$YELLOW" "$NC" "$1" >&2
+    fi
+}
+
+log_error() {
+    if [[ "$OUTPUT_JSON" == "false" ]]; then
+        printf "%bError:%b %s\n" "$RED" "$NC" "$1" >&2
+    fi
+}
+
+log_header() {
+    if [[ "$OUTPUT_JSON" == "false" && "$QUIET" == "false" ]]; then
+        printf "\n%b%s%b\n" "$BOLD" "$1" "$NC"
+        printf "%s\n" "$(printf '=%.0s' $(seq 1 ${#1}))"
+    fi
+}
+
+# =============================================================================
+# Help Functions
+# =============================================================================
+
+show_help() {
+    cat << 'EOF'
+PeerMesh Foundation Migration CLI
+
+Usage:
+  migrate <command> [options]
+
+Commands:
+  status              Show current version and pending migrations
+  up [version]        Run migrations up to version (default: latest)
+  down <version>      Rollback to a specific version
+  history             Show migration history
+  version             Show current foundation version
+
+Options:
+  --dry-run           Show what would be done without executing
+  --force             Run even if migrations appear applied
+  --quiet             Suppress non-essential output
+  --json              Output in JSON format
+  -h, --help          Show this help message
+
+Examples:
+  migrate status                    Show current state
+  migrate up                        Apply all pending migrations
+  migrate up 1.1.0                  Migrate up to version 1.1.0
+  migrate down 1.0.0                Rollback to version 1.0.0
+  migrate history                   Show migration history
+  migrate version                   Show current version
+  migrate status --json             JSON output for scripting
+
+Environment:
+  FOUNDATION_DIR        Path to foundation directory
+  FOUNDATION_DATA_DIR   Path to migration state directory
+  MIGRATION_LOG_LEVEL   Log level: debug, info, warn, error
+
+For more information, see docs/MIGRATION-GUIDE.md
+EOF
+}
+
+show_command_help() {
+    local cmd="$1"
+    case "$cmd" in
+        status)
+            cat << 'EOF'
+Usage: migrate status [options]
+
+Show the current migration state including:
+- Current foundation version
+- Applied migrations
+- Pending migrations
+
+Options:
+  --json        Output in JSON format
+  --quiet       Suppress non-essential output
+EOF
+            ;;
+        up)
+            cat << 'EOF'
+Usage: migrate up [version] [options]
+
+Run migrations to upgrade the foundation.
+
+Arguments:
+  version       Target version (default: latest available)
+
+Options:
+  --dry-run     Show what would be done without executing
+  --force       Run even if migrations appear applied
+  --json        Output in JSON format
+
+Examples:
+  migrate up              Apply all pending migrations
+  migrate up 1.2.0        Migrate up to version 1.2.0
+  migrate up --dry-run    Preview migration without applying
+EOF
+            ;;
+        down)
+            cat << 'EOF'
+Usage: migrate down <version> [options]
+
+Rollback migrations to a previous version.
+
+Arguments:
+  version       Target version to rollback to (required)
+
+Options:
+  --dry-run     Show what would be done without executing
+  --force       Run even if rollback seems unnecessary
+  --json        Output in JSON format
+
+Examples:
+  migrate down 1.0.0         Rollback to version 1.0.0
+  migrate down 1.1.0 --dry-run   Preview rollback
+EOF
+            ;;
+        history)
+            cat << 'EOF'
+Usage: migrate history [options]
+
+Show the complete migration history.
+
+Options:
+  --json        Output in JSON format
+  --quiet       Suppress non-essential output
+
+Output includes:
+- Migration ID
+- Applied timestamp
+- Direction (up/down)
+- Result (success/failed)
+EOF
+            ;;
+        version)
+            cat << 'EOF'
+Usage: migrate version [options]
+
+Show the current foundation version.
+
+Options:
+  --json        Output in JSON format
+EOF
+            ;;
+        *)
+            show_help
+            ;;
+    esac
+}
+
+# =============================================================================
+# Utility Functions
+# =============================================================================
+
+check_dependencies() {
+    local missing=()
+
+    if ! command -v jq &>/dev/null; then
+        missing+=("jq")
+    fi
+
+    if ! command -v sort &>/dev/null; then
+        missing+=("sort")
+    fi
+
+    if [[ ${#missing[@]} -gt 0 ]]; then
+        log_error "Missing required dependencies: ${missing[*]}"
+        log_info "Install with: brew install ${missing[*]}"
+        exit 3
+    fi
+}
+
+ensure_data_dir() {
+    if [[ ! -d "$FOUNDATION_DATA_DIR" ]]; then
+        log_debug "Creating migration data directory: $FOUNDATION_DATA_DIR"
+        mkdir -p "$FOUNDATION_DATA_DIR"
+    fi
+}
+
+# Get the current foundation version from VERSION file
+get_current_version() {
+    if [[ -f "$VERSION_FILE" ]]; then
+        cat "$VERSION_FILE" | tr -d '[:space:]'
+    else
+        echo "0.0.0"
+    fi
+}
+
+# Get applied version from migration state
+get_applied_version() {
+    if [[ -f "$MIGRATION_STATE_FILE" ]]; then
+        jq -r '.appliedVersion // "0.0.0"' "$MIGRATION_STATE_FILE"
+    else
+        echo "0.0.0"
+    fi
+}
+
+# Compare semver versions: returns -1, 0, or 1
+compare_versions() {
+    local v1="$1"
+    local v2="$2"
+
+    if [[ "$v1" == "$v2" ]]; then
+        echo "0"
+        return
+    fi
+
+    # Parse versions
+    local v1_major v1_minor v1_patch
+    local v2_major v2_minor v2_patch
+
+    IFS='.' read -r v1_major v1_minor v1_patch <<< "$v1"
+    IFS='.' read -r v2_major v2_minor v2_patch <<< "$v2"
+
+    # Default to 0 if empty
+    v1_major=${v1_major:-0}
+    v1_minor=${v1_minor:-0}
+    v1_patch=${v1_patch:-0}
+    v2_major=${v2_major:-0}
+    v2_minor=${v2_minor:-0}
+    v2_patch=${v2_patch:-0}
+
+    if [[ "$v1_major" -gt "$v2_major" ]]; then
+        echo "1"
+    elif [[ "$v1_major" -lt "$v2_major" ]]; then
+        echo "-1"
+    elif [[ "$v1_minor" -gt "$v2_minor" ]]; then
+        echo "1"
+    elif [[ "$v1_minor" -lt "$v2_minor" ]]; then
+        echo "-1"
+    elif [[ "$v1_patch" -gt "$v2_patch" ]]; then
+        echo "1"
+    elif [[ "$v1_patch" -lt "$v2_patch" ]]; then
+        echo "-1"
+    else
+        echo "0"
+    fi
+}
+
+# List available migration scripts
+list_migrations() {
+    local direction="${1:-up}"
+
+    if [[ ! -d "$MIGRATION_SCRIPTS_DIR" ]]; then
+        return
+    fi
+
+    # Find migration scripts matching pattern: V{version}__{description}.sh
+    # or {version}/{direction}.sh
+    find "$MIGRATION_SCRIPTS_DIR" -type f -name "*.sh" 2>/dev/null | while read -r script; do
+        local basename
+        basename=$(basename "$script")
+
+        # Pattern 1: V1.0.0__description.sh
+        if [[ "$basename" =~ ^V([0-9]+\.[0-9]+\.[0-9]+)__(.+)\.sh$ ]]; then
+            local version="${BASH_REMATCH[1]}"
+            local desc="${BASH_REMATCH[2]}"
+            echo "$version|$script|$desc"
+        fi
+
+        # Pattern 2: 1.0.0/up.sh or 1.0.0/down.sh
+        local parent_dir
+        parent_dir=$(basename "$(dirname "$script")")
+        if [[ "$parent_dir" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ && "$basename" == "${direction}.sh" ]]; then
+            echo "$parent_dir|$script|migration"
+        fi
+    done | sort -t'|' -k1 -V
+}
+
+# Get pending migrations (not yet applied)
+get_pending_migrations() {
+    local applied_version
+    applied_version=$(get_applied_version)
+
+    list_migrations "up" | while IFS='|' read -r version script desc; do
+        local cmp
+        cmp=$(compare_versions "$version" "$applied_version")
+        if [[ "$cmp" == "1" ]]; then
+            echo "$version|$script|$desc"
+        fi
+    done
+}
+
+# Get applied migrations from history
+get_applied_migrations() {
+    if [[ -f "$MIGRATION_HISTORY_FILE" ]]; then
+        jq -c '.migrations // []' "$MIGRATION_HISTORY_FILE"
+    else
+        echo "[]"
+    fi
+}
+
+# Record migration in history
+record_migration() {
+    local version="$1"
+    local direction="$2"
+    local result="$3"
+    local message="${4:-}"
+
+    ensure_data_dir
+
+    local timestamp
+    timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+    local entry
+    entry=$(jq -n \
+        --arg version "$version" \
+        --arg direction "$direction" \
+        --arg result "$result" \
+        --arg message "$message" \
+        --arg timestamp "$timestamp" \
+        '{
+            version: $version,
+            direction: $direction,
+            result: $result,
+            message: $message,
+            timestamp: $timestamp
+        }')
+
+    if [[ -f "$MIGRATION_HISTORY_FILE" ]]; then
+        local history
+        history=$(jq --argjson entry "$entry" '.migrations += [$entry]' "$MIGRATION_HISTORY_FILE")
+        echo "$history" > "$MIGRATION_HISTORY_FILE"
+    else
+        jq -n --argjson entry "$entry" '{migrations: [$entry]}' > "$MIGRATION_HISTORY_FILE"
+    fi
+}
+
+# Update migration state
+update_state() {
+    local version="$1"
+
+    ensure_data_dir
+
+    local timestamp
+    timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+    jq -n \
+        --arg version "$version" \
+        --arg timestamp "$timestamp" \
+        '{
+            appliedVersion: $version,
+            lastMigration: $timestamp
+        }' > "$MIGRATION_STATE_FILE"
+}
+
+# =============================================================================
+# Command Implementations
+# =============================================================================
+
+cmd_version() {
+    local version
+    version=$(get_current_version)
+
+    if [[ "$OUTPUT_JSON" == "true" ]]; then
+        jq -n --arg version "$version" '{"version": $version}'
+    else
+        echo "$version"
+    fi
+}
+
+cmd_status() {
+    local current_version applied_version
+    current_version=$(get_current_version)
+    applied_version=$(get_applied_version)
+
+    local pending_count=0
+    local pending_versions=()
+
+    while IFS='|' read -r version script desc; do
+        if [[ -n "$version" ]]; then
+            pending_versions+=("$version")
+            ((pending_count++)) || true
+        fi
+    done < <(get_pending_migrations)
+
+    if [[ "$OUTPUT_JSON" == "true" ]]; then
+        local pending_json
+        pending_json=$(printf '%s\n' "${pending_versions[@]}" | jq -R . | jq -s .)
+
+        jq -n \
+            --arg currentVersion "$current_version" \
+            --arg appliedVersion "$applied_version" \
+            --argjson pendingCount "$pending_count" \
+            --argjson pendingMigrations "$pending_json" \
+            '{
+                currentVersion: $currentVersion,
+                appliedVersion: $appliedVersion,
+                pendingCount: $pendingCount,
+                pendingMigrations: $pendingMigrations,
+                upToDate: ($pendingCount == 0)
+            }'
+    else
+        log_header "Foundation Migration Status"
+        echo ""
+        printf "  %bFoundation Version:%b  %s\n" "$CYAN" "$NC" "$current_version"
+        printf "  %bApplied Version:%b    %s\n" "$CYAN" "$NC" "$applied_version"
+        echo ""
+
+        if [[ $pending_count -eq 0 ]]; then
+            log_success "Up to date - no pending migrations"
+        else
+            printf "  %bPending Migrations:%b %d\n" "$YELLOW" "$NC" "$pending_count"
+            echo ""
+            for v in "${pending_versions[@]}"; do
+                printf "    - %s\n" "$v"
+            done
+            echo ""
+            log_warn "Run 'migrate up' to apply pending migrations"
+        fi
+    fi
+}
+
+cmd_up() {
+    local target_version="${1:-}"
+
+    local current_version applied_version
+    current_version=$(get_current_version)
+    applied_version=$(get_applied_version)
+
+    # Collect pending migrations
+    local migrations=()
+    while IFS='|' read -r version script desc; do
+        if [[ -n "$version" ]]; then
+            # If target version specified, only include up to that version
+            if [[ -n "$target_version" ]]; then
+                local cmp
+                cmp=$(compare_versions "$version" "$target_version")
+                if [[ "$cmp" == "1" ]]; then
+                    continue
+                fi
+            fi
+            migrations+=("$version|$script|$desc")
+        fi
+    done < <(get_pending_migrations)
+
+    local migration_count=${#migrations[@]}
+
+    if [[ $migration_count -eq 0 ]]; then
+        if [[ "$OUTPUT_JSON" == "true" ]]; then
+            jq -n '{"success": true, "message": "Already up to date", "migrationsApplied": 0}'
+        else
+            log_success "Already up to date - no migrations to apply"
+        fi
+        return 0
+    fi
+
+    if [[ "$DRY_RUN" == "true" ]]; then
+        if [[ "$OUTPUT_JSON" == "true" ]]; then
+            local versions
+            versions=$(printf '%s\n' "${migrations[@]}" | cut -d'|' -f1 | jq -R . | jq -s .)
+            jq -n \
+                --argjson versions "$versions" \
+                --argjson count "$migration_count" \
+                '{
+                    dryRun: true,
+                    migrationsToApply: $versions,
+                    count: $count
+                }'
+        else
+            log_header "Dry Run - Migrations to Apply"
+            echo ""
+            for migration in "${migrations[@]}"; do
+                IFS='|' read -r version script desc <<< "$migration"
+                printf "  Would apply: %s (%s)\n" "$version" "$desc"
+            done
+            echo ""
+            printf "Total: %d migration(s)\n" "$migration_count"
+        fi
+        return 0
+    fi
+
+    if [[ "$OUTPUT_JSON" == "false" ]]; then
+        log_header "Applying Migrations"
+        echo ""
+    fi
+
+    local applied_count=0
+    local last_version="$applied_version"
+    local results=()
+
+    for migration in "${migrations[@]}"; do
+        IFS='|' read -r version script desc <<< "$migration"
+
+        if [[ "$OUTPUT_JSON" == "false" ]]; then
+            printf "  Applying %s... " "$version"
+        fi
+
+        # Execute migration script
+        local result="success"
+        local message=""
+
+        if [[ -x "$script" ]]; then
+            if output=$(bash "$script" 2>&1); then
+                result="success"
+                message="$output"
+                last_version="$version"
+                ((applied_count++)) || true
+                if [[ "$OUTPUT_JSON" == "false" ]]; then
+                    printf "%b✓%b\n" "$GREEN" "$NC"
+                fi
+            else
+                result="failed"
+                message="$output"
+                if [[ "$OUTPUT_JSON" == "false" ]]; then
+                    printf "%b✗%b\n" "$RED" "$NC"
+                    log_error "Migration $version failed: $message"
+                fi
+                record_migration "$version" "up" "$result" "$message"
+
+                if [[ "$OUTPUT_JSON" == "true" ]]; then
+                    jq -n \
+                        --arg version "$version" \
+                        --arg error "$message" \
+                        --argjson applied "$applied_count" \
+                        '{
+                            success: false,
+                            failedAt: $version,
+                            error: $error,
+                            migrationsApplied: $applied
+                        }'
+                fi
+                return 1
+            fi
+        else
+            # Script not executable or doesn't exist - treat as no-op
+            result="skipped"
+            message="Script not found or not executable"
+            last_version="$version"
+            ((applied_count++)) || true
+            if [[ "$OUTPUT_JSON" == "false" ]]; then
+                printf "%b-%b (no script)\n" "$YELLOW" "$NC"
+            fi
+        fi
+
+        record_migration "$version" "up" "$result" "$message"
+        results+=("$version|$result")
+    done
+
+    # Update state to last successful version
+    update_state "$last_version"
+
+    if [[ "$OUTPUT_JSON" == "true" ]]; then
+        local results_json
+        results_json=$(printf '%s\n' "${results[@]}" | while IFS='|' read -r v r; do
+            jq -n --arg v "$v" --arg r "$r" '{"version": $v, "result": $r}'
+        done | jq -s .)
+
+        jq -n \
+            --argjson applied "$applied_count" \
+            --arg version "$last_version" \
+            --argjson results "$results_json" \
+            '{
+                success: true,
+                migrationsApplied: $applied,
+                currentVersion: $version,
+                results: $results
+            }'
+    else
+        echo ""
+        log_success "Applied $applied_count migration(s). Now at version $last_version"
+    fi
+}
+
+cmd_down() {
+    local target_version="$1"
+
+    if [[ -z "$target_version" ]]; then
+        log_error "Target version required for rollback"
+        echo "Usage: migrate down <version>" >&2
+        exit 2
+    fi
+
+    local applied_version
+    applied_version=$(get_applied_version)
+
+    local cmp
+    cmp=$(compare_versions "$target_version" "$applied_version")
+
+    if [[ "$cmp" != "-1" && "$FORCE" == "false" ]]; then
+        if [[ "$OUTPUT_JSON" == "true" ]]; then
+            jq -n \
+                --arg target "$target_version" \
+                --arg current "$applied_version" \
+                '{
+                    success: false,
+                    error: "Target version is not older than current version",
+                    targetVersion: $target,
+                    currentVersion: $current
+                }'
+        else
+            log_error "Target version $target_version is not older than current version $applied_version"
+            log_info "Use --force to override"
+        fi
+        return 2
+    fi
+
+    # Find rollback scripts
+    local rollbacks=()
+    list_migrations "down" | while IFS='|' read -r version script desc; do
+        local cmp_applied cmp_target
+        cmp_applied=$(compare_versions "$version" "$applied_version")
+        cmp_target=$(compare_versions "$version" "$target_version")
+
+        # Include if version <= applied and version > target
+        if [[ "$cmp_applied" != "1" && "$cmp_target" == "1" ]]; then
+            rollbacks+=("$version|$script|$desc")
+        fi
+    done
+
+    # Sort in reverse order for rollback
+    rollbacks=($(printf '%s\n' "${rollbacks[@]}" | sort -t'|' -k1 -V -r))
+
+    local rollback_count=${#rollbacks[@]}
+
+    if [[ $rollback_count -eq 0 ]]; then
+        if [[ "$OUTPUT_JSON" == "true" ]]; then
+            jq -n '{"success": true, "message": "No rollback scripts found", "migrationsRolledBack": 0}'
+        else
+            log_warn "No rollback scripts found"
+        fi
+        update_state "$target_version"
+        return 0
+    fi
+
+    if [[ "$DRY_RUN" == "true" ]]; then
+        if [[ "$OUTPUT_JSON" == "true" ]]; then
+            local versions
+            versions=$(printf '%s\n' "${rollbacks[@]}" | cut -d'|' -f1 | jq -R . | jq -s .)
+            jq -n \
+                --argjson versions "$versions" \
+                --arg target "$target_version" \
+                '{
+                    dryRun: true,
+                    migrationsToRollback: $versions,
+                    targetVersion: $target
+                }'
+        else
+            log_header "Dry Run - Rollbacks to Apply"
+            for rollback in "${rollbacks[@]}"; do
+                IFS='|' read -r version script desc <<< "$rollback"
+                printf "  Would rollback: %s\n" "$version"
+            done
+            printf "\nTarget version: %s\n" "$target_version"
+        fi
+        return 0
+    fi
+
+    if [[ "$OUTPUT_JSON" == "false" ]]; then
+        log_header "Rolling Back"
+    fi
+
+    local rolled_back=0
+
+    for rollback in "${rollbacks[@]}"; do
+        IFS='|' read -r version script desc <<< "$rollback"
+
+        if [[ "$OUTPUT_JSON" == "false" ]]; then
+            printf "  Rolling back %s... " "$version"
+        fi
+
+        local result="success"
+        local message=""
+
+        if [[ -x "$script" ]]; then
+            if output=$(bash "$script" 2>&1); then
+                result="success"
+                message="$output"
+                ((rolled_back++)) || true
+                if [[ "$OUTPUT_JSON" == "false" ]]; then
+                    printf "%b✓%b\n" "$GREEN" "$NC"
+                fi
+            else
+                result="failed"
+                message="$output"
+                if [[ "$OUTPUT_JSON" == "false" ]]; then
+                    printf "%b✗%b\n" "$RED" "$NC"
+                    log_error "Rollback $version failed: $message"
+                fi
+                record_migration "$version" "down" "$result" "$message"
+                return 1
+            fi
+        else
+            result="skipped"
+            message="No rollback script"
+            ((rolled_back++)) || true
+            if [[ "$OUTPUT_JSON" == "false" ]]; then
+                printf "%b-%b (no script)\n" "$YELLOW" "$NC"
+            fi
+        fi
+
+        record_migration "$version" "down" "$result" "$message"
+    done
+
+    update_state "$target_version"
+
+    if [[ "$OUTPUT_JSON" == "true" ]]; then
+        jq -n \
+            --argjson rolled "$rolled_back" \
+            --arg version "$target_version" \
+            '{
+                success: true,
+                migrationsRolledBack: $rolled,
+                currentVersion: $version
+            }'
+    else
+        log_success "Rolled back $rolled_back migration(s). Now at version $target_version"
+    fi
+}
+
+cmd_history() {
+    local history
+    history=$(get_applied_migrations)
+
+    if [[ "$OUTPUT_JSON" == "true" ]]; then
+        jq -n --argjson migrations "$history" '{"migrations": $migrations}'
+    else
+        log_header "Migration History"
+        echo ""
+
+        if [[ "$history" == "[]" ]]; then
+            log_info "No migration history found"
+            return
+        fi
+
+        printf "  %-12s %-10s %-10s %s\n" "VERSION" "DIRECTION" "RESULT" "TIMESTAMP"
+        printf "  %-12s %-10s %-10s %s\n" "-------" "---------" "------" "---------"
+
+        echo "$history" | jq -r '.[] | "\(.version)|\(.direction)|\(.result)|\(.timestamp)"' | while IFS='|' read -r version direction result timestamp; do
+            local result_color="$NC"
+            case "$result" in
+                success) result_color="$GREEN" ;;
+                failed) result_color="$RED" ;;
+                skipped) result_color="$YELLOW" ;;
+            esac
+            printf "  %-12s %-10s %b%-10s%b %s\n" "$version" "$direction" "$result_color" "$result" "$NC" "$timestamp"
+        done
+    fi
+}
+
+# =============================================================================
+# Main
+# =============================================================================
+
+main() {
+    # Parse global options first
+    local command=""
+    local args=()
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --json)
+                OUTPUT_JSON=true
+                shift
+                ;;
+            --quiet)
+                QUIET=true
+                shift
+                ;;
+            --dry-run)
+                DRY_RUN=true
+                shift
+                ;;
+            --force)
+                FORCE=true
+                shift
+                ;;
+            -h|--help)
+                if [[ -z "$command" ]]; then
+                    show_help
+                else
+                    show_command_help "$command"
+                fi
+                exit 0
+                ;;
+            -*)
+                log_error "Unknown option: $1"
+                show_help
+                exit 2
+                ;;
+            *)
+                if [[ -z "$command" ]]; then
+                    command="$1"
+                else
+                    args+=("$1")
+                fi
+                shift
+                ;;
+        esac
+    done
+
+    # Check dependencies
+    check_dependencies
+
+    # Ensure foundation directory exists
+    if [[ ! -d "$FOUNDATION_DIR" ]]; then
+        log_error "Foundation directory not found: $FOUNDATION_DIR"
+        exit 2
+    fi
+
+    # Execute command
+    case "$command" in
+        ""|status)
+            cmd_status
+            ;;
+        up)
+            cmd_up "${args[0]:-}"
+            ;;
+        down)
+            if [[ ${#args[@]} -eq 0 ]]; then
+                log_error "Target version required for rollback"
+                show_command_help "down"
+                exit 2
+            fi
+            cmd_down "${args[0]}"
+            ;;
+        history)
+            cmd_history
+            ;;
+        version)
+            cmd_version
+            ;;
+        help)
+            if [[ ${#args[@]} -gt 0 ]]; then
+                show_command_help "${args[0]}"
+            else
+                show_help
+            fi
+            ;;
+        *)
+            log_error "Unknown command: $command"
+            show_help
+            exit 2
+            ;;
+    esac
+}
+
+main "$@"

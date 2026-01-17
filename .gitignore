@@ -82,3 +82,6 @@ target/
 
 # Nested Git Repositories (should be submodules)
 .dev/reference-repos/nself/
+
+# Compiled binaries
+services/dashboard/dashboard

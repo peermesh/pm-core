@@ -81,17 +81,30 @@
             </div>
         </section>
 
-        <!-- Modules Section (Empty State) -->
+        <!-- Modules Section -->
         <section class="mb-8">
-            <h2 class="text-lg font-semibold text-gray-200 mb-4">Installed Modules</h2>
-            <div class="bg-gray-800 rounded-lg border border-gray-700 border-dashed p-8">
-                <div class="text-center">
-                    <svg class="mx-auto h-12 w-12 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                    </svg>
-                    <h3 class="mt-4 text-lg font-medium text-gray-300">No modules installed</h3>
-                    <p class="mt-2 text-sm text-gray-500">Get started by enabling a profile in your docker-compose configuration.</p>
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-semibold text-gray-200">Installed Modules</h2>
+                <div class="flex items-center space-x-2 text-sm text-gray-500">
+                    <span id="sse-status" class="flex items-center">
+                        <span class="w-2 h-2 bg-gray-500 rounded-full mr-2"></span>
+                        Connecting...
+                    </span>
                 </div>
+            </div>
+            <div id="modules-container" class="space-y-4">
+                <!-- Empty state (shown when no containers) -->
+                <div id="modules-empty-state" class="bg-gray-800 rounded-lg border border-gray-700 border-dashed p-8">
+                    <div class="text-center">
+                        <svg class="mx-auto h-12 w-12 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                        </svg>
+                        <h3 class="mt-4 text-lg font-medium text-gray-300">No modules installed</h3>
+                        <p class="mt-2 text-sm text-gray-500">Get started by enabling a profile in your docker-compose configuration.</p>
+                    </div>
+                </div>
+                <!-- Module cards will be inserted here -->
+                <div id="modules-grid" class="grid grid-cols-1 lg:grid-cols-2 gap-4 hidden"></div>
             </div>
         </section>
 
@@ -225,6 +238,18 @@
         </div>
     </template>
 
+    <!-- Module Card Template (loaded from partial) -->
+    <div id="module-templates"></div>
+    <script>
+        // Load module card templates
+        fetch('/partials/module-card.html')
+            .then(r => r.text())
+            .then(html => {
+                document.getElementById('module-templates').innerHTML = html;
+            })
+            .catch(e => console.error('Failed to load module templates:', e));
+    </script>
+
     <!-- HTMX Response Handler -->
     <script>
         // Handle system info response and render it
@@ -272,6 +297,155 @@
                 </div>
             `;
         }
+    </script>
+
+    <!-- SSE Connection and Container Rendering -->
+    <script>
+        (function() {
+            let eventSource = null;
+            let reconnectAttempts = 0;
+            const maxReconnectAttempts = 5;
+            const reconnectDelay = 3000;
+
+            function updateSSEStatus(status, connected) {
+                const el = document.getElementById('sse-status');
+                if (!el) return;
+
+                const dotClass = connected ? 'bg-green-500 animate-pulse' : 'bg-gray-500';
+                el.innerHTML = `<span class="w-2 h-2 ${dotClass} rounded-full mr-2"></span>${status}`;
+            }
+
+            function processContainersData(containers) {
+                const emptyState = document.getElementById('modules-empty-state');
+                const grid = document.getElementById('modules-grid');
+
+                if (!containers || containers.length === 0) {
+                    emptyState.classList.remove('hidden');
+                    grid.classList.add('hidden');
+                    return;
+                }
+
+                emptyState.classList.add('hidden');
+                grid.classList.remove('hidden');
+
+                // Group containers by profile
+                const profileMap = {};
+                containers.forEach(c => {
+                    const profile = c.profile || 'default';
+                    if (!profileMap[profile]) {
+                        profileMap[profile] = {
+                            name: profile,
+                            container_count: 0,
+                            memory_mb: 0,
+                            memory_limit_mb: 0,
+                            cpu_percent: 0,
+                            health: 'healthy',
+                            containers: []
+                        };
+                    }
+                    const p = profileMap[profile];
+                    p.container_count++;
+                    p.memory_mb += c.resources?.memory_mb || 0;
+                    p.memory_limit_mb += c.resources?.memory_limit_mb || 0;
+                    p.cpu_percent += c.resources?.cpu_percent || 0;
+
+                    if (c.health === 'unhealthy') p.health = 'degraded';
+                    else if (c.status !== 'running' && p.health !== 'degraded') p.health = 'degraded';
+
+                    p.containers.push({
+                        name: c.name,
+                        image: c.image,
+                        state: c.status,
+                        health: c.health,
+                        memory_mb: c.resources?.memory_mb || 0,
+                        cpu_percent: c.resources?.cpu_percent || 0
+                    });
+                });
+
+                const profiles = Object.values(profileMap);
+
+                // Render using the module card function if available
+                if (typeof window.renderModuleCards === 'function') {
+                    window.renderModuleCards(profiles, '#modules-grid');
+                } else {
+                    // Fallback: simple rendering
+                    grid.innerHTML = profiles.map(p => `
+                        <div class="bg-gray-800 rounded-lg border border-gray-700 p-4">
+                            <h3 class="text-lg font-medium text-gray-200">${p.name}</h3>
+                            <p class="text-sm text-gray-400">${p.container_count} container(s)</p>
+                            <p class="text-sm text-gray-400">Memory: ${p.memory_mb} MB / ${p.memory_limit_mb} MB</p>
+                        </div>
+                    `).join('');
+                }
+            }
+
+            function connectSSE() {
+                if (eventSource) {
+                    eventSource.close();
+                }
+
+                updateSSEStatus('Connecting...', false);
+
+                eventSource = new EventSource('/api/events');
+
+                eventSource.onopen = function() {
+                    reconnectAttempts = 0;
+                    updateSSEStatus('Live', true);
+                };
+
+                eventSource.addEventListener('containers', function(e) {
+                    try {
+                        const data = JSON.parse(e.data);
+                        processContainersData(data.containers);
+                    } catch (err) {
+                        console.error('Failed to parse containers event:', err);
+                    }
+                });
+
+                eventSource.addEventListener('system', function(e) {
+                    // System stats can be used to update a global stats display
+                    // Currently handled by HTMX polling
+                });
+
+                eventSource.addEventListener('error', function(e) {
+                    try {
+                        const data = JSON.parse(e.data);
+                        console.warn('SSE error:', data.message);
+                    } catch {
+                        // Not a JSON error, likely connection issue
+                    }
+                });
+
+                eventSource.onerror = function(e) {
+                    updateSSEStatus('Disconnected', false);
+                    eventSource.close();
+
+                    if (reconnectAttempts < maxReconnectAttempts) {
+                        reconnectAttempts++;
+                        updateSSEStatus(`Reconnecting (${reconnectAttempts}/${maxReconnectAttempts})...`, false);
+                        setTimeout(connectSSE, reconnectDelay);
+                    } else {
+                        updateSSEStatus('Connection failed', false);
+                    }
+                };
+            }
+
+            // Initial load via REST API (before SSE connection)
+            fetch('/api/containers')
+                .then(r => r.json())
+                .then(data => processContainersData(data.containers))
+                .catch(e => console.error('Failed to load containers:', e));
+
+            // Connect to SSE after page loads and templates are ready
+            setTimeout(connectSSE, 500);
+
+            // Cleanup on page unload
+            window.addEventListener('beforeunload', function() {
+                if (eventSource) {
+                    eventSource.close();
+                }
+            });
+        })();
     </script>
 </body>
 </html>

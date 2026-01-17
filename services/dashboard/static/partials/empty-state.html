@@ -1,0 +1,136 @@
+<!--
+  Empty State Partial
+
+  An HTMX partial for displaying the empty state when no modules are installed.
+  This component is reusable and can be loaded via hx-get.
+
+  Usage:
+    <div hx-get="/partials/empty-state.html" hx-trigger="load"></div>
+
+  Or rendered server-side when module count is 0.
+-->
+
+<div class="space-y-8">
+    <!-- No Modules Installed Card -->
+    <div class="bg-gray-800 rounded-lg border border-gray-700 border-dashed p-8">
+        <div class="text-center">
+            <svg class="mx-auto h-12 w-12 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+            </svg>
+            <h3 class="mt-4 text-lg font-medium text-gray-300">No modules installed</h3>
+            <p class="mt-2 text-sm text-gray-500">Get started by enabling a profile in your docker-compose configuration.</p>
+        </div>
+    </div>
+
+    <!-- Getting Started Guide -->
+    <div class="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden" x-data="{ open: true }">
+        <button
+            @click="open = !open"
+            class="w-full flex items-center justify-between p-4 text-left hover:bg-gray-700/50 transition-colors"
+        >
+            <h2 class="text-lg font-semibold text-gray-200">Getting Started</h2>
+            <svg
+                class="w-5 h-5 text-gray-400 transform transition-transform"
+                :class="{ 'rotate-180': open }"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+            >
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+            </svg>
+        </button>
+
+        <div x-show="open" x-collapse class="border-t border-gray-700">
+            <div class="p-6 space-y-6">
+                <!-- Step 1: Enable Profiles -->
+                <div class="flex items-start">
+                    <div class="flex-shrink-0 w-8 h-8 bg-primary-600 rounded-full flex items-center justify-center text-sm font-bold">1</div>
+                    <div class="ml-4">
+                        <h3 class="text-md font-medium text-gray-200">Enable Profiles</h3>
+                        <p class="mt-1 text-sm text-gray-400">Add profiles to your <code class="bg-gray-700 px-1.5 py-0.5 rounded text-xs">.env</code> file:</p>
+                        <pre class="mt-2 bg-gray-900 rounded p-3 text-sm overflow-x-auto"><code class="text-green-400">COMPOSE_PROFILES=postgresql,redis</code></pre>
+                    </div>
+                </div>
+
+                <!-- Step 2: Start Services -->
+                <div class="flex items-start">
+                    <div class="flex-shrink-0 w-8 h-8 bg-primary-600 rounded-full flex items-center justify-center text-sm font-bold">2</div>
+                    <div class="ml-4">
+                        <h3 class="text-md font-medium text-gray-200">Start Services</h3>
+                        <p class="mt-1 text-sm text-gray-400">Run docker-compose to start your services:</p>
+                        <pre class="mt-2 bg-gray-900 rounded p-3 text-sm overflow-x-auto"><code class="text-green-400">docker compose up -d</code></pre>
+                    </div>
+                </div>
+
+                <!-- Step 3: Monitor -->
+                <div class="flex items-start">
+                    <div class="flex-shrink-0 w-8 h-8 bg-primary-600 rounded-full flex items-center justify-center text-sm font-bold">3</div>
+                    <div class="ml-4">
+                        <h3 class="text-md font-medium text-gray-200">Monitor Your Stack</h3>
+                        <p class="mt-1 text-sm text-gray-400">This dashboard will automatically display your running modules and their resource usage.</p>
+                    </div>
+                </div>
+
+                <!-- Available Profiles -->
+                <div class="mt-6 pt-6 border-t border-gray-700">
+                    <h3 class="text-md font-medium text-gray-200 mb-3">Available Profiles</h3>
+                    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                        <div class="bg-gray-700/50 rounded px-3 py-2 text-sm hover:bg-gray-700 transition-colors">
+                            <span class="text-gray-300">postgresql</span>
+                            <span class="text-gray-500 text-xs ml-1">Database</span>
+                        </div>
+                        <div class="bg-gray-700/50 rounded px-3 py-2 text-sm hover:bg-gray-700 transition-colors">
+                            <span class="text-gray-300">redis</span>
+                            <span class="text-gray-500 text-xs ml-1">Cache</span>
+                        </div>
+                        <div class="bg-gray-700/50 rounded px-3 py-2 text-sm hover:bg-gray-700 transition-colors">
+                            <span class="text-gray-300">monitoring</span>
+                            <span class="text-gray-500 text-xs ml-1">Metrics</span>
+                        </div>
+                        <div class="bg-gray-700/50 rounded px-3 py-2 text-sm hover:bg-gray-700 transition-colors">
+                            <span class="text-gray-300">backup</span>
+                            <span class="text-gray-500 text-xs ml-1">Data</span>
+                        </div>
+                        <div class="bg-gray-700/50 rounded px-3 py-2 text-sm hover:bg-gray-700 transition-colors">
+                            <span class="text-gray-300">identity</span>
+                            <span class="text-gray-500 text-xs ml-1">Auth</span>
+                        </div>
+                        <div class="bg-gray-700/50 rounded px-3 py-2 text-sm hover:bg-gray-700 transition-colors">
+                            <span class="text-gray-300">secrets</span>
+                            <span class="text-gray-500 text-xs ml-1">Vault</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Commands -->
+                <div class="mt-4 pt-4 border-t border-gray-700">
+                    <h3 class="text-md font-medium text-gray-200 mb-3">Quick Commands</h3>
+                    <div class="space-y-2 text-sm">
+                        <div class="flex items-center justify-between bg-gray-900 rounded p-2">
+                            <code class="text-gray-300">make validate</code>
+                            <span class="text-gray-500">Validate compose config</span>
+                        </div>
+                        <div class="flex items-center justify-between bg-gray-900 rounded p-2">
+                            <code class="text-gray-300">docker compose ps</code>
+                            <span class="text-gray-500">List running containers</span>
+                        </div>
+                        <div class="flex items-center justify-between bg-gray-900 rounded p-2">
+                            <code class="text-gray-300">docker compose logs -f</code>
+                            <span class="text-gray-500">Follow container logs</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Documentation Link -->
+                <div class="mt-4 pt-4 border-t border-gray-700">
+                    <a href="https://github.com/peermesh/docker-lab" target="_blank" rel="noopener noreferrer" class="inline-flex items-center text-primary-400 hover:text-primary-300 text-sm transition-colors">
+                        <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+                        </svg>
+                        View Documentation on GitHub
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

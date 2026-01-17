@@ -1,0 +1,354 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://peermesh.io/foundation/v1/dashboard.schema.json",
+  "title": "PeerMesh Dashboard Registration Schema",
+  "description": "Schema for modules to register UI components with the dashboard",
+  "type": "object",
+  "$defs": {
+    "iconName": {
+      "title": "Icon Name",
+      "description": "Name of an icon from the icon set (e.g., lucide-react icons)",
+      "type": "string",
+      "pattern": "^[A-Za-z][A-Za-z0-9-]*$",
+      "examples": ["Server", "Database", "Settings", "Activity", "Box"]
+    },
+    "navPlacement": {
+      "title": "Navigation Placement",
+      "description": "Where the route should appear in navigation",
+      "type": "string",
+      "enum": ["sidebar", "header", "footer", "settings", "hidden"]
+    },
+    "widgetSize": {
+      "title": "Widget Size",
+      "description": "Size of the status widget",
+      "type": "string",
+      "enum": ["small", "medium", "large", "full"]
+    },
+    "routeRegistration": {
+      "title": "Route Registration",
+      "description": "A route registered by a module for the dashboard",
+      "type": "object",
+      "required": ["path", "component"],
+      "properties": {
+        "path": {
+          "type": "string",
+          "pattern": "^/[a-z0-9-/]*$",
+          "description": "URL path for this route (e.g., '/backup', '/backup/history')"
+        },
+        "component": {
+          "type": "string",
+          "description": "Component name or path to lazy-load"
+        },
+        "label": {
+          "type": "string",
+          "description": "Display label for navigation"
+        },
+        "icon": {
+          "$ref": "#/$defs/iconName",
+          "description": "Icon to display in navigation"
+        },
+        "nav": {
+          "$ref": "#/$defs/navPlacement",
+          "default": "sidebar",
+          "description": "Where this route appears in navigation"
+        },
+        "order": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 100,
+          "description": "Sort order in navigation (lower = higher)"
+        },
+        "exact": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether path must match exactly"
+        },
+        "children": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/routeRegistration"
+          },
+          "description": "Nested child routes"
+        }
+      }
+    },
+    "widgetRegistration": {
+      "title": "Widget Registration",
+      "description": "A status widget registered by a module",
+      "type": "object",
+      "required": ["id", "component"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$",
+          "description": "Unique widget identifier within the module"
+        },
+        "component": {
+          "type": "string",
+          "description": "Widget component name or path to lazy-load"
+        },
+        "label": {
+          "type": "string",
+          "description": "Display label for the widget"
+        },
+        "size": {
+          "$ref": "#/$defs/widgetSize",
+          "default": "small",
+          "description": "Default size of the widget"
+        },
+        "order": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 100,
+          "description": "Sort order on dashboard (lower = higher priority)"
+        },
+        "refreshInterval": {
+          "type": "integer",
+          "minimum": 1000,
+          "default": 30000,
+          "description": "Auto-refresh interval in milliseconds"
+        },
+        "permissions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Required permissions to view this widget"
+        }
+      }
+    },
+    "configPanelRegistration": {
+      "title": "Config Panel Registration",
+      "description": "A configuration panel registered by a module",
+      "type": "object",
+      "required": ["id", "component"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$",
+          "description": "Unique config panel identifier within the module"
+        },
+        "component": {
+          "type": "string",
+          "description": "Config panel component name or path to lazy-load"
+        },
+        "label": {
+          "type": "string",
+          "description": "Display label for the config panel"
+        },
+        "description": {
+          "type": "string",
+          "description": "Brief description of what this panel configures"
+        },
+        "icon": {
+          "$ref": "#/$defs/iconName",
+          "description": "Icon to display in settings navigation"
+        },
+        "category": {
+          "type": "string",
+          "default": "general",
+          "description": "Category grouping in settings (e.g., 'general', 'security', 'advanced')"
+        },
+        "order": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 100,
+          "description": "Sort order within category (lower = higher priority)"
+        },
+        "permissions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Required permissions to access this config panel"
+        }
+      }
+    },
+    "dashboardRegistration": {
+      "title": "Dashboard Registration",
+      "description": "Complete dashboard registration for a module",
+      "type": "object",
+      "required": ["moduleId"],
+      "properties": {
+        "moduleId": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$",
+          "description": "Module ID registering these components"
+        },
+        "displayName": {
+          "type": "string",
+          "description": "Human-readable module name for display"
+        },
+        "icon": {
+          "$ref": "#/$defs/iconName",
+          "description": "Default icon for this module"
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+",
+          "description": "Module version"
+        },
+        "routes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/routeRegistration"
+          },
+          "description": "Routes registered by this module"
+        },
+        "widgets": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/widgetRegistration"
+          },
+          "description": "Status widgets registered by this module"
+        },
+        "configPanels": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/configPanelRegistration"
+          },
+          "description": "Configuration panels registered by this module"
+        }
+      }
+    },
+    "registrationResult": {
+      "title": "Registration Result",
+      "description": "Result of a dashboard registration operation",
+      "type": "object",
+      "required": ["success", "moduleId"],
+      "properties": {
+        "success": {
+          "type": "boolean",
+          "description": "Whether registration was successful"
+        },
+        "moduleId": {
+          "type": "string",
+          "description": "Module ID that was registered"
+        },
+        "routesRegistered": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of routes registered"
+        },
+        "widgetsRegistered": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of widgets registered"
+        },
+        "configPanelsRegistered": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of config panels registered"
+        },
+        "errors": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Error messages if registration failed"
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Non-fatal warnings during registration"
+        }
+      }
+    }
+  },
+  "properties": {
+    "registration": {
+      "$ref": "#/$defs/dashboardRegistration",
+      "description": "Dashboard registration for a module"
+    }
+  },
+  "examples": [
+    {
+      "registration": {
+        "moduleId": "backup-module",
+        "displayName": "Backup Manager",
+        "icon": "Archive",
+        "version": "1.0.0",
+        "routes": [
+          {
+            "path": "/backup",
+            "component": "BackupDashboard",
+            "label": "Backups",
+            "icon": "Archive",
+            "nav": "sidebar",
+            "order": 30
+          },
+          {
+            "path": "/backup/history",
+            "component": "BackupHistory",
+            "label": "History",
+            "nav": "hidden"
+          }
+        ],
+        "widgets": [
+          {
+            "id": "backup-status",
+            "component": "BackupStatusWidget",
+            "label": "Backup Status",
+            "size": "small",
+            "order": 20,
+            "refreshInterval": 60000
+          },
+          {
+            "id": "last-backup",
+            "component": "LastBackupWidget",
+            "label": "Last Backup",
+            "size": "medium",
+            "order": 25
+          }
+        ],
+        "configPanels": [
+          {
+            "id": "backup-settings",
+            "component": "BackupSettingsPanel",
+            "label": "Backup Settings",
+            "description": "Configure backup schedules and retention",
+            "icon": "Settings",
+            "category": "general",
+            "order": 10
+          }
+        ]
+      }
+    },
+    {
+      "registration": {
+        "moduleId": "monitoring",
+        "displayName": "System Monitor",
+        "icon": "Activity",
+        "version": "2.1.0",
+        "routes": [
+          {
+            "path": "/monitor",
+            "component": "MonitorDashboard",
+            "label": "Monitoring",
+            "icon": "Activity",
+            "nav": "sidebar",
+            "order": 10
+          }
+        ],
+        "widgets": [
+          {
+            "id": "cpu-usage",
+            "component": "CpuWidget",
+            "label": "CPU Usage",
+            "size": "small",
+            "refreshInterval": 5000
+          },
+          {
+            "id": "memory-usage",
+            "component": "MemoryWidget",
+            "label": "Memory Usage",
+            "size": "small",
+            "refreshInterval": 5000
+          }
+        ]
+      }
+    }
+  ]
+}

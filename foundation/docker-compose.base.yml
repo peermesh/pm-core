@@ -1,0 +1,184 @@
+# PeerMesh Foundation - Docker Compose Base Patterns
+# Version: 1.0.1
+#
+# This file provides extendable service definitions for consistent module configuration.
+# Use the `extends` directive to inherit from these base services.
+#
+# Usage in your module's docker-compose.yml:
+#   services:
+#     my-service:
+#       extends:
+#         file: ../../foundation/docker-compose.base.yml
+#         service: _module-defaults
+#       image: my-image:latest
+#
+# IMPORTANT: YAML anchors (&anchor/*anchor) do NOT work across files.
+# Always use `extends` for cross-file inheritance.
+
+# =============================================================================
+# BASE SERVICE DEFINITIONS (for extends)
+# =============================================================================
+# Services prefixed with _ are abstract bases meant to be extended.
+# They should NOT be deployed directly.
+
+services:
+  # ---------------------------------------------------------------------------
+  # Module Defaults
+  # ---------------------------------------------------------------------------
+  # Standard defaults for all module services.
+  # Provides restart policy and logging configuration.
+  _module-defaults:
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ---------------------------------------------------------------------------
+  # Resource Profiles
+  # ---------------------------------------------------------------------------
+  # Resource profiles aligned with VISION.md constraints:
+  # - lite:  256MB  - CI pipelines, edge devices, testing
+  # - standard: 512MB  - Development, staging
+  # - heavy: 1GB    - Production workloads
+
+  _resource-limits-lite:
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          memory: 64M
+
+  _resource-limits-standard:
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          memory: 128M
+
+  _resource-limits-heavy:
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 1G
+        reservations:
+          memory: 256M
+
+  # ---------------------------------------------------------------------------
+  # Combined Profiles (defaults + resources)
+  # ---------------------------------------------------------------------------
+  # Convenience services combining module defaults with resource limits.
+  # Extend from these for the most common use cases.
+
+  _service-lite:
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          memory: 64M
+
+  _service-standard:
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          memory: 128M
+
+  _service-heavy:
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 1G
+        reservations:
+          memory: 256M
+
+  # ---------------------------------------------------------------------------
+  # Security Hardened Profile
+  # ---------------------------------------------------------------------------
+  # Security-hardened defaults following VISION.md requirements.
+
+  _security-hardened:
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+# =============================================================================
+# HEALTHCHECK EXTENSION SNIPPETS
+# =============================================================================
+# These are YAML anchors for use WITHIN THIS FILE ONLY.
+# For cross-file usage, copy the healthcheck block to your service.
+#
+# Standard healthcheck timing configurations:
+#   healthcheck:
+#     test: ["CMD", "your-check-command"]
+#     interval: 30s
+#     timeout: 10s
+#     retries: 3
+#     start_period: 40s
+
+x-healthcheck-defaults: &healthcheck-defaults
+  interval: 30s
+  timeout: 10s
+  retries: 3
+  start_period: 40s
+
+x-healthcheck-fast: &healthcheck-fast
+  interval: 10s
+  timeout: 5s
+  retries: 3
+  start_period: 20s
+
+x-healthcheck-slow: &healthcheck-slow
+  interval: 60s
+  timeout: 30s
+  retries: 5
+  start_period: 120s
+
+# =============================================================================
+# NETWORKS
+# =============================================================================
+# Standard networks for module isolation.
+# Create these once, then reference as external in modules.
+
+networks:
+  module-internal:
+    driver: bridge
+    internal: true
+  module-external:
+    driver: bridge

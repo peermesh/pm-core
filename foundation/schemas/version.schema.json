@@ -1,0 +1,355 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://peermesh.io/foundation/v1/version.schema.json",
+  "title": "PeerMesh Version Compatibility",
+  "description": "Schema for version compatibility declarations, migration manifests, and version range specifications",
+  "type": "object",
+
+  "$defs": {
+    "semver": {
+      "type": "string",
+      "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(-[a-zA-Z0-9]+(\\.[a-zA-Z0-9]+)*)?(\\+[a-zA-Z0-9]+(\\.[a-zA-Z0-9]+)*)?$",
+      "description": "Semantic version string (e.g., 1.0.0, 2.1.3-alpha.1, 1.0.0+build.123)",
+      "examples": ["1.0.0", "2.1.3", "1.0.0-alpha.1", "1.0.0+build.123"]
+    },
+
+    "semverCore": {
+      "type": "string",
+      "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)$",
+      "description": "Semantic version without pre-release or build metadata (e.g., 1.0.0)",
+      "examples": ["1.0.0", "2.1.3"]
+    },
+
+    "versionOperator": {
+      "type": "string",
+      "enum": ["=", ">", "<", ">=", "<=", "^", "~"],
+      "description": "Version comparison operator"
+    },
+
+    "versionConstraint": {
+      "type": "string",
+      "pattern": "^(=|>=?|<=?|\\^|~)?(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(-[a-zA-Z0-9]+(\\.[a-zA-Z0-9]+)*)?(\\+[a-zA-Z0-9]+(\\.[a-zA-Z0-9]+)*)?$",
+      "description": "Version with optional operator (e.g., >=1.0.0, ^2.0.0, ~1.2.0)",
+      "examples": [">=1.0.0", "^2.0.0", "~1.2.3", "<3.0.0", "=1.0.0"]
+    },
+
+    "versionRange": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/versionConstraint"
+        },
+        {
+          "type": "object",
+          "required": ["min"],
+          "properties": {
+            "min": {
+              "$ref": "#/$defs/semverCore",
+              "description": "Minimum version (inclusive)"
+            },
+            "max": {
+              "$ref": "#/$defs/semverCore",
+              "description": "Maximum version (exclusive unless maxInclusive is true)"
+            },
+            "maxInclusive": {
+              "type": "boolean",
+              "default": false,
+              "description": "Whether max version is inclusive"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "string",
+          "pattern": "^(>=?|\\^|~)?(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(\\s+(<?=?)(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*))?$",
+          "description": "Version range as string (e.g., '>=1.0.0 <2.0.0')"
+        }
+      ],
+      "description": "Version range specification"
+    },
+
+    "compatibilityDeclaration": {
+      "type": "object",
+      "required": ["minVersion"],
+      "properties": {
+        "minVersion": {
+          "$ref": "#/$defs/semverCore",
+          "description": "Minimum compatible version (inclusive)"
+        },
+        "maxVersion": {
+          "$ref": "#/$defs/semverCore",
+          "description": "Maximum compatible version (exclusive by default)"
+        },
+        "maxInclusive": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether maxVersion is inclusive"
+        },
+        "testedVersions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/semverCore"
+          },
+          "description": "List of versions explicitly tested for compatibility"
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "breakingChange": {
+      "type": "object",
+      "required": ["version", "description"],
+      "properties": {
+        "version": {
+          "$ref": "#/$defs/semver",
+          "description": "Version that introduced the breaking change"
+        },
+        "description": {
+          "type": "string",
+          "description": "Description of what changed"
+        },
+        "migration": {
+          "type": "string",
+          "description": "Instructions or reference to migration guide"
+        },
+        "affectedFeatures": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "List of features or APIs affected"
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "migrationStep": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["script", "manual", "config", "schema"],
+          "description": "Type of migration step"
+        },
+        "description": {
+          "type": "string",
+          "description": "Human-readable description of this step"
+        },
+        "script": {
+          "type": "string",
+          "description": "Path to migration script (for script type)"
+        },
+        "instructions": {
+          "type": "string",
+          "description": "Manual instructions (for manual type)"
+        },
+        "changes": {
+          "type": "object",
+          "description": "Configuration or schema changes (for config/schema types)",
+          "properties": {
+            "add": {
+              "type": "object",
+              "description": "Properties to add"
+            },
+            "remove": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Properties to remove"
+            },
+            "rename": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              },
+              "description": "Properties to rename (old -> new)"
+            },
+            "transform": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              },
+              "description": "Properties with value transformations (property -> transformation)"
+            }
+          }
+        },
+        "reversible": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether this step can be reversed"
+        },
+        "rollbackScript": {
+          "type": "string",
+          "description": "Path to rollback script if reversible"
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "migrationPath": {
+      "type": "object",
+      "required": ["from", "to", "steps"],
+      "properties": {
+        "from": {
+          "$ref": "#/$defs/semver",
+          "description": "Source version"
+        },
+        "to": {
+          "$ref": "#/$defs/semver",
+          "description": "Target version"
+        },
+        "steps": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/migrationStep"
+          },
+          "description": "Ordered list of migration steps"
+        },
+        "estimatedTime": {
+          "type": "string",
+          "description": "Estimated time to complete migration",
+          "examples": ["5 minutes", "1 hour", "varies"]
+        },
+        "requiresDowntime": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether this migration requires service downtime"
+        },
+        "backupRequired": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether backup is required before migration"
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "migrationManifest": {
+      "type": "object",
+      "required": ["$schema", "component", "currentVersion"],
+      "properties": {
+        "$schema": {
+          "type": "string",
+          "const": "https://peermesh.io/foundation/v1/version.schema.json"
+        },
+        "component": {
+          "type": "string",
+          "description": "Component this migration manifest applies to (e.g., 'foundation', 'module-id')"
+        },
+        "currentVersion": {
+          "$ref": "#/$defs/semver",
+          "description": "Current version of the component"
+        },
+        "breakingChanges": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/breakingChange"
+          },
+          "description": "List of breaking changes across versions"
+        },
+        "migrations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/migrationPath"
+          },
+          "description": "Available migration paths"
+        },
+        "deprecations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["feature", "since", "removeIn"],
+            "properties": {
+              "feature": {
+                "type": "string",
+                "description": "Deprecated feature or API"
+              },
+              "since": {
+                "$ref": "#/$defs/semver",
+                "description": "Version when deprecation was introduced"
+              },
+              "removeIn": {
+                "$ref": "#/$defs/semver",
+                "description": "Version when feature will be removed"
+              },
+              "replacement": {
+                "type": "string",
+                "description": "Suggested replacement"
+              },
+              "reason": {
+                "type": "string",
+                "description": "Reason for deprecation"
+              }
+            },
+            "additionalProperties": false
+          },
+          "description": "Deprecated features and their timeline"
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "versionCheckResult": {
+      "type": "object",
+      "required": ["compatible", "currentVersion", "requiredRange"],
+      "properties": {
+        "compatible": {
+          "type": "boolean",
+          "description": "Whether versions are compatible"
+        },
+        "currentVersion": {
+          "$ref": "#/$defs/semver",
+          "description": "Version being checked"
+        },
+        "requiredRange": {
+          "type": "string",
+          "description": "Required version range"
+        },
+        "reason": {
+          "type": "string",
+          "description": "Explanation if not compatible"
+        },
+        "suggestedAction": {
+          "type": "string",
+          "enum": ["none", "upgrade", "downgrade", "migrate"],
+          "description": "Suggested action to achieve compatibility"
+        },
+        "migrationAvailable": {
+          "type": "boolean",
+          "description": "Whether a migration path is available"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "format": "uri-reference"
+    },
+    "format": {
+      "type": "string",
+      "const": "semver",
+      "description": "Version format used (always semver)"
+    },
+    "compatibility": {
+      "$ref": "#/$defs/compatibilityDeclaration",
+      "description": "Version compatibility declaration"
+    },
+    "range": {
+      "$ref": "#/$defs/versionRange",
+      "description": "Version range specification"
+    },
+    "migration": {
+      "$ref": "#/$defs/migrationManifest",
+      "description": "Migration manifest"
+    },
+    "checkResult": {
+      "$ref": "#/$defs/versionCheckResult",
+      "description": "Result of a version compatibility check"
+    }
+  },
+  "additionalProperties": false
+}

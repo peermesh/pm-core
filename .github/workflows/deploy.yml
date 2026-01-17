@@ -119,10 +119,13 @@ jobs:
             git reset --hard origin/main
 
             echo "=== Pulling latest Docker images ==="
-            docker compose pull
+            docker compose pull --ignore-buildable
+
+            echo "=== Building local images (dashboard, etc.) ==="
+            docker compose build --no-cache dashboard || true
 
             echo "=== Stopping old containers and starting new ones ==="
-            docker compose up -d --remove-orphans
+            docker compose up -d --build --remove-orphans
 
             echo "=== Cleaning up unused Docker resources ==="
             docker image prune -f

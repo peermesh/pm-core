@@ -1,0 +1,324 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://peermesh.io/foundation/v1/config.schema.json",
+  "title": "PeerMesh Module Configuration Schema",
+  "description": "Schema for defining module configuration with environment variable mapping, validation, and BYOK (Bring Your Own Keys) support",
+  "type": "object",
+  "properties": {
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+$",
+      "description": "Configuration schema version (e.g., '1.0')",
+      "examples": ["1.0", "2.0"]
+    },
+    "properties": {
+      "type": "object",
+      "description": "Configuration property definitions",
+      "additionalProperties": {
+        "$ref": "#/$defs/propertySchema"
+      }
+    },
+    "required": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "uniqueItems": true,
+      "description": "List of required configuration property names"
+    },
+    "groups": {
+      "type": "array",
+      "description": "Optional grouping of properties for UI organization",
+      "items": {
+        "$ref": "#/$defs/propertyGroup"
+      }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "propertySchema": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["string", "number", "integer", "boolean", "array", "object"],
+          "description": "Property data type"
+        },
+        "description": {
+          "type": "string",
+          "description": "Human-readable description of the property"
+        },
+        "default": {
+          "description": "Default value if not specified. Must match the declared type."
+        },
+        "env": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9_]*$",
+          "description": "Environment variable name (SCREAMING_SNAKE_CASE)"
+        },
+        "secret": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether this value is sensitive (BYOK pattern). Secrets are never logged or exposed in UI."
+        },
+        "enum": {
+          "type": "array",
+          "minItems": 1,
+          "description": "Allowed values for this property"
+        },
+        "minimum": {
+          "type": "number",
+          "description": "Minimum value (inclusive) for number/integer types"
+        },
+        "maximum": {
+          "type": "number",
+          "description": "Maximum value (inclusive) for number/integer types"
+        },
+        "exclusiveMinimum": {
+          "type": "number",
+          "description": "Minimum value (exclusive) for number/integer types"
+        },
+        "exclusiveMaximum": {
+          "type": "number",
+          "description": "Maximum value (exclusive) for number/integer types"
+        },
+        "minLength": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Minimum length for string types"
+        },
+        "maxLength": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Maximum length for string types"
+        },
+        "pattern": {
+          "type": "string",
+          "format": "regex",
+          "description": "Regular expression pattern for string validation"
+        },
+        "format": {
+          "type": "string",
+          "enum": [
+            "uri",
+            "uri-reference",
+            "email",
+            "hostname",
+            "ipv4",
+            "ipv6",
+            "date",
+            "date-time",
+            "time",
+            "duration",
+            "uuid",
+            "json-pointer"
+          ],
+          "description": "Semantic format for string types"
+        },
+        "minItems": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Minimum number of items for array types"
+        },
+        "maxItems": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Maximum number of items for array types"
+        },
+        "uniqueItems": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether array items must be unique"
+        },
+        "items": {
+          "$ref": "#/$defs/propertySchema",
+          "description": "Schema for array item validation"
+        },
+        "additionalProperties": {
+          "oneOf": [
+            { "type": "boolean" },
+            { "$ref": "#/$defs/propertySchema" }
+          ],
+          "description": "Schema for additional object properties"
+        },
+        "examples": {
+          "type": "array",
+          "description": "Example values for documentation"
+        },
+        "deprecated": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether this property is deprecated"
+        },
+        "deprecationMessage": {
+          "type": "string",
+          "description": "Message explaining deprecation and migration path"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "type": { "const": "string" } }
+          },
+          "then": {
+            "properties": {
+              "minimum": false,
+              "maximum": false,
+              "exclusiveMinimum": false,
+              "exclusiveMaximum": false,
+              "minItems": false,
+              "maxItems": false,
+              "uniqueItems": false,
+              "items": false
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "type": { "enum": ["number", "integer"] } }
+          },
+          "then": {
+            "properties": {
+              "minLength": false,
+              "maxLength": false,
+              "pattern": false,
+              "format": false,
+              "minItems": false,
+              "maxItems": false,
+              "uniqueItems": false,
+              "items": false
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "type": { "const": "boolean" } }
+          },
+          "then": {
+            "properties": {
+              "minimum": false,
+              "maximum": false,
+              "exclusiveMinimum": false,
+              "exclusiveMaximum": false,
+              "minLength": false,
+              "maxLength": false,
+              "pattern": false,
+              "format": false,
+              "enum": false,
+              "minItems": false,
+              "maxItems": false,
+              "uniqueItems": false,
+              "items": false
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "type": { "const": "array" } }
+          },
+          "then": {
+            "properties": {
+              "minimum": false,
+              "maximum": false,
+              "exclusiveMinimum": false,
+              "exclusiveMaximum": false,
+              "minLength": false,
+              "maxLength": false,
+              "pattern": false,
+              "format": false
+            }
+          }
+        }
+      ],
+      "additionalProperties": false
+    },
+    "propertyGroup": {
+      "type": "object",
+      "required": ["name", "properties"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Group name for display"
+        },
+        "description": {
+          "type": "string",
+          "description": "Group description"
+        },
+        "properties": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "description": "Property names belonging to this group"
+        },
+        "collapsed": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether group should be collapsed by default in UI"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "examples": [
+    {
+      "version": "1.0",
+      "properties": {
+        "apiEndpoint": {
+          "type": "string",
+          "description": "API endpoint URL",
+          "format": "uri",
+          "env": "MY_MODULE_API_ENDPOINT",
+          "default": "https://api.example.com"
+        },
+        "apiKey": {
+          "type": "string",
+          "description": "API key for authentication (user must provide)",
+          "secret": true,
+          "env": "MY_MODULE_API_KEY",
+          "minLength": 32
+        },
+        "maxRetries": {
+          "type": "integer",
+          "description": "Maximum number of retry attempts",
+          "minimum": 0,
+          "maximum": 10,
+          "default": 3,
+          "env": "MY_MODULE_MAX_RETRIES"
+        },
+        "enableDebug": {
+          "type": "boolean",
+          "description": "Enable debug logging",
+          "default": false,
+          "env": "MY_MODULE_DEBUG"
+        },
+        "allowedHosts": {
+          "type": "array",
+          "description": "List of allowed hostnames",
+          "items": {
+            "type": "string",
+            "format": "hostname"
+          },
+          "uniqueItems": true,
+          "env": "MY_MODULE_ALLOWED_HOSTS"
+        }
+      },
+      "required": ["apiKey"],
+      "groups": [
+        {
+          "name": "Connection",
+          "description": "API connection settings",
+          "properties": ["apiEndpoint", "apiKey"]
+        },
+        {
+          "name": "Advanced",
+          "description": "Advanced settings",
+          "properties": ["maxRetries", "enableDebug", "allowedHosts"],
+          "collapsed": true
+        }
+      ]
+    }
+  ]
+}

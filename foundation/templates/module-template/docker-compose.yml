@@ -1,0 +1,93 @@
+# Module: my-module
+# Docker Compose configuration
+#
+# This template demonstrates proper use of foundation base patterns.
+# Customize for your module's specific needs.
+#
+# IMPORTANT: Use `extends` for cross-file inheritance.
+# YAML anchors (<<: *anchor) do NOT work across files.
+
+services:
+  # ==========================================================================
+  # Primary Service
+  # ==========================================================================
+  # Replace this with your module's main service.
+
+  my-module-app:
+    # Extend from foundation base service (includes defaults + resource limits)
+    # Options: _service-lite, _service-standard, _service-heavy
+    extends:
+      file: ../../docker-compose.base.yml
+      service: _service-lite
+
+    # Service-specific configuration
+    image: alpine:3.19
+    container_name: my-module-app
+
+    # Environment configuration
+    # Use .env file for secrets (BYOK principle)
+    environment:
+      - MY_MODULE_EXAMPLE_SETTING=${MY_MODULE_EXAMPLE_SETTING:-default-value}
+      # Secrets should be injected via environment, never hardcoded
+      # - MY_MODULE_API_KEY=${MY_MODULE_API_KEY}
+
+    # Volumes for persistent data
+    volumes:
+      - my-module-data:/data
+
+    # Healthcheck configuration
+    # Copy timing values from foundation (anchors don't cross files)
+    healthcheck:
+      test: ["CMD", "sh", "-c", "exit 0"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+    # Network configuration
+    networks:
+      - default
+      # For cross-module communication, use external networks:
+      # - module-internal
+
+  # ==========================================================================
+  # Example: Sidecar Service
+  # ==========================================================================
+  # Uncomment if your module needs additional services.
+
+  # my-module-worker:
+  #   extends:
+  #     file: ../../docker-compose.base.yml
+  #     service: _service-lite
+  #   image: alpine:3.19
+  #   container_name: my-module-worker
+  #   depends_on:
+  #     my-module-app:
+  #       condition: service_healthy
+  #   healthcheck:
+  #     test: ["CMD", "sh", "-c", "exit 0"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 3
+  #     start_period: 40s
+
+# =============================================================================
+# Volumes
+# =============================================================================
+# Named volumes for data persistence.
+# Use specific volume names to avoid conflicts with other modules.
+
+volumes:
+  my-module-data:
+    name: my-module-data
+
+# =============================================================================
+# Networks (Optional)
+# =============================================================================
+# Uncomment to use foundation's shared networks for cross-module communication.
+# First, ensure the networks exist: docker network create module-internal
+
+# networks:
+#   module-internal:
+#     external: true
+#     name: module-internal

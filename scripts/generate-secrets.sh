@@ -98,6 +98,67 @@ generate_username() {
     return 0
 }
 
+# Function to generate dashboard auth credentials (htpasswd format)
+generate_dashboard_auth() {
+    local username_file="$SECRETS_DIR/dashboard_username"
+    local password_file="$SECRETS_DIR/dashboard_password"
+    local auth_file="$SECRETS_DIR/dashboard_auth"
+
+    # Generate username and password if they don't exist
+    if [ ! -f "$username_file" ]; then
+        echo "admin" > "$username_file"
+        chmod 600 "$username_file"
+        echo -e "  ${GREEN}[CREATED]${NC} dashboard_username (admin)"
+    else
+        echo -e "  ${GREEN}[EXISTS]${NC} dashboard_username"
+    fi
+
+    if [ ! -f "$password_file" ]; then
+        openssl rand -base64 24 | tr -d '\n' > "$password_file"
+        chmod 600 "$password_file"
+        echo -e "  ${GREEN}[CREATED]${NC} dashboard_password"
+    else
+        echo -e "  ${GREEN}[EXISTS]${NC} dashboard_password"
+    fi
+
+    # Generate htpasswd auth string
+    local username password hash
+
+    username=$(cat "$username_file")
+    password=$(cat "$password_file")
+
+    # Check if htpasswd is available
+    if command -v htpasswd &> /dev/null; then
+        # Use htpasswd with bcrypt (-B)
+        hash=$(htpasswd -nbB "$username" "$password" 2>/dev/null)
+    elif command -v openssl &> /dev/null; then
+        # Fallback: use apr1 (MD5) via openssl - less secure but widely available
+        local salt
+        salt=$(openssl rand -base64 8 | tr -dc 'a-zA-Z0-9' | head -c 8)
+        hash=$(openssl passwd -apr1 -salt "$salt" "$password")
+        hash="${username}:${hash}"
+        echo -e "  ${YELLOW}[WARN]${NC} Using apr1 hash (install apache2-utils for bcrypt)"
+    else
+        echo -e "  ${RED}[ERROR]${NC} Neither htpasswd nor openssl available"
+        return 1
+    fi
+
+    # Escape $ for .env file (each $ becomes $$)
+    local escaped_hash
+    escaped_hash=$(echo "$hash" | sed 's/\$/\$\$/g')
+    echo "$escaped_hash" > "$auth_file"
+    chmod 600 "$auth_file"
+
+    echo -e "  ${GREEN}[CREATED]${NC} dashboard_auth (htpasswd format)"
+    echo ""
+    echo -e "  ${BLUE}Add this line to your .env file:${NC}"
+    echo -e "  ${YELLOW}DASHBOARD_AUTH=${escaped_hash}${NC}"
+    echo ""
+    echo -e "  ${BLUE}Credentials (save these!):${NC}"
+    echo -e "  Username: ${GREEN}${username}${NC}"
+    echo -e "  Password: ${GREEN}${password}${NC}"
+}
+
 # Validation function for pre-flight checks
 validate_secrets() {
     local required_secrets=(
@@ -106,6 +167,9 @@ validate_secrets() {
         "mongodb_root_password"
         "minio_root_user"
         "minio_root_password"
+        "dashboard_username"
+        "dashboard_password"
+        "dashboard_auth"
     )
 
     local missing=0
@@ -164,6 +228,10 @@ echo ""
 echo "Foundation - MinIO:"
 generate_username "minio_root_user"
 generate_secret "minio_root_password"
+
+echo ""
+echo "Foundation - Dashboard Authentication:"
+generate_dashboard_auth
 
 echo ""
 echo "=== Example Application Secrets ==="

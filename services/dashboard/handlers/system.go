@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"os"
+	"os/exec"
 	"runtime"
 	"time"
 )
@@ -73,12 +74,100 @@ func getDockerVersion() string {
 }
 
 // getSystemMemoryMB returns total system memory in MB
-// This is a simplified implementation; actual values require platform-specific code
+// Platform-specific implementation for Linux and macOS
 func getSystemMemoryMB() uint64 {
-	// Placeholder - actual implementation varies by OS
-	// On Linux: read /proc/meminfo
-	// On macOS: use sysctl
+	switch runtime.GOOS {
+	case "linux":
+		return getLinuxMemoryMB()
+	case "darwin":
+		return getDarwinMemoryMB()
+	default:
+		return 0
+	}
+}
+
+// getLinuxMemoryMB reads total memory from /proc/meminfo
+func getLinuxMemoryMB() uint64 {
+	data, err := os.ReadFile("/proc/meminfo")
+	if err != nil {
+		return 0
+	}
+
+	// Parse MemTotal line: "MemTotal:       16384000 kB"
+	lines := string(data)
+	for _, line := range splitLines(lines) {
+		if len(line) > 9 && line[:9] == "MemTotal:" {
+			// Extract the number (in kB)
+			numStr := extractNumber(line[9:])
+			if kb := parseUint64(numStr); kb > 0 {
+				return kb / 1024 // Convert kB to MB
+			}
+		}
+	}
 	return 0
+}
+
+// getDarwinMemoryMB uses sysctl to get total memory on macOS
+func getDarwinMemoryMB() uint64 {
+	// Execute sysctl hw.memsize
+	cmd := exec.Command("sysctl", "-n", "hw.memsize")
+	output, err := cmd.Output()
+	if err != nil {
+		return 0
+	}
+
+	// Parse the output (bytes)
+	bytes := parseUint64(string(output))
+	if bytes > 0 {
+		return bytes / (1024 * 1024) // Convert bytes to MB
+	}
+	return 0
+}
+
+// splitLines splits a string into lines without using strings package
+func splitLines(s string) []string {
+	var lines []string
+	start := 0
+	for i := 0; i < len(s); i++ {
+		if s[i] == '\n' {
+			lines = append(lines, s[start:i])
+			start = i + 1
+		}
+	}
+	if start < len(s) {
+		lines = append(lines, s[start:])
+	}
+	return lines
+}
+
+// extractNumber extracts the first number from a string
+func extractNumber(s string) string {
+	var result []byte
+	inNumber := false
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if c >= '0' && c <= '9' {
+			result = append(result, c)
+			inNumber = true
+		} else if inNumber {
+			break
+		}
+	}
+	return string(result)
+}
+
+// parseUint64 parses a string to uint64 without using strconv
+func parseUint64(s string) uint64 {
+	var result uint64
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if c >= '0' && c <= '9' {
+			result = result*10 + uint64(c-'0')
+		} else if c != ' ' && c != '\n' && c != '\t' {
+			break
+		}
+	}
+	return result
 }
 
 // formatUptime formats a duration into a human-readable string

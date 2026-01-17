@@ -1,0 +1,297 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://peermesh.io/foundation/v1/connection.schema.json",
+  "title": "PeerMesh Connection Schema",
+  "description": "Schema for declaring and resolving module connection requirements",
+  "type": "object",
+  "$defs": {
+    "connectionType": {
+      "title": "Connection Type",
+      "description": "Standard connection types supported by the foundation",
+      "type": "string",
+      "enum": ["database", "cache", "storage", "queue", "eventbus", "custom"]
+    },
+    "databaseProvider": {
+      "title": "Database Provider",
+      "description": "Database providers that can satisfy database connection requirements",
+      "type": "string",
+      "enum": ["postgres", "mysql", "mariadb", "sqlite", "mongodb", "cockroachdb"]
+    },
+    "cacheProvider": {
+      "title": "Cache Provider",
+      "description": "Cache providers that can satisfy cache connection requirements",
+      "type": "string",
+      "enum": ["redis", "memcached", "valkey", "dragonfly"]
+    },
+    "storageProvider": {
+      "title": "Storage Provider",
+      "description": "Storage providers that can satisfy storage connection requirements",
+      "type": "string",
+      "enum": ["local", "s3", "minio", "gcs", "azure-blob"]
+    },
+    "queueProvider": {
+      "title": "Queue Provider",
+      "description": "Queue providers that can satisfy queue connection requirements",
+      "type": "string",
+      "enum": ["rabbitmq", "redis", "nats", "kafka", "sqs"]
+    },
+    "eventbusProvider": {
+      "title": "Event Bus Provider",
+      "description": "Event bus providers that can satisfy eventbus connection requirements",
+      "type": "string",
+      "enum": ["redis", "nats", "kafka", "memory", "noop"]
+    },
+    "connectionRequirement": {
+      "title": "Connection Requirement",
+      "description": "A connection requirement declared by a module",
+      "type": "object",
+      "required": ["type", "providers"],
+      "properties": {
+        "type": {
+          "$ref": "#/$defs/connectionType",
+          "description": "Type of connection required"
+        },
+        "providers": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string"
+          },
+          "description": "Acceptable providers for this connection (in order of preference)"
+        },
+        "required": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether this connection is required for the module to function"
+        },
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$",
+          "description": "Unique name for this connection requirement (for modules with multiple connections of same type)"
+        },
+        "config": {
+          "$ref": "#/$defs/connectionConfig",
+          "description": "Default configuration for this connection"
+        }
+      }
+    },
+    "connectionConfig": {
+      "title": "Connection Configuration",
+      "description": "Configuration options for a connection",
+      "type": "object",
+      "properties": {
+        "host": {
+          "type": "string",
+          "description": "Hostname or IP address (resolved at runtime)"
+        },
+        "port": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535,
+          "description": "Port number"
+        },
+        "database": {
+          "type": "string",
+          "description": "Database name (for database connections)"
+        },
+        "username": {
+          "type": "string",
+          "description": "Username for authentication"
+        },
+        "password": {
+          "type": "string",
+          "description": "Password for authentication (typically from env or secrets)"
+        },
+        "ssl": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether to use SSL/TLS"
+        },
+        "poolSize": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 10,
+          "description": "Connection pool size"
+        },
+        "timeout": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 30000,
+          "description": "Connection timeout in milliseconds"
+        },
+        "extra": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "Provider-specific configuration options"
+        }
+      }
+    },
+    "connectionProvider": {
+      "title": "Connection Provider",
+      "description": "A connection provider offered by a module",
+      "type": "object",
+      "required": ["name", "type", "provides"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$",
+          "description": "Provider name (e.g., 'postgres', 'redis')"
+        },
+        "type": {
+          "$ref": "#/$defs/connectionType",
+          "description": "Type of connection this provider offers"
+        },
+        "provides": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "List of provider identifiers this satisfies"
+        },
+        "version": {
+          "type": "string",
+          "description": "Version of the provider software"
+        },
+        "config": {
+          "$ref": "#/$defs/connectionConfig",
+          "description": "Default configuration for this provider"
+        }
+      }
+    },
+    "resolvedConnection": {
+      "title": "Resolved Connection",
+      "description": "A connection that has been matched to a provider",
+      "type": "object",
+      "required": ["requirementName", "providerModule", "providerName", "type", "config"],
+      "properties": {
+        "requirementName": {
+          "type": "string",
+          "description": "Name of the requirement that was satisfied"
+        },
+        "providerModule": {
+          "type": "string",
+          "description": "Module ID providing this connection"
+        },
+        "providerName": {
+          "type": "string",
+          "description": "Name of the provider being used"
+        },
+        "type": {
+          "$ref": "#/$defs/connectionType",
+          "description": "Type of the connection"
+        },
+        "config": {
+          "$ref": "#/$defs/connectionConfig",
+          "description": "Final resolved configuration"
+        },
+        "connectionString": {
+          "type": "string",
+          "description": "Connection string (if applicable)"
+        },
+        "envVars": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Environment variables to set for this connection"
+        }
+      }
+    },
+    "resolutionResult": {
+      "title": "Resolution Result",
+      "description": "Result of attempting to resolve module connections",
+      "type": "object",
+      "required": ["success", "resolved"],
+      "properties": {
+        "success": {
+          "type": "boolean",
+          "description": "Whether all required connections were resolved"
+        },
+        "resolved": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/resolvedConnection"
+          },
+          "description": "Successfully resolved connections"
+        },
+        "unresolved": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "requirement": {
+                "$ref": "#/$defs/connectionRequirement"
+              },
+              "reason": {
+                "type": "string",
+                "description": "Why the connection could not be resolved"
+              }
+            }
+          },
+          "description": "Connections that could not be resolved"
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Non-fatal warnings during resolution"
+        }
+      }
+    }
+  },
+  "properties": {
+    "requirements": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/connectionRequirement"
+      },
+      "description": "Connection requirements for a module"
+    },
+    "providers": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/connectionProvider"
+      },
+      "description": "Connection providers offered by a module"
+    }
+  },
+  "examples": [
+    {
+      "requirements": [
+        {
+          "type": "database",
+          "providers": ["postgres", "mysql", "sqlite"],
+          "required": true,
+          "name": "primary-db",
+          "config": {
+            "poolSize": 20,
+            "timeout": 30000
+          }
+        },
+        {
+          "type": "cache",
+          "providers": ["redis", "memcached"],
+          "required": false,
+          "name": "session-cache"
+        }
+      ]
+    },
+    {
+      "providers": [
+        {
+          "name": "postgres",
+          "type": "database",
+          "provides": ["postgres", "postgresql"],
+          "version": "16",
+          "config": {
+            "host": "postgres",
+            "port": 5432,
+            "database": "default",
+            "ssl": false
+          }
+        }
+      ]
+    }
+  ]
+}

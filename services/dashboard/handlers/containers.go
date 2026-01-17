@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"sort"
+	"strings"
 	"time"
 )
 
@@ -98,6 +99,8 @@ func newContainersClient() *containersClient {
 	if socketProxyURL == "" {
 		socketProxyURL = "http://socket-proxy:2375"
 	}
+	// Convert tcp:// to http:// for Go's http client
+	socketProxyURL = strings.Replace(socketProxyURL, "tcp://", "http://", 1)
 
 	return &containersClient{
 		baseURL: socketProxyURL,

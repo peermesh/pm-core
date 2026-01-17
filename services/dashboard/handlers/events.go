@@ -6,13 +6,15 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"os"
+	"strings"
 	"time"
 )
 
 const (
 	containerPollInterval = 10 * time.Second
 	keepaliveInterval     = 30 * time.Second
-	socketProxyURL        = "http://socket-proxy:2375"
+	defaultSocketProxyURL = "http://socket-proxy:2375"
 )
 
 type ContainerInfo struct {
@@ -55,6 +57,13 @@ type eventsClient struct {
 }
 
 func newEventsClient() *eventsClient {
+	socketProxyURL := os.Getenv("DOCKER_HOST")
+	if socketProxyURL == "" {
+		socketProxyURL = defaultSocketProxyURL
+	}
+	// Convert tcp:// to http:// for Go's http client
+	socketProxyURL = strings.Replace(socketProxyURL, "tcp://", "http://", 1)
+
 	return &eventsClient{
 		baseURL: socketProxyURL,
 		httpClient: &http.Client{

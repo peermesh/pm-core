@@ -129,7 +129,7 @@ generate_dashboard_auth() {
     fi
 
     # Read credentials
-    local username password hash
+    local username password hash=""
     username=$(cat "$username_file" | tr -d '\n')
     password=$(cat "$password_file" | tr -d '\n')
 
@@ -146,10 +146,9 @@ generate_dashboard_auth() {
     # Fallback to openssl if htpasswd failed or unavailable
     if [ -z "$hash" ]; then
         echo -e "  ${YELLOW}[INFO]${NC} Using openssl for password hash"
-        local salt
+        local salt passhash=""
         salt=$(openssl rand -hex 4)
         # Use openssl passwd with apr1 algorithm
-        local passhash
         passhash=$(openssl passwd -apr1 -salt "$salt" "$password" 2>/dev/null)
         if [ -z "$passhash" ]; then
             # Try older openssl syntax

@@ -155,3 +155,107 @@ button:focus-visible {
         display: none !important;
     }
 }
+
+/* ====================
+   Guest/Demo Mode Styles
+   ==================== */
+
+/* Guest mode disabled elements */
+.guest-disabled {
+    opacity: 0.5;
+    cursor: not-allowed !important;
+    pointer-events: none;
+    position: relative;
+}
+
+.guest-disabled::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: transparent;
+    cursor: not-allowed;
+    pointer-events: auto;
+}
+
+/* Override pointer-events for click handling */
+.guest-disabled[data-guest-clickable] {
+    pointer-events: auto;
+}
+
+/* Guest disabled button specific styles */
+button.guest-disabled,
+.btn.guest-disabled {
+    background-color: var(--color-bg-tertiary) !important;
+    border-color: var(--color-border) !important;
+    color: var(--color-text-muted) !important;
+}
+
+button.guest-disabled:hover,
+.btn.guest-disabled:hover {
+    background-color: var(--color-bg-tertiary) !important;
+    transform: none !important;
+    box-shadow: none !important;
+}
+
+/* Guest tooltip animation */
+.guest-tooltip {
+    animation: guest-tooltip-appear 0.2s ease-out;
+}
+
+@keyframes guest-tooltip-appear {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Guest mode banner animation */
+#guest-mode-banner {
+    animation: guest-banner-slide 0.3s ease-out;
+}
+
+@keyframes guest-banner-slide {
+    from {
+        transform: translateY(-100%);
+    }
+    to {
+        transform: translateY(0);
+    }
+}
+
+/* Guest badge pulse */
+#guest-badge {
+    animation: guest-badge-pulse 2s ease-in-out infinite;
+}
+
+@keyframes guest-badge-pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.7;
+    }
+}
+
+/* Visually indicate disabled state for interactive elements */
+.guest-disabled a,
+.guest-disabled button,
+.guest-disabled input,
+.guest-disabled select,
+.guest-disabled textarea {
+    pointer-events: none;
+}
+
+/* Guest mode link in banner */
+#guest-mode-banner a {
+    color: rgba(255, 255, 255, 0.9);
+    transition: color 0.15s ease;
+}
+
+#guest-mode-banner a:hover {
+    color: white;
+}

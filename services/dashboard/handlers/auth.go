@@ -5,6 +5,7 @@ import (
 	"crypto/subtle"
 	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
 	"log"
 	"net/http"
 	"os"
@@ -21,11 +22,24 @@ var (
 	// Credentials from environment
 	authUsername string
 	authPassword string
+
+	// Demo mode configuration
+	demoMode             bool
+	demoModeGuestEnabled bool
 )
 
 type sessionData struct {
 	Username  string
+	IsGuest   bool
 	ExpiresAt time.Time
+}
+
+// SessionInfo represents the session info returned by GET /api/session
+type SessionInfo struct {
+	Authenticated bool   `json:"authenticated"`
+	IsGuest       bool   `json:"is_guest"`
+	Username      string `json:"username"`
+	DemoMode      bool   `json:"demo_mode"`
 }
 
 func init() {
@@ -40,11 +54,33 @@ func init() {
 		authPassword = getEnvOrFile("", "/run/secrets/dashboard_password", "")
 	}
 
+	// Load demo mode configuration
+	demoMode = os.Getenv("DEMO_MODE") == "true"
+	// Guest is enabled by default when demo mode is on, unless explicitly disabled
+	demoModeGuestEnabled = true
+	if guestEnv := os.Getenv("DEMO_MODE_GUEST_ENABLED"); guestEnv != "" {
+		demoModeGuestEnabled = guestEnv == "true"
+	}
+
 	if authPassword == "" {
 		log.Println("WARNING: No DASHBOARD_PASSWORD set - authentication disabled")
 	} else {
 		log.Println("Authentication enabled")
 	}
+
+	if demoMode {
+		log.Printf("Demo mode enabled (guest access: %v)", demoModeGuestEnabled)
+	}
+}
+
+// IsDemoMode returns whether demo mode is enabled
+func IsDemoMode() bool {
+	return demoMode
+}
+
+// IsGuestEnabled returns whether guest access is enabled
+func IsGuestEnabled() bool {
+	return demoMode && demoModeGuestEnabled
 }
 
 func getEnvOrFile(envKey, filePath, defaultVal string) string {
@@ -72,8 +108,10 @@ func AuthMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		// Allow login page and login API without auth
-		if r.URL.Path == "/login" || r.URL.Path == "/login.html" || r.URL.Path == "/api/login" {
+		// Allow login page and login/session APIs without auth
+		if r.URL.Path == "/login" || r.URL.Path == "/login.html" ||
+			r.URL.Path == "/api/login" || r.URL.Path == "/api/guest-login" ||
+			r.URL.Path == "/api/session" {
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -172,6 +210,107 @@ func LogoutHandler(w http.ResponseWriter, r *http.Request) {
 	})
 
 	http.Redirect(w, r, "/login.html", http.StatusFound)
+}
+
+// GuestLoginHandler handles POST /api/guest-login
+// Creates a guest session when DEMO_MODE=true and guest access is enabled
+func GuestLoginHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Check if demo mode and guest access are enabled
+	if !demoMode {
+		http.Error(w, "Demo mode not enabled", http.StatusForbidden)
+		return
+	}
+
+	if !demoModeGuestEnabled {
+		http.Error(w, "Guest access not enabled", http.StatusForbidden)
+		return
+	}
+
+	// Create guest session with very long expiry (effectively no expiry)
+	sessionID := generateSessionID()
+	sessionMutex.Lock()
+	sessions[sessionID] = sessionData{
+		Username:  "guest",
+		IsGuest:   true,
+		ExpiresAt: time.Now().Add(365 * 24 * time.Hour), // 1 year expiry
+	}
+	sessionMutex.Unlock()
+
+	// Set cookie
+	http.SetCookie(w, &http.Cookie{
+		Name:     "session",
+		Value:    sessionID,
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteStrictMode,
+		MaxAge:   365 * 24 * 60 * 60, // 1 year
+	})
+
+	// Redirect to dashboard
+	http.Redirect(w, r, "/", http.StatusFound)
+}
+
+// SessionHandler handles GET /api/session
+// Returns current session information
+func SessionHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	info := SessionInfo{
+		Authenticated: false,
+		IsGuest:       false,
+		Username:      "",
+		DemoMode:      demoMode,
+	}
+
+	// Check if user has valid session
+	cookie, err := r.Cookie("session")
+	if err == nil {
+		sessionMutex.RLock()
+		session, exists := sessions[cookie.Value]
+		sessionMutex.RUnlock()
+
+		if exists && time.Now().Before(session.ExpiresAt) {
+			info.Authenticated = true
+			info.IsGuest = session.IsGuest
+			info.Username = session.Username
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "no-cache")
+
+	if err := json.NewEncoder(w).Encode(info); err != nil {
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+		return
+	}
+}
+
+// GetSessionFromRequest extracts session data from request cookie
+// Returns nil if no valid session exists
+func GetSessionFromRequest(r *http.Request) *sessionData {
+	cookie, err := r.Cookie("session")
+	if err != nil {
+		return nil
+	}
+
+	sessionMutex.RLock()
+	session, exists := sessions[cookie.Value]
+	sessionMutex.RUnlock()
+
+	if !exists || time.Now().After(session.ExpiresAt) {
+		return nil
+	}
+
+	return &session
 }
 
 func isValidSession(sessionID string) bool {

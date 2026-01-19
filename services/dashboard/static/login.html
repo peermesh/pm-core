@@ -59,6 +59,27 @@
             <div id="error" class="mt-4 p-3 bg-red-500/10 border border-red-500/50 rounded-lg text-red-400 text-sm hidden">
                 Invalid username or password
             </div>
+
+            <!-- Guest/Demo Access Button - Only shown when demo mode is enabled -->
+            <div id="demo-access-section" class="mt-6 pt-6 border-t border-slate-700 hidden">
+                <p class="text-center text-slate-400 text-sm mb-4">
+                    Or explore without signing in
+                </p>
+                <button
+                    type="button"
+                    id="guest-access-btn"
+                    class="w-full py-3 px-4 bg-amber-600 hover:bg-amber-700 text-white font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 focus:ring-offset-slate-800 flex items-center justify-center"
+                >
+                    <svg class="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                    Enter as Guest (View Only)
+                </button>
+                <p class="text-center text-slate-500 text-xs mt-2">
+                    Demo mode - actions are disabled
+                </p>
+            </div>
         </div>
 
         <p class="text-center text-slate-500 text-sm mt-6">
@@ -71,6 +92,47 @@
         if (window.location.search.includes('error=1')) {
             document.getElementById('error').classList.remove('hidden');
         }
+
+        // Check if demo mode is enabled and show guest access button
+        fetch('/api/config')
+            .then(r => r.json())
+            .then(config => {
+                if (config.demo_mode_enabled) {
+                    document.getElementById('demo-access-section').classList.remove('hidden');
+                }
+            })
+            .catch(e => {
+                // Demo mode check failed - keep button hidden
+                console.debug('Demo mode check failed:', e);
+            });
+
+        // Handle guest login button click
+        document.getElementById('guest-access-btn').addEventListener('click', function() {
+            const btn = this;
+            btn.disabled = true;
+            btn.innerHTML = '<svg class="animate-spin h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>Entering...';
+
+            fetch('/api/guest-login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(r => {
+                if (r.ok) {
+                    window.location.href = '/';
+                } else {
+                    return r.json().then(data => {
+                        throw new Error(data.error || 'Guest login failed');
+                    });
+                }
+            })
+            .catch(e => {
+                btn.disabled = false;
+                btn.innerHTML = '<svg class="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>Enter as Guest (View Only)';
+                alert('Guest login failed: ' + e.message);
+            });
+        });
     </script>
 </body>
 </html>

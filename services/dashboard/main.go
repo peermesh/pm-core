@@ -34,6 +34,8 @@ func main() {
 	// Auth endpoints
 	mux.HandleFunc("/api/login", handlers.LoginHandler)
 	mux.HandleFunc("/api/logout", handlers.LogoutHandler)
+	mux.HandleFunc("/api/guest-login", handlers.GuestLoginHandler)
+	mux.HandleFunc("/api/session", handlers.SessionHandler)
 
 	// API endpoints
 	mux.HandleFunc("/api/system", handlers.SystemHandler)
@@ -44,8 +46,10 @@ func main() {
 	staticFS := http.FileServer(http.Dir("./static"))
 	mux.Handle("/", staticFS)
 
-	// Wrap with auth middleware
-	handler := handlers.AuthMiddleware(mux)
+	// Wrap with middleware chain: Auth -> Permissions -> Handler
+	// Auth middleware runs first to ensure user is authenticated
+	// Permission middleware runs second to check guest restrictions
+	handler := handlers.AuthMiddleware(handlers.PermissionMiddleware(mux))
 
 	server := &http.Server{
 		Addr:         ":" + port,

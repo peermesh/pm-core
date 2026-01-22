@@ -1,0 +1,10 @@
+# This directory stores PKI secrets and configuration
+# DO NOT commit sensitive files to version control
+#
+# Files managed here:
+#   - ca_password (auto-generated)
+#   - provisioner_password (auto-generated)
+#   - ca.json (CA configuration)
+#   - certs/ (extracted certificates)
+#
+# All secret files should have 600 permissions

@@ -1,0 +1,317 @@
+<!--
+  PKI Module - Status Widget
+
+  A dashboard widget showing PKI status, CA health, and certificate overview.
+  This widget displays in the main dashboard overview.
+
+  Data is fetched from the module health endpoint or populated via JavaScript.
+-->
+<div class="pki-status-widget" id="pki-status-widget">
+  <div class="widget-header">
+    <div class="widget-icon">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+        <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+      </svg>
+    </div>
+    <h3 class="widget-title">PKI Status</h3>
+    <span class="status-indicator" id="pki-status-indicator" data-status="unknown"></span>
+  </div>
+
+  <div class="widget-content">
+    <!-- CA Status -->
+    <div class="pki-info-row">
+      <span class="pki-label">CA Status</span>
+      <span class="pki-value" id="pki-ca-status">--</span>
+    </div>
+
+    <!-- Root CA Expiry -->
+    <div class="pki-info-row">
+      <span class="pki-label">Root CA Expiry</span>
+      <span class="pki-value" id="pki-root-expiry">--</span>
+    </div>
+
+    <div class="widget-divider"></div>
+
+    <!-- Certificate Stats -->
+    <div class="pki-info-row">
+      <span class="pki-label">Issued Certificates</span>
+      <span class="pki-value" id="pki-cert-count">--</span>
+    </div>
+
+    <div class="pki-info-row">
+      <span class="pki-label">Expiring Soon</span>
+      <span class="pki-value" id="pki-expiring-count">--</span>
+    </div>
+  </div>
+
+  <div class="widget-footer">
+    <button class="widget-action-btn" id="pki-provision-btn" title="Provision new certificate">
+      + New Cert
+    </button>
+    <a href="/pki" class="widget-link">View Details</a>
+  </div>
+</div>
+
+<style>
+  .pki-status-widget {
+    background: var(--widget-bg, #ffffff);
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    padding: 16px;
+    font-family: var(--font-family, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif);
+  }
+
+  .widget-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border-color, #e5e7eb);
+  }
+
+  .widget-icon {
+    color: var(--primary-color, #3b82f6);
+    display: flex;
+    align-items: center;
+  }
+
+  .widget-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary, #111827);
+    margin: 0;
+    flex: 1;
+  }
+
+  .status-indicator {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--status-unknown, #9ca3af);
+  }
+
+  .status-indicator[data-status="healthy"] {
+    background: var(--status-healthy, #10b981);
+  }
+
+  .status-indicator[data-status="degraded"] {
+    background: var(--status-degraded, #f59e0b);
+  }
+
+  .status-indicator[data-status="unhealthy"] {
+    background: var(--status-unhealthy, #ef4444);
+  }
+
+  .widget-content {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .pki-info-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+  }
+
+  .pki-label {
+    color: var(--text-secondary, #6b7280);
+  }
+
+  .pki-value {
+    color: var(--text-primary, #111827);
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .pki-value.running {
+    color: var(--status-healthy, #10b981);
+  }
+
+  .pki-value.stopped {
+    color: var(--status-unhealthy, #ef4444);
+  }
+
+  .pki-value.warning {
+    color: var(--status-degraded, #f59e0b);
+  }
+
+  .widget-divider {
+    height: 1px;
+    background: var(--border-color, #e5e7eb);
+    margin: 8px 0;
+  }
+
+  .widget-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 16px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border-color, #e5e7eb);
+  }
+
+  .widget-action-btn {
+    background: var(--primary-color, #3b82f6);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+
+  .widget-action-btn:hover {
+    background: var(--primary-hover, #2563eb);
+  }
+
+  .widget-action-btn:disabled {
+    background: var(--disabled-bg, #9ca3af);
+    cursor: not-allowed;
+  }
+
+  .widget-link {
+    font-size: 12px;
+    color: var(--primary-color, #3b82f6);
+    text-decoration: none;
+  }
+
+  .widget-link:hover {
+    text-decoration: underline;
+  }
+
+  /* Loading state */
+  .pki-status-widget.loading .pki-value {
+    color: var(--text-secondary, #6b7280);
+  }
+
+  /* Dark mode support */
+  @media (prefers-color-scheme: dark) {
+    .pki-status-widget {
+      --widget-bg: #1f2937;
+      --text-primary: #f9fafb;
+      --text-secondary: #9ca3af;
+      --border-color: #374151;
+    }
+  }
+</style>
+
+<script>
+(function() {
+  'use strict';
+
+  const widget = document.getElementById('pki-status-widget');
+  const statusIndicator = document.getElementById('pki-status-indicator');
+  const caStatus = document.getElementById('pki-ca-status');
+  const rootExpiry = document.getElementById('pki-root-expiry');
+  const certCount = document.getElementById('pki-cert-count');
+  const expiringCount = document.getElementById('pki-expiring-count');
+  const provisionBtn = document.getElementById('pki-provision-btn');
+
+  // Format relative time for expiry dates
+  function formatRelativeTime(isoString) {
+    if (!isoString || isoString === 'unknown') {
+      return '--';
+    }
+
+    try {
+      const date = new Date(isoString);
+      const now = new Date();
+      const diffMs = date - now;
+      const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+      if (diffDays < 0) {
+        return 'Expired';
+      } else if (diffDays < 30) {
+        return `${diffDays}d`;
+      } else if (diffDays < 365) {
+        return `${Math.floor(diffDays / 30)}mo`;
+      } else {
+        return `${Math.floor(diffDays / 365)}y`;
+      }
+    } catch (e) {
+      return isoString;
+    }
+  }
+
+  // Update widget with health data
+  function updateWidget(data) {
+    widget.classList.remove('loading');
+
+    // Update status indicator
+    statusIndicator.dataset.status = data.status || 'unknown';
+
+    // Update CA status
+    const caStatusText = data.ca?.status || 'unknown';
+    caStatus.textContent = caStatusText.charAt(0).toUpperCase() + caStatusText.slice(1);
+    caStatus.className = 'pki-value';
+    if (caStatusText === 'running') {
+      caStatus.classList.add('running');
+    } else if (caStatusText === 'stopped' || caStatusText === 'unhealthy') {
+      caStatus.classList.add('stopped');
+    }
+
+    // Update root CA expiry
+    rootExpiry.textContent = formatRelativeTime(data.ca?.rootCaExpiry);
+
+    // Update certificate counts
+    certCount.textContent = data.certificates?.issued ?? '--';
+
+    const expiring = data.certificates?.expiringSoon?.length ?? 0;
+    expiringCount.textContent = expiring;
+    if (expiring > 0) {
+      expiringCount.classList.add('warning');
+    }
+
+    // Enable/disable provision button based on CA status
+    provisionBtn.disabled = caStatusText !== 'running';
+  }
+
+  // Fetch health data
+  async function fetchHealth() {
+    widget.classList.add('loading');
+
+    try {
+      const response = await fetch('/api/modules/pki/health');
+      if (response.ok) {
+        const data = await response.json();
+        updateWidget(data);
+        return;
+      }
+    } catch (e) {
+      // API not available
+    }
+
+    // Fallback to cached data or unknown state
+    if (window.pkiHealthData) {
+      updateWidget(window.pkiHealthData);
+    } else {
+      updateWidget({
+        status: 'unknown',
+        ca: { status: 'unknown' },
+        certificates: {}
+      });
+    }
+  }
+
+  // Provision new certificate
+  function showProvisionDialog() {
+    // Navigate to PKI page with provision action
+    window.location.href = '/pki?action=provision';
+  }
+
+  // Event listeners
+  provisionBtn.addEventListener('click', showProvisionDialog);
+
+  // Initial fetch
+  fetchHealth();
+
+  // Refresh every 5 minutes
+  setInterval(fetchHealth, 5 * 60 * 1000);
+})();
+</script>

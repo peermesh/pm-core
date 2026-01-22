@@ -1,0 +1,384 @@
+<!--
+  PKI Module - Configuration Panel
+
+  Configuration panel for PKI module settings.
+  Allows adjusting CA settings, certificate durations, and renewal windows.
+-->
+<div class="pki-config-panel" id="pki-config-panel">
+  <div class="config-header">
+    <h3 class="config-title">PKI Configuration</h3>
+    <span class="config-status" id="config-save-status"></span>
+  </div>
+
+  <form id="pki-config-form" class="config-form">
+    <!-- CA Settings Section -->
+    <fieldset class="config-section">
+      <legend>Certificate Authority</legend>
+
+      <div class="config-field">
+        <label for="pki-ca-name">CA Name</label>
+        <input type="text" id="pki-ca-name" name="caName"
+               value="PeerMesh Internal CA"
+               placeholder="Certificate Authority Name">
+        <span class="field-help">Name shown in certificate issuer field</span>
+      </div>
+
+      <div class="config-field">
+        <label for="pki-ca-dns">CA DNS Name</label>
+        <input type="text" id="pki-ca-dns" name="caDnsName"
+               value="ca.pmdl.local"
+               placeholder="ca.pmdl.local">
+        <span class="field-help">DNS name for the CA server</span>
+      </div>
+
+      <div class="config-field">
+        <label for="pki-ca-address">CA Address</label>
+        <input type="text" id="pki-ca-address" name="caAddress"
+               value=":9000"
+               placeholder=":9000">
+        <span class="field-help">Address and port for CA API</span>
+      </div>
+    </fieldset>
+
+    <!-- Certificate Duration Section -->
+    <fieldset class="config-section">
+      <legend>Certificate Lifecycle</legend>
+
+      <div class="config-field">
+        <label for="pki-cert-duration">Default Certificate Duration</label>
+        <select id="pki-cert-duration" name="certDuration">
+          <option value="168h">7 days</option>
+          <option value="720h" selected>30 days</option>
+          <option value="2160h">90 days</option>
+          <option value="8760h">1 year</option>
+        </select>
+        <span class="field-help">How long issued certificates are valid</span>
+      </div>
+
+      <div class="config-field">
+        <label for="pki-renewal-window">Renewal Window</label>
+        <select id="pki-renewal-window" name="renewalWindow">
+          <option value="48h">2 days before expiry</option>
+          <option value="168h">7 days before expiry</option>
+          <option value="480h" selected>20 days before expiry</option>
+          <option value="720h">30 days before expiry</option>
+        </select>
+        <span class="field-help">When to trigger automatic renewal</span>
+      </div>
+
+      <div class="config-field">
+        <label for="pki-auto-renew">
+          <input type="checkbox" id="pki-auto-renew" name="autoRenewEnabled" checked>
+          Enable Automatic Renewal
+        </label>
+        <span class="field-help">Automatically renew certificates before expiry</span>
+      </div>
+    </fieldset>
+
+    <!-- Service Presets Section -->
+    <fieldset class="config-section">
+      <legend>Service Presets</legend>
+
+      <div class="config-field">
+        <label for="pki-postgres-name">PostgreSQL Service Name</label>
+        <input type="text" id="pki-postgres-name" name="postgresServiceName"
+               value="postgres.pmdl.local"
+               placeholder="postgres.pmdl.local">
+      </div>
+
+      <div class="config-field">
+        <label for="pki-redis-name">Redis Service Name</label>
+        <input type="text" id="pki-redis-name" name="redisServiceName"
+               value="redis.pmdl.local"
+               placeholder="redis.pmdl.local">
+      </div>
+    </fieldset>
+
+    <!-- ACME Section -->
+    <fieldset class="config-section">
+      <legend>ACME Protocol</legend>
+
+      <div class="config-field">
+        <label for="pki-acme-enabled">
+          <input type="checkbox" id="pki-acme-enabled" name="acmeEnabled" checked>
+          Enable ACME Protocol
+        </label>
+        <span class="field-help">Allow automated certificate issuance via ACME</span>
+      </div>
+
+      <div class="config-field">
+        <label for="pki-provisioner-name">Provisioner Name</label>
+        <input type="text" id="pki-provisioner-name" name="provisionerName"
+               value="pmdl-provisioner"
+               placeholder="pmdl-provisioner">
+        <span class="field-help">Name of the default certificate provisioner</span>
+      </div>
+    </fieldset>
+
+    <div class="config-actions">
+      <button type="button" class="btn-secondary" id="config-reset-btn">Reset to Defaults</button>
+      <button type="submit" class="btn-primary" id="config-save-btn">Save Configuration</button>
+    </div>
+  </form>
+</div>
+
+<style>
+  .pki-config-panel {
+    background: var(--panel-bg, #ffffff);
+    border-radius: 8px;
+    padding: 20px;
+    font-family: var(--font-family, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif);
+  }
+
+  .config-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border-color, #e5e7eb);
+  }
+
+  .config-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary, #111827);
+    margin: 0;
+  }
+
+  .config-status {
+    font-size: 12px;
+    color: var(--status-success, #10b981);
+  }
+
+  .config-form {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+
+  .config-section {
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 6px;
+    padding: 16px;
+    margin: 0;
+  }
+
+  .config-section legend {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary, #111827);
+    padding: 0 8px;
+  }
+
+  .config-field {
+    margin-bottom: 16px;
+  }
+
+  .config-field:last-child {
+    margin-bottom: 0;
+  }
+
+  .config-field label {
+    display: block;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-primary, #111827);
+    margin-bottom: 6px;
+  }
+
+  .config-field input[type="text"],
+  .config-field select {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid var(--border-color, #d1d5db);
+    border-radius: 4px;
+    font-size: 14px;
+    color: var(--text-primary, #111827);
+    background: var(--input-bg, #ffffff);
+    box-sizing: border-box;
+  }
+
+  .config-field input[type="text"]:focus,
+  .config-field select:focus {
+    outline: none;
+    border-color: var(--primary-color, #3b82f6);
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+  }
+
+  .config-field input[type="checkbox"] {
+    margin-right: 8px;
+  }
+
+  .field-help {
+    display: block;
+    font-size: 11px;
+    color: var(--text-secondary, #6b7280);
+    margin-top: 4px;
+  }
+
+  .config-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border-color, #e5e7eb);
+  }
+
+  .btn-primary,
+  .btn-secondary {
+    padding: 8px 16px;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .btn-primary {
+    background: var(--primary-color, #3b82f6);
+    color: white;
+    border: none;
+  }
+
+  .btn-primary:hover {
+    background: var(--primary-hover, #2563eb);
+  }
+
+  .btn-secondary {
+    background: transparent;
+    color: var(--text-primary, #111827);
+    border: 1px solid var(--border-color, #d1d5db);
+  }
+
+  .btn-secondary:hover {
+    background: var(--hover-bg, #f3f4f6);
+  }
+
+  /* Dark mode support */
+  @media (prefers-color-scheme: dark) {
+    .pki-config-panel {
+      --panel-bg: #1f2937;
+      --text-primary: #f9fafb;
+      --text-secondary: #9ca3af;
+      --border-color: #374151;
+      --input-bg: #111827;
+      --hover-bg: #374151;
+    }
+  }
+</style>
+
+<script>
+(function() {
+  'use strict';
+
+  const form = document.getElementById('pki-config-form');
+  const saveBtn = document.getElementById('config-save-btn');
+  const resetBtn = document.getElementById('config-reset-btn');
+  const saveStatus = document.getElementById('config-save-status');
+
+  // Default configuration values
+  const defaults = {
+    caName: 'PeerMesh Internal CA',
+    caDnsName: 'ca.pmdl.local',
+    caAddress: ':9000',
+    certDuration: '720h',
+    renewalWindow: '480h',
+    autoRenewEnabled: true,
+    acmeEnabled: true,
+    provisionerName: 'pmdl-provisioner',
+    postgresServiceName: 'postgres.pmdl.local',
+    redisServiceName: 'redis.pmdl.local'
+  };
+
+  // Load current configuration
+  async function loadConfig() {
+    try {
+      const response = await fetch('/api/modules/pki/config');
+      if (response.ok) {
+        const config = await response.json();
+        populateForm(config);
+      }
+    } catch (e) {
+      console.log('Using default configuration');
+      populateForm(defaults);
+    }
+  }
+
+  // Populate form with configuration values
+  function populateForm(config) {
+    for (const [key, value] of Object.entries(config)) {
+      const field = form.elements[key];
+      if (field) {
+        if (field.type === 'checkbox') {
+          field.checked = value;
+        } else {
+          field.value = value;
+        }
+      }
+    }
+  }
+
+  // Save configuration
+  async function saveConfig(e) {
+    e.preventDefault();
+
+    const formData = new FormData(form);
+    const config = {};
+
+    for (const [key, value] of formData.entries()) {
+      config[key] = value;
+    }
+
+    // Handle checkboxes (they don't appear in FormData when unchecked)
+    config.autoRenewEnabled = form.elements.autoRenewEnabled.checked;
+    config.acmeEnabled = form.elements.acmeEnabled.checked;
+
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Saving...';
+
+    try {
+      const response = await fetch('/api/modules/pki/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(config)
+      });
+
+      if (response.ok) {
+        saveStatus.textContent = 'Saved!';
+        saveStatus.style.color = 'var(--status-success, #10b981)';
+      } else {
+        throw new Error('Save failed');
+      }
+    } catch (e) {
+      saveStatus.textContent = 'Save failed';
+      saveStatus.style.color = 'var(--status-error, #ef4444)';
+    }
+
+    saveBtn.disabled = false;
+    saveBtn.textContent = 'Save Configuration';
+
+    setTimeout(() => {
+      saveStatus.textContent = '';
+    }, 3000);
+  }
+
+  // Reset to defaults
+  function resetDefaults() {
+    if (confirm('Reset all settings to defaults?')) {
+      populateForm(defaults);
+      saveStatus.textContent = 'Reset to defaults';
+      setTimeout(() => {
+        saveStatus.textContent = '';
+      }, 2000);
+    }
+  }
+
+  // Event listeners
+  form.addEventListener('submit', saveConfig);
+  resetBtn.addEventListener('click', resetDefaults);
+
+  // Load config on init
+  loadConfig();
+})();
+</script>

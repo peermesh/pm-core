@@ -1,0 +1,196 @@
+# Module: pki
+# Docker Compose configuration for step-ca Internal PKI
+#
+# This module provides:
+#   - Internal Certificate Authority for TLS certificates
+#   - Automated certificate provisioning and renewal
+#   - ACME protocol support for service certificates
+#   - Zero-maintenance certificate lifecycle management
+#
+# Activation:
+#   docker compose -f modules/pki/docker-compose.yml up -d
+#
+# Or via module manager:
+#   ./pmdl module enable pki
+#
+# Documentation: modules/pki/README.md
+
+services:
+  # ==========================================================================
+  # Step-CA Certificate Authority
+  # ==========================================================================
+  # Internal CA for issuing TLS certificates to services.
+  # Uses smallstep/step-ca for production-grade certificate management.
+
+  step-ca:
+    extends:
+      file: ../../foundation/docker-compose.base.yml
+      service: _service-standard
+
+    image: smallstep/step-ca:latest
+    container_name: pmdl_step_ca
+
+    environment:
+      # CA Configuration
+      DOCKER_STEPCA_INIT_NAME: ${PKI_CA_NAME:-PeerMesh Internal CA}
+      DOCKER_STEPCA_INIT_DNS_NAMES: ${PKI_CA_DNS_NAME:-ca.pmdl.local},localhost,step-ca
+      DOCKER_STEPCA_INIT_REMOTE_MANAGEMENT: "false"
+      DOCKER_STEPCA_INIT_ACME: ${PKI_ACME_ENABLED:-true}
+
+      # Certificate Durations
+      DOCKER_STEPCA_INIT_PROVISIONER_NAME: ${PKI_PROVISIONER_NAME:-pmdl-provisioner}
+
+    secrets:
+      - ca_password
+      - provisioner_password
+
+    volumes:
+      # CA data persistence
+      - pki_ca_data:/home/step
+
+      # Certificate output (shared with other services)
+      - pki_certs:/home/step/certs
+
+      # Custom configuration
+      - ./configs/ca.json:/home/step/config/ca.json:ro
+
+      # Scripts for certificate management
+      - ./scripts:/scripts:ro
+
+    networks:
+      - pki-internal
+      - pki-external
+
+    ports:
+      # HTTPS CA API (internal only by default)
+      - "127.0.0.1:9000:9000"
+
+    healthcheck:
+      test: ["CMD", "step", "ca", "health", "--root", "/home/step/certs/root_ca.crt", "--ca-url", "https://localhost:9000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # ==========================================================================
+  # Certificate Renewal Service
+  # ==========================================================================
+  # Sidecar service for automatic certificate renewal.
+  # Monitors certificates and renews them before expiry.
+
+  cert-renewer:
+    extends:
+      file: ../../foundation/docker-compose.base.yml
+      service: _service-lite
+
+    image: smallstep/step-ca:latest
+    container_name: pmdl_cert_renewer
+    depends_on:
+      step-ca:
+        condition: service_healthy
+
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -e
+
+        echo "================================================"
+        echo "PeerMesh Certificate Renewer Starting"
+        echo "================================================"
+
+        # Wait for CA to be fully initialized
+        sleep 5
+
+        # Install root CA certificate
+        if [ -f /home/step/certs/root_ca.crt ]; then
+          cp /home/step/certs/root_ca.crt /etc/ssl/certs/
+          echo "Root CA certificate installed"
+        fi
+
+        # Create renewal configuration
+        mkdir -p /etc/step-renew
+
+        echo ""
+        echo "Certificate renewer ready."
+        echo "Monitoring certificates for automatic renewal..."
+        echo "================================================"
+
+        # Run renewal loop
+        while true; do
+          # Check each certificate in the certs directory
+          for cert_dir in /home/step/certs/services/*/; do
+            if [ -d "$$cert_dir" ]; then
+              service_name=$$(basename "$$cert_dir")
+              cert_file="$${cert_dir}cert.pem"
+              key_file="$${cert_dir}key.pem"
+
+              if [ -f "$$cert_file" ] && [ -f "$$key_file" ]; then
+                # Check if certificate needs renewal (within renewal window)
+                if step certificate needs-renewal "$$cert_file" --expires-in "$${PKI_RENEWAL_WINDOW:-480h}" 2>/dev/null; then
+                  echo "[$(date)] Renewing certificate for $$service_name..."
+
+                  step ca renew "$$cert_file" "$$key_file" \
+                    --ca-url https://step-ca:9000 \
+                    --root /home/step/certs/root_ca.crt \
+                    --force \
+                    2>/dev/null && echo "[$(date)] Certificate renewed for $$service_name" \
+                    || echo "[$(date)] Failed to renew certificate for $$service_name"
+                fi
+              fi
+            fi
+          done
+
+          # Sleep before next check (check every hour)
+          sleep 3600
+        done
+
+    environment:
+      PKI_RENEWAL_WINDOW: ${PKI_RENEWAL_WINDOW:-480h}
+
+    volumes:
+      # Shared certificate storage
+      - pki_certs:/home/step/certs
+
+    networks:
+      - pki-internal
+
+# =============================================================================
+# Secrets
+# =============================================================================
+# Secrets are file-based following BYOK (Bring Your Own Keys) principle.
+# Create these files in configs/ before starting.
+
+secrets:
+  ca_password:
+    file: ./configs/ca_password
+  provisioner_password:
+    file: ./configs/provisioner_password
+
+# =============================================================================
+# Volumes
+# =============================================================================
+# Persistent storage for CA data and certificates.
+
+volumes:
+  pki_ca_data:
+    name: pmdl_pki_ca_data
+    driver: local
+
+  pki_certs:
+    name: pmdl_pki_certs
+    driver: local
+
+# =============================================================================
+# Networks
+# =============================================================================
+# PKI networks for internal CA operations and external certificate distribution.
+
+networks:
+  pki-internal:
+    driver: bridge
+    internal: true
+    name: pmdl_pki-internal
+
+  pki-external:
+    driver: bridge
+    name: pmdl_pki-external

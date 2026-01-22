@@ -1,0 +1,171 @@
+{
+  "$schema": "../../foundation/schemas/module.schema.json",
+  "id": "pki",
+  "version": "1.0.0",
+  "name": "PKI Module",
+  "description": "Internal Public Key Infrastructure using step-ca for automated TLS certificate provisioning, supporting database network encryption and zero-maintenance certificate renewal",
+  "author": {
+    "name": "PeerMesh Team"
+  },
+  "license": "MIT",
+  "tags": ["pki", "tls", "certificates", "step-ca", "security", "encryption"],
+  "foundation": {
+    "minVersion": "1.0.0"
+  },
+  "requires": {
+    "connections": [],
+    "modules": []
+  },
+  "provides": {
+    "connections": [],
+    "events": [
+      "pki.ca.initialized",
+      "pki.ca.started",
+      "pki.ca.stopped",
+      "pki.certificate.issued",
+      "pki.certificate.renewed",
+      "pki.certificate.revoked",
+      "pki.certificate.expiring"
+    ]
+  },
+  "dashboard": {
+    "displayName": "PKI",
+    "icon": "lock",
+    "routes": [
+      {
+        "path": "/pki",
+        "component": "./dashboard/PKIPage.html",
+        "nav": {
+          "label": "PKI",
+          "icon": "lock",
+          "order": 70
+        }
+      }
+    ],
+    "statusWidget": {
+      "component": "./dashboard/PKIStatusWidget.html",
+      "size": "medium",
+      "order": 40
+    },
+    "configPanel": {
+      "component": "./dashboard/PKIConfigPanel.html"
+    }
+  },
+  "lifecycle": {
+    "install": {
+      "script": "./hooks/install.sh",
+      "timeout": 180,
+      "retries": 2,
+      "retryDelay": 5
+    },
+    "start": {
+      "script": "./hooks/start.sh",
+      "timeout": 60
+    },
+    "stop": {
+      "script": "./hooks/stop.sh",
+      "timeout": 30
+    },
+    "uninstall": "./hooks/uninstall.sh",
+    "health": {
+      "script": "./hooks/health.sh",
+      "timeout": 30
+    }
+  },
+  "config": {
+    "version": "1.0",
+    "properties": {
+      "caName": {
+        "type": "string",
+        "description": "Name of the Certificate Authority",
+        "default": "PeerMesh Internal CA",
+        "env": "PKI_CA_NAME"
+      },
+      "caDnsName": {
+        "type": "string",
+        "description": "DNS name for the CA server",
+        "default": "ca.pmdl.local",
+        "env": "PKI_CA_DNS_NAME"
+      },
+      "caAddress": {
+        "type": "string",
+        "description": "Address and port for the CA server to listen on",
+        "default": ":9000",
+        "env": "PKI_CA_ADDRESS"
+      },
+      "certDuration": {
+        "type": "string",
+        "description": "Default certificate validity duration",
+        "default": "720h",
+        "env": "PKI_CERT_DURATION"
+      },
+      "renewalWindow": {
+        "type": "string",
+        "description": "Time before expiry to trigger renewal (2/3 of cert duration recommended)",
+        "default": "480h",
+        "env": "PKI_RENEWAL_WINDOW"
+      },
+      "rootCertDuration": {
+        "type": "string",
+        "description": "Root CA certificate validity duration",
+        "default": "87600h",
+        "env": "PKI_ROOT_CERT_DURATION"
+      },
+      "storagePath": {
+        "type": "string",
+        "description": "Path for storing CA data and issued certificates",
+        "default": "/var/lib/pki",
+        "env": "PKI_STORAGE_PATH"
+      },
+      "certsOutputPath": {
+        "type": "string",
+        "description": "Path where generated service certificates are stored",
+        "default": "/var/lib/pki/certs",
+        "env": "PKI_CERTS_OUTPUT_PATH"
+      },
+      "acmeEnabled": {
+        "type": "boolean",
+        "description": "Enable ACME protocol for certificate provisioning",
+        "default": true,
+        "env": "PKI_ACME_ENABLED"
+      },
+      "provisionerName": {
+        "type": "string",
+        "description": "Name of the default provisioner for certificate issuance",
+        "default": "pmdl-provisioner",
+        "env": "PKI_PROVISIONER_NAME"
+      },
+      "autoRenewEnabled": {
+        "type": "boolean",
+        "description": "Enable automatic certificate renewal via step-ca renewers",
+        "default": true,
+        "env": "PKI_AUTO_RENEW_ENABLED"
+      },
+      "postgresServiceName": {
+        "type": "string",
+        "description": "Service name for PostgreSQL TLS certificate",
+        "default": "postgres.pmdl.local",
+        "env": "PKI_POSTGRES_SERVICE_NAME"
+      },
+      "redisServiceName": {
+        "type": "string",
+        "description": "Service name for Redis TLS certificate",
+        "default": "redis.pmdl.local",
+        "env": "PKI_REDIS_SERVICE_NAME"
+      },
+      "caPassword": {
+        "type": "string",
+        "description": "Password for CA key encryption (use secrets file instead)",
+        "secret": true,
+        "env": "PKI_CA_PASSWORD"
+      },
+      "provisionerPassword": {
+        "type": "string",
+        "description": "Password for the provisioner (use secrets file instead)",
+        "secret": true,
+        "env": "PKI_PROVISIONER_PASSWORD"
+      }
+    },
+    "required": []
+  }
+}

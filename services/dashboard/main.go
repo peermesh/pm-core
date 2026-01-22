@@ -31,6 +31,11 @@ func main() {
 	// Health check endpoint (no auth required)
 	mux.HandleFunc("/health", healthHandler)
 
+	// Redirect /login to /login.html for clean URLs
+	mux.HandleFunc("/login", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/login.html", http.StatusMovedPermanently)
+	})
+
 	// Auth endpoints
 	mux.HandleFunc("/api/login", handlers.LoginHandler)
 	mux.HandleFunc("/api/logout", handlers.LogoutHandler)

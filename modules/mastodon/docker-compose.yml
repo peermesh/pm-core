@@ -1,0 +1,334 @@
+# ==============================================================
+# Mastodon Module - Docker Compose Configuration
+# ==============================================================
+# Federated social networking with ActivityPub support
+#
+# Module Version: 1.0.0
+# Mastodon Version: v4.2 (latest stable)
+#
+# Services:
+#   - mastodon-web: Puma web server (serves UI and API)
+#   - mastodon-streaming: Node.js streaming API (WebSocket)
+#   - mastodon-sidekiq: Background job processor
+#   - opensearch: Full-text search engine
+#
+# Dependencies:
+#   - PostgreSQL (from profiles/postgresql or external)
+#   - Redis (from profiles/redis or external)
+#
+# Usage:
+#   cd modules/mastodon
+#   docker compose up -d
+#
+# ==============================================================
+
+# Extension fields for reuse
+x-mastodon-env: &mastodon-env
+  # Instance configuration
+  LOCAL_DOMAIN: ${MASTODON_LOCAL_DOMAIN:?MASTODON_LOCAL_DOMAIN is required}
+  SINGLE_USER_MODE: ${MASTODON_SINGLE_USER_MODE:-false}
+
+  # Database configuration (connects to pmdl_postgres)
+  DB_HOST: ${MASTODON_DB_HOST:-postgres}
+  DB_PORT: ${MASTODON_DB_PORT:-5432}
+  DB_NAME: ${MASTODON_DB_NAME:-mastodon}
+  DB_USER: ${MASTODON_DB_USER:-mastodon}
+  DB_PASS: ${MASTODON_DB_PASSWORD}
+
+  # Redis configuration (connects to pmdl_redis)
+  REDIS_HOST: ${MASTODON_REDIS_HOST:-redis}
+  REDIS_PORT: ${MASTODON_REDIS_PORT:-6379}
+  REDIS_PASSWORD: ${MASTODON_REDIS_PASSWORD:-}
+
+  # OpenSearch configuration
+  ES_ENABLED: ${MASTODON_ES_ENABLED:-true}
+  ES_HOST: ${MASTODON_ES_HOST:-opensearch}
+  ES_PORT: ${MASTODON_ES_PORT:-9200}
+
+  # Security keys (required - generate with hooks/install.sh)
+  SECRET_KEY_BASE: ${MASTODON_SECRET_KEY_BASE:?SECRET_KEY_BASE is required}
+  OTP_SECRET: ${MASTODON_OTP_SECRET:?OTP_SECRET is required}
+
+  # VAPID keys for web push notifications
+  VAPID_PRIVATE_KEY: ${MASTODON_VAPID_PRIVATE_KEY:-}
+  VAPID_PUBLIC_KEY: ${MASTODON_VAPID_PUBLIC_KEY:-}
+
+  # SMTP configuration (optional - needed for email notifications)
+  SMTP_SERVER: ${MASTODON_SMTP_SERVER:-}
+  SMTP_PORT: ${MASTODON_SMTP_PORT:-587}
+  SMTP_LOGIN: ${MASTODON_SMTP_LOGIN:-}
+  SMTP_PASSWORD: ${MASTODON_SMTP_PASSWORD:-}
+  SMTP_FROM_ADDRESS: ${MASTODON_SMTP_FROM_ADDRESS:-notifications@${MASTODON_LOCAL_DOMAIN}}
+  SMTP_AUTH_METHOD: ${MASTODON_SMTP_AUTH_METHOD:-plain}
+  SMTP_OPENSSL_VERIFY_MODE: ${MASTODON_SMTP_OPENSSL_VERIFY_MODE:-peer}
+  SMTP_ENABLE_STARTTLS: ${MASTODON_SMTP_ENABLE_STARTTLS:-auto}
+
+  # S3 storage (optional - for media files)
+  S3_ENABLED: ${MASTODON_S3_ENABLED:-false}
+  S3_BUCKET: ${MASTODON_S3_BUCKET:-}
+  S3_REGION: ${MASTODON_S3_REGION:-us-east-1}
+  S3_ENDPOINT: ${MASTODON_S3_ENDPOINT:-}
+  AWS_ACCESS_KEY_ID: ${MASTODON_S3_ACCESS_KEY:-}
+  AWS_SECRET_ACCESS_KEY: ${MASTODON_S3_SECRET_KEY:-}
+  S3_PROTOCOL: https
+  S3_HOSTNAME: ${MASTODON_S3_HOSTNAME:-}
+
+  # Performance tuning
+  WEB_CONCURRENCY: ${MASTODON_WEB_CONCURRENCY:-2}
+  MAX_THREADS: ${MASTODON_MAX_THREADS:-5}
+  STREAMING_CLUSTER_NUM: ${MASTODON_STREAMING_CLUSTER_NUM:-1}
+
+  # Federation settings
+  AUTHORIZED_FETCH: ${MASTODON_AUTHORIZED_FETCH:-true}
+  LIMITED_FEDERATION_MODE: ${MASTODON_LIMITED_FEDERATION_MODE:-false}
+
+  # Rails environment
+  RAILS_ENV: production
+  NODE_ENV: production
+  RAILS_LOG_LEVEL: ${MASTODON_LOG_LEVEL:-warn}
+  RAILS_SERVE_STATIC_FILES: "true"
+
+x-mastodon-healthcheck: &mastodon-healthcheck
+  interval: 30s
+  timeout: 10s
+  retries: 5
+  start_period: 60s
+
+x-mastodon-logging: &mastodon-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+x-mastodon-common: &mastodon-common
+  image: ghcr.io/mastodon/mastodon:v4.2
+  restart: unless-stopped
+  networks:
+    - db-internal
+    - app-internal
+    - proxy-external
+  logging: *mastodon-logging
+  depends_on:
+    opensearch:
+      condition: service_healthy
+
+services:
+  # ============================================================
+  # OpenSearch - Full-Text Search Engine
+  # ============================================================
+  # Elasticsearch-compatible search for Mastodon
+  # Used for: hashtag search, account search, post search
+  opensearch:
+    image: opensearchproject/opensearch:2.11.1
+    container_name: pmdl_mastodon_opensearch
+    restart: unless-stopped
+
+    environment:
+      # Single-node cluster (no cluster discovery needed)
+      - discovery.type=single-node
+      - cluster.name=mastodon-search
+      - node.name=mastodon-os-node
+
+      # Disable security for internal network (optional)
+      - DISABLE_SECURITY_PLUGIN=true
+      - DISABLE_INSTALL_DEMO_CONFIG=true
+
+      # Memory settings (JVM heap - set to 50% of container limit)
+      - OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m
+
+      # Bootstrap checks
+      - bootstrap.memory_lock=true
+
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+
+    volumes:
+      - mastodon_opensearch_data:/usr/share/opensearch/data
+
+    healthcheck:
+      <<: *mastodon-healthcheck
+      test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health | grep -q '\"status\":\"\\(green\\|yellow\\)\"'"]
+      start_period: 120s
+
+    networks:
+      - app-internal
+
+    logging: *mastodon-logging
+
+    deploy:
+      resources:
+        limits:
+          memory: 1536M
+        reservations:
+          memory: 1G
+
+  # ============================================================
+  # Mastodon Web - Puma Application Server
+  # ============================================================
+  # Serves: Web UI, REST API, OAuth
+  mastodon-web:
+    <<: *mastodon-common
+    container_name: pmdl_mastodon_web
+
+    command: bash -c "rm -f /mastodon/tmp/pids/server.pid; bundle exec puma -C config/puma.rb"
+
+    environment:
+      <<: *mastodon-env
+
+    volumes:
+      - mastodon_system:/mastodon/public/system
+      - mastodon_assets:/mastodon/public/assets
+
+    healthcheck:
+      <<: *mastodon-healthcheck
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:3000/health || exit 1"]
+
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+
+    labels:
+      - "traefik.enable=true"
+
+      # Main web router
+      - "traefik.http.routers.mastodon-web.rule=Host(`${MASTODON_LOCAL_DOMAIN}`)"
+      - "traefik.http.routers.mastodon-web.entrypoints=websecure"
+      - "traefik.http.routers.mastodon-web.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.mastodon-web.service=mastodon-web"
+      - "traefik.http.services.mastodon-web.loadbalancer.server.port=3000"
+
+      # Security middlewares
+      - "traefik.http.routers.mastodon-web.middlewares=mastodon-headers,mastodon-ratelimit"
+
+      # Security headers
+      - "traefik.http.middlewares.mastodon-headers.headers.browserxssfilter=true"
+      - "traefik.http.middlewares.mastodon-headers.headers.contenttypenosniff=true"
+      - "traefik.http.middlewares.mastodon-headers.headers.frameDeny=false"
+      - "traefik.http.middlewares.mastodon-headers.headers.stsSeconds=31536000"
+      - "traefik.http.middlewares.mastodon-headers.headers.stsIncludeSubdomains=true"
+      - "traefik.http.middlewares.mastodon-headers.headers.stsPreload=true"
+      - "traefik.http.middlewares.mastodon-headers.headers.customFrameOptionsValue=SAMEORIGIN"
+
+      # Rate limiting
+      - "traefik.http.middlewares.mastodon-ratelimit.ratelimit.average=100"
+      - "traefik.http.middlewares.mastodon-ratelimit.ratelimit.burst=200"
+      - "traefik.http.middlewares.mastodon-ratelimit.ratelimit.period=1m"
+
+  # ============================================================
+  # Mastodon Streaming - WebSocket Server
+  # ============================================================
+  # Serves: Real-time timeline updates, notifications
+  mastodon-streaming:
+    <<: *mastodon-common
+    container_name: pmdl_mastodon_streaming
+
+    command: node ./streaming
+
+    environment:
+      <<: *mastodon-env
+      # Streaming-specific settings
+      STREAMING_CLUSTER_NUM: ${MASTODON_STREAMING_CLUSTER_NUM:-1}
+      PORT: 4000
+
+    healthcheck:
+      <<: *mastodon-healthcheck
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:4000/api/v1/streaming/health || exit 1"]
+      start_period: 30s
+
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 128M
+
+    labels:
+      - "traefik.enable=true"
+
+      # Streaming API router (path-based routing)
+      - "traefik.http.routers.mastodon-streaming.rule=Host(`${MASTODON_LOCAL_DOMAIN}`) && PathPrefix(`/api/v1/streaming`)"
+      - "traefik.http.routers.mastodon-streaming.entrypoints=websecure"
+      - "traefik.http.routers.mastodon-streaming.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.mastodon-streaming.service=mastodon-streaming"
+      - "traefik.http.services.mastodon-streaming.loadbalancer.server.port=4000"
+
+      # WebSocket support
+      - "traefik.http.routers.mastodon-streaming.middlewares=mastodon-streaming-headers"
+      - "traefik.http.middlewares.mastodon-streaming-headers.headers.customRequestHeaders.Connection=upgrade"
+
+  # ============================================================
+  # Mastodon Sidekiq - Background Job Processor
+  # ============================================================
+  # Processes: Federation, email, media processing, scheduled tasks
+  mastodon-sidekiq:
+    <<: *mastodon-common
+    container_name: pmdl_mastodon_sidekiq
+
+    command: bundle exec sidekiq
+
+    environment:
+      <<: *mastodon-env
+      # Sidekiq-specific settings
+      DB_POOL: ${MASTODON_SIDEKIQ_CONCURRENCY:-25}
+
+    volumes:
+      - mastodon_system:/mastodon/public/system
+
+    # Sidekiq doesn't have HTTP endpoints, so use process check
+    healthcheck:
+      <<: *mastodon-healthcheck
+      test: ["CMD-SHELL", "ps aux | grep -v grep | grep -q sidekiq || exit 1"]
+      start_period: 30s
+
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+
+# ==============================================================
+# Volumes
+# ==============================================================
+
+volumes:
+  # OpenSearch data
+  mastodon_opensearch_data:
+    driver: local
+    name: pmdl_mastodon_opensearch_data
+
+  # Mastodon media storage (avatars, headers, attachments)
+  mastodon_system:
+    driver: local
+    name: pmdl_mastodon_system
+
+  # Mastodon compiled assets
+  mastodon_assets:
+    driver: local
+    name: pmdl_mastodon_assets
+
+# ==============================================================
+# Networks
+# ==============================================================
+# Uses networks from main docker-compose.yml
+
+networks:
+  db-internal:
+    external: true
+    name: pmdl_db-internal
+
+  app-internal:
+    external: true
+    name: pmdl_app-internal
+
+  proxy-external:
+    external: true
+    name: pmdl_proxy-external

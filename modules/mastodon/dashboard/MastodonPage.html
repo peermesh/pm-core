@@ -1,0 +1,768 @@
+<!--
+  Mastodon Dashboard Page
+  Full management page for the Mastodon module
+
+  This page provides comprehensive instance management including:
+  - Real-time status monitoring
+  - User management
+  - Federation controls
+  - Moderation tools
+  - System diagnostics
+-->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mastodon - PeerMesh Dashboard</title>
+  <style>
+    :root {
+      --bg-primary: #0f0f1a;
+      --bg-secondary: #1a1a2e;
+      --bg-tertiary: #252540;
+      --text-primary: #ffffff;
+      --text-secondary: #a0a0b0;
+      --border-color: #2d2d44;
+      --accent: #6364ff;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+    }
+
+    .page-container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    .page-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+    }
+
+    .page-title {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .page-title h1 {
+      font-size: 24px;
+      font-weight: 600;
+    }
+
+    .page-title svg {
+      width: 32px;
+      height: 32px;
+      color: var(--accent);
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 12px;
+    }
+
+    .btn {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 16px;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.2s;
+    }
+
+    .btn:hover {
+      background: var(--bg-tertiary);
+    }
+
+    .btn.primary {
+      background: var(--accent);
+      border-color: var(--accent);
+    }
+
+    .btn.primary:hover {
+      opacity: 0.9;
+    }
+
+    .btn svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    .grid {
+      display: grid;
+      gap: 24px;
+    }
+
+    .grid-2 {
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    .grid-3 {
+      grid-template-columns: repeat(3, 1fr);
+    }
+
+    @media (max-width: 1024px) {
+      .grid-3 {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media (max-width: 768px) {
+      .grid-2,
+      .grid-3 {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 20px;
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .card-title {
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 12px;
+      border-radius: 16px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .status-badge.healthy {
+      background: rgba(16, 185, 129, 0.1);
+      color: var(--success);
+    }
+
+    .status-badge.unhealthy {
+      background: rgba(239, 68, 68, 0.1);
+      color: var(--danger);
+    }
+
+    .status-badge.degraded {
+      background: rgba(245, 158, 11, 0.1);
+      color: var(--warning);
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+
+    /* Stats Grid */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .stat-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 20px;
+      text-align: center;
+    }
+
+    .stat-value {
+      font-size: 32px;
+      font-weight: 600;
+      color: var(--accent);
+    }
+
+    .stat-label {
+      font-size: 13px;
+      color: var(--text-secondary);
+      margin-top: 4px;
+    }
+
+    /* Service List */
+    .service-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .service-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 16px;
+      background: var(--bg-tertiary);
+      border-radius: 8px;
+    }
+
+    .service-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .service-icon {
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(99, 100, 255, 0.1);
+      border-radius: 8px;
+    }
+
+    .service-icon svg {
+      width: 20px;
+      height: 20px;
+      color: var(--accent);
+    }
+
+    .service-details h4 {
+      font-size: 14px;
+      font-weight: 500;
+      margin-bottom: 2px;
+    }
+
+    .service-details span {
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .service-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .service-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .icon-btn {
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      background: transparent;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .icon-btn:hover {
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+    }
+
+    .icon-btn svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    /* Logs Panel */
+    .logs-panel {
+      background: #0a0a12;
+      border-radius: 8px;
+      padding: 16px;
+      font-family: 'Monaco', 'Menlo', monospace;
+      font-size: 12px;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+
+    .log-line {
+      display: flex;
+      gap: 12px;
+      padding: 4px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .log-time {
+      color: var(--text-secondary);
+      white-space: nowrap;
+    }
+
+    .log-service {
+      color: var(--accent);
+      white-space: nowrap;
+    }
+
+    .log-message {
+      color: var(--text-primary);
+    }
+
+    .log-line.error .log-message {
+      color: var(--danger);
+    }
+
+    .log-line.warn .log-message {
+      color: var(--warning);
+    }
+
+    /* Quick Actions */
+    .actions-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+    }
+
+    .action-card {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 16px;
+      background: var(--bg-tertiary);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .action-card:hover {
+      background: rgba(99, 100, 255, 0.1);
+    }
+
+    .action-icon {
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(99, 100, 255, 0.1);
+      border-radius: 8px;
+    }
+
+    .action-icon svg {
+      width: 20px;
+      height: 20px;
+      color: var(--accent);
+    }
+
+    .action-details h4 {
+      font-size: 14px;
+      font-weight: 500;
+      margin-bottom: 2px;
+    }
+
+    .action-details span {
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    @media (max-width: 768px) {
+      .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page-container">
+    <!-- Page Header -->
+    <div class="page-header">
+      <div class="page-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
+        </svg>
+        <h1>Mastodon</h1>
+        <span class="status-badge healthy" id="overall-status">
+          <span class="status-dot"></span>
+          Healthy
+        </span>
+      </div>
+      <div class="header-actions">
+        <a href="#" class="btn" id="open-instance" target="_blank">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+            <polyline points="15 3 21 3 21 9"/>
+            <line x1="10" y1="14" x2="21" y2="3"/>
+          </svg>
+          Open Instance
+        </a>
+        <button class="btn primary" onclick="refreshAll()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="23 4 23 10 17 10"/>
+            <polyline points="1 20 1 14 7 14"/>
+            <path d="m3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+          </svg>
+          Refresh
+        </button>
+      </div>
+    </div>
+
+    <!-- Stats Overview -->
+    <div class="stats-grid" id="stats-grid">
+      <div class="stat-card">
+        <div class="stat-value" id="stat-users">--</div>
+        <div class="stat-label">Local Users</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="stat-statuses">--</div>
+        <div class="stat-label">Posts</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="stat-domains">--</div>
+        <div class="stat-label">Federated Domains</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="stat-active">--</div>
+        <div class="stat-label">Active This Week</div>
+      </div>
+    </div>
+
+    <!-- Main Content Grid -->
+    <div class="grid grid-2">
+      <!-- Services Panel -->
+      <div class="card">
+        <div class="card-header">
+          <h3 class="card-title">Services</h3>
+        </div>
+        <div class="service-list" id="service-list">
+          <!-- Web Service -->
+          <div class="service-item" data-service="web">
+            <div class="service-info">
+              <div class="service-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"/>
+                  <line x1="2" y1="12" x2="22" y2="12"/>
+                  <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+                </svg>
+              </div>
+              <div class="service-details">
+                <h4>Web (Puma)</h4>
+                <span>Port 3000 - UI & REST API</span>
+              </div>
+            </div>
+            <div class="service-status">
+              <span class="status-badge healthy">
+                <span class="status-dot"></span>
+                Healthy
+              </span>
+            </div>
+          </div>
+
+          <!-- Streaming Service -->
+          <div class="service-item" data-service="streaming">
+            <div class="service-info">
+              <div class="service-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polygon points="23 7 16 12 23 17 23 7"/>
+                  <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+                </svg>
+              </div>
+              <div class="service-details">
+                <h4>Streaming</h4>
+                <span>Port 4000 - WebSocket</span>
+              </div>
+            </div>
+            <div class="service-status">
+              <span class="status-badge healthy">
+                <span class="status-dot"></span>
+                Healthy
+              </span>
+            </div>
+          </div>
+
+          <!-- Sidekiq Service -->
+          <div class="service-item" data-service="sidekiq">
+            <div class="service-info">
+              <div class="service-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+                  <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+                </svg>
+              </div>
+              <div class="service-details">
+                <h4>Sidekiq</h4>
+                <span>Background Jobs</span>
+              </div>
+            </div>
+            <div class="service-status">
+              <span class="status-badge healthy">
+                <span class="status-dot"></span>
+                Healthy
+              </span>
+            </div>
+          </div>
+
+          <!-- OpenSearch Service -->
+          <div class="service-item" data-service="opensearch">
+            <div class="service-info">
+              <div class="service-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="11" cy="11" r="8"/>
+                  <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                </svg>
+              </div>
+              <div class="service-details">
+                <h4>OpenSearch</h4>
+                <span>Port 9200 - Full-text Search</span>
+              </div>
+            </div>
+            <div class="service-status">
+              <span class="status-badge healthy">
+                <span class="status-dot"></span>
+                Healthy
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Actions Panel -->
+      <div class="card">
+        <div class="card-header">
+          <h3 class="card-title">Quick Actions</h3>
+        </div>
+        <div class="actions-grid">
+          <div class="action-card" onclick="runAction('reindex')">
+            <div class="action-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="8"/>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+              </svg>
+            </div>
+            <div class="action-details">
+              <h4>Reindex Search</h4>
+              <span>tootctl search deploy</span>
+            </div>
+          </div>
+
+          <div class="action-card" onclick="runAction('media-clean')">
+            <div class="action-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="3 6 5 6 21 6"/>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+              </svg>
+            </div>
+            <div class="action-details">
+              <h4>Clean Media</h4>
+              <span>Remove orphaned files</span>
+            </div>
+          </div>
+
+          <div class="action-card" onclick="runAction('clear-cache')">
+            <div class="action-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="23 4 23 10 17 10"/>
+                <polyline points="1 20 1 14 7 14"/>
+                <path d="m3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+              </svg>
+            </div>
+            <div class="action-details">
+              <h4>Clear Cache</h4>
+              <span>Flush Redis cache</span>
+            </div>
+          </div>
+
+          <div class="action-card" onclick="runAction('db-vacuum')">
+            <div class="action-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <ellipse cx="12" cy="5" rx="9" ry="3"/>
+                <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/>
+                <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
+              </svg>
+            </div>
+            <div class="action-details">
+              <h4>Optimize DB</h4>
+              <span>Vacuum analyze</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Logs Panel -->
+    <div class="card" style="margin-top: 24px;">
+      <div class="card-header">
+        <h3 class="card-title">Recent Logs</h3>
+        <button class="btn" onclick="refreshLogs()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 14px; height: 14px;">
+            <polyline points="23 4 23 10 17 10"/>
+            <path d="m3.51 9a9 9 0 0 1 14.85-3.36L23 10"/>
+          </svg>
+          Refresh
+        </button>
+      </div>
+      <div class="logs-panel" id="logs-panel">
+        <div class="log-line">
+          <span class="log-time">--:--:--</span>
+          <span class="log-service">[system]</span>
+          <span class="log-message">Waiting for logs...</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const HEALTH_ENDPOINT = '/api/modules/mastodon/health';
+    const LOGS_ENDPOINT = '/api/modules/mastodon/logs';
+    const ACTION_ENDPOINT = '/api/modules/mastodon/action';
+
+    async function refreshAll() {
+      await Promise.all([
+        fetchHealth(),
+        refreshLogs()
+      ]);
+    }
+
+    async function fetchHealth() {
+      try {
+        const response = await fetch(HEALTH_ENDPOINT);
+        if (response.ok) {
+          const data = await response.json();
+          updateHealth(data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch health:', error);
+      }
+    }
+
+    function updateHealth(data) {
+      // Update overall status
+      const statusBadge = document.getElementById('overall-status');
+      statusBadge.className = 'status-badge ' + data.status;
+      statusBadge.querySelector('.status-dot');
+      statusBadge.lastChild.textContent = ' ' + capitalize(data.status);
+
+      // Update stats
+      if (data.stats) {
+        document.getElementById('stat-users').textContent = formatNumber(data.stats.users);
+        document.getElementById('stat-statuses').textContent = formatNumber(data.stats.statuses);
+        document.getElementById('stat-domains').textContent = formatNumber(data.stats.domains);
+        document.getElementById('stat-active').textContent = formatNumber(data.stats.activeWeekly || 0);
+      }
+
+      // Update services
+      if (data.services) {
+        Object.entries(data.services).forEach(([name, service]) => {
+          const item = document.querySelector(`[data-service="${name}"]`);
+          if (item) {
+            const badge = item.querySelector('.status-badge');
+            badge.className = 'status-badge ' + service.status;
+            badge.innerHTML = `<span class="status-dot"></span>${capitalize(service.status)}`;
+          }
+        });
+      }
+
+      // Update instance link
+      if (data.domain) {
+        document.getElementById('open-instance').href = 'https://' + data.domain;
+      }
+    }
+
+    async function refreshLogs() {
+      try {
+        const response = await fetch(LOGS_ENDPOINT + '?lines=50');
+        if (response.ok) {
+          const logs = await response.json();
+          updateLogs(logs);
+        }
+      } catch (error) {
+        console.error('Failed to fetch logs:', error);
+      }
+    }
+
+    function updateLogs(logs) {
+      const panel = document.getElementById('logs-panel');
+
+      if (!logs || logs.length === 0) {
+        panel.innerHTML = '<div class="log-line"><span class="log-message">No recent logs</span></div>';
+        return;
+      }
+
+      panel.innerHTML = logs.map(log => {
+        const levelClass = log.level === 'error' ? 'error' : log.level === 'warn' ? 'warn' : '';
+        return `
+          <div class="log-line ${levelClass}">
+            <span class="log-time">${log.time || '--:--:--'}</span>
+            <span class="log-service">[${log.service || 'system'}]</span>
+            <span class="log-message">${escapeHtml(log.message)}</span>
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function runAction(action) {
+      try {
+        const response = await fetch(ACTION_ENDPOINT, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action })
+        });
+
+        if (response.ok) {
+          console.log('Action completed:', action);
+          refreshAll();
+        }
+      } catch (error) {
+        console.error('Action failed:', error);
+      }
+    }
+
+    function formatNumber(num) {
+      if (num === undefined || num === null) return '--';
+      if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+      if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+      return num.toString();
+    }
+
+    function capitalize(str) {
+      return str.charAt(0).toUpperCase() + str.slice(1).replace(/_/g, ' ');
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // Initial load
+    refreshAll();
+
+    // Auto-refresh every 30 seconds
+    setInterval(fetchHealth, 30000);
+  </script>
+</body>
+</html>

@@ -1,0 +1,323 @@
+<!--
+  Mastodon Status Widget
+  Dashboard component showing Mastodon instance status and federation stats
+
+  This widget integrates with the PeerMesh Dashboard via the module registry.
+  It displays:
+  - Service health (web, streaming, sidekiq, opensearch)
+  - Federation statistics (users, posts, federated domains)
+  - Quick action links
+-->
+
+<div class="mastodon-status-widget" id="mastodon-widget">
+  <!-- Widget Header -->
+  <div class="widget-header">
+    <div class="widget-title">
+      <svg class="widget-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
+      </svg>
+      <span>Mastodon</span>
+    </div>
+    <div class="widget-status-badge" id="mastodon-status-badge">
+      <span class="status-dot"></span>
+      <span class="status-text">Checking...</span>
+    </div>
+  </div>
+
+  <!-- Service Status Grid -->
+  <div class="service-grid" id="mastodon-services">
+    <div class="service-item" data-service="web">
+      <span class="service-name">Web</span>
+      <span class="service-status">--</span>
+    </div>
+    <div class="service-item" data-service="streaming">
+      <span class="service-name">Streaming</span>
+      <span class="service-status">--</span>
+    </div>
+    <div class="service-item" data-service="sidekiq">
+      <span class="service-name">Sidekiq</span>
+      <span class="service-status">--</span>
+    </div>
+    <div class="service-item" data-service="opensearch">
+      <span class="service-name">Search</span>
+      <span class="service-status">--</span>
+    </div>
+  </div>
+
+  <!-- Federation Stats -->
+  <div class="stats-grid" id="mastodon-stats">
+    <div class="stat-item">
+      <span class="stat-value" id="stat-users">--</span>
+      <span class="stat-label">Users</span>
+    </div>
+    <div class="stat-item">
+      <span class="stat-value" id="stat-statuses">--</span>
+      <span class="stat-label">Posts</span>
+    </div>
+    <div class="stat-item">
+      <span class="stat-value" id="stat-domains">--</span>
+      <span class="stat-label">Domains</span>
+    </div>
+  </div>
+
+  <!-- Quick Actions -->
+  <div class="widget-actions">
+    <a href="#" class="action-link" id="mastodon-instance-link" target="_blank">
+      Open Instance
+      <svg class="link-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+        <polyline points="15 3 21 3 21 9"/>
+        <line x1="10" y1="14" x2="21" y2="3"/>
+      </svg>
+    </a>
+  </div>
+</div>
+
+<style>
+.mastodon-status-widget {
+  background: var(--card-bg, #1a1a2e);
+  border-radius: 12px;
+  padding: 16px;
+  border: 1px solid var(--border-color, #2d2d44);
+}
+
+.widget-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.widget-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text-primary, #ffffff);
+}
+
+.widget-icon {
+  width: 20px;
+  height: 20px;
+  color: #6364ff;
+}
+
+.widget-status-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+  background: var(--badge-bg, rgba(99, 100, 255, 0.1));
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--status-color, #888);
+}
+
+.widget-status-badge.healthy .status-dot { background: #10b981; }
+.widget-status-badge.healthy .status-text { color: #10b981; }
+.widget-status-badge.degraded .status-dot { background: #f59e0b; }
+.widget-status-badge.degraded .status-text { color: #f59e0b; }
+.widget-status-badge.unhealthy .status-dot { background: #ef4444; }
+.widget-status-badge.unhealthy .status-text { color: #ef4444; }
+.widget-status-badge.not_running .status-dot { background: #6b7280; }
+.widget-status-badge.not_running .status-text { color: #6b7280; }
+
+.service-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.service-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: var(--service-bg, rgba(255, 255, 255, 0.03));
+  border-radius: 8px;
+  font-size: 12px;
+}
+
+.service-name {
+  color: var(--text-secondary, #a0a0b0);
+}
+
+.service-status {
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.service-status.healthy {
+  color: #10b981;
+  background: rgba(16, 185, 129, 0.1);
+}
+
+.service-status.unhealthy {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.service-status.not_running {
+  color: #6b7280;
+  background: rgba(107, 114, 128, 0.1);
+}
+
+.service-status.starting {
+  color: #f59e0b;
+  background: rgba(245, 158, 11, 0.1);
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-color, #2d2d44);
+}
+
+.stat-item {
+  text-align: center;
+}
+
+.stat-value {
+  display: block;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text-primary, #ffffff);
+}
+
+.stat-label {
+  display: block;
+  font-size: 11px;
+  color: var(--text-secondary, #a0a0b0);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-top: 2px;
+}
+
+.widget-actions {
+  padding-top: 12px;
+  border-top: 1px solid var(--border-color, #2d2d44);
+}
+
+.action-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: var(--action-bg, rgba(99, 100, 255, 0.1));
+  color: #6364ff;
+  border-radius: 8px;
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 500;
+  transition: background 0.2s;
+}
+
+.action-link:hover {
+  background: var(--action-hover-bg, rgba(99, 100, 255, 0.2));
+}
+
+.link-icon {
+  width: 14px;
+  height: 14px;
+}
+</style>
+
+<script>
+(function() {
+  const widget = document.getElementById('mastodon-widget');
+  const statusBadge = document.getElementById('mastodon-status-badge');
+  const servicesGrid = document.getElementById('mastodon-services');
+  const instanceLink = document.getElementById('mastodon-instance-link');
+
+  // API endpoint for health check (adjust based on your dashboard API)
+  const HEALTH_ENDPOINT = '/api/modules/mastodon/health';
+  const REFRESH_INTERVAL = 30000; // 30 seconds
+
+  function updateStatus(data) {
+    // Update overall status badge
+    statusBadge.className = 'widget-status-badge ' + data.status;
+    statusBadge.querySelector('.status-text').textContent = formatStatus(data.status);
+
+    // Update service statuses
+    if (data.services) {
+      Object.entries(data.services).forEach(([name, service]) => {
+        const item = servicesGrid.querySelector(`[data-service="${name}"]`);
+        if (item) {
+          const statusEl = item.querySelector('.service-status');
+          statusEl.textContent = formatStatus(service.status);
+          statusEl.className = 'service-status ' + service.status;
+        }
+      });
+    }
+
+    // Update stats
+    if (data.stats) {
+      document.getElementById('stat-users').textContent = formatNumber(data.stats.users);
+      document.getElementById('stat-statuses').textContent = formatNumber(data.stats.statuses);
+      document.getElementById('stat-domains').textContent = formatNumber(data.stats.domains);
+    }
+
+    // Update instance link
+    if (data.domain) {
+      instanceLink.href = 'https://' + data.domain;
+    }
+  }
+
+  function formatStatus(status) {
+    const statusMap = {
+      'healthy': 'Healthy',
+      'degraded': 'Degraded',
+      'unhealthy': 'Unhealthy',
+      'not_running': 'Stopped',
+      'starting': 'Starting',
+      'running': 'Running'
+    };
+    return statusMap[status] || status;
+  }
+
+  function formatNumber(num) {
+    if (num === undefined || num === null) return '--';
+    if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+    if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+    return num.toString();
+  }
+
+  async function fetchHealth() {
+    try {
+      const response = await fetch(HEALTH_ENDPOINT);
+      if (response.ok) {
+        const data = await response.json();
+        updateStatus(data);
+      } else {
+        updateStatus({ status: 'unhealthy', services: {} });
+      }
+    } catch (error) {
+      console.error('Failed to fetch Mastodon health:', error);
+      updateStatus({ status: 'not_running', services: {} });
+    }
+  }
+
+  // Initial fetch
+  fetchHealth();
+
+  // Periodic refresh
+  setInterval(fetchHealth, REFRESH_INTERVAL);
+
+  // Expose refresh function for manual updates
+  window.refreshMastodonWidget = fetchHealth;
+})();
+</script>

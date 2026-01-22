@@ -1,0 +1,266 @@
+{
+  "$schema": "../../foundation/schemas/module.schema.json",
+  "id": "mastodon",
+  "version": "1.0.0",
+  "name": "Mastodon Module",
+  "description": "Federated social networking platform with OpenSearch full-text search, PostgreSQL, and Redis for self-hosted social media with ActivityPub federation support",
+  "author": {
+    "name": "PeerMesh Team"
+  },
+  "license": "MIT",
+  "tags": ["mastodon", "fediverse", "activitypub", "social", "federation", "opensearch"],
+  "foundation": {
+    "minVersion": "1.0.0"
+  },
+  "requires": {
+    "connections": [
+      {
+        "type": "database",
+        "providers": ["postgres"],
+        "required": true,
+        "alias": "mastodon-db"
+      },
+      {
+        "type": "cache",
+        "providers": ["redis"],
+        "required": true,
+        "alias": "mastodon-cache"
+      }
+    ],
+    "modules": []
+  },
+  "provides": {
+    "connections": [],
+    "events": [
+      "mastodon.instance.started",
+      "mastodon.instance.stopped",
+      "mastodon.migration.completed",
+      "mastodon.federation.synced",
+      "mastodon.search.reindexed",
+      "mastodon.user.created",
+      "mastodon.user.suspended"
+    ]
+  },
+  "dashboard": {
+    "displayName": "Mastodon",
+    "icon": "message-circle",
+    "routes": [
+      {
+        "path": "/mastodon",
+        "component": "./dashboard/MastodonPage.html",
+        "nav": {
+          "label": "Mastodon",
+          "icon": "message-circle",
+          "order": 30
+        }
+      }
+    ],
+    "statusWidget": {
+      "component": "./dashboard/MastodonStatusWidget.html",
+      "size": "medium",
+      "order": 20
+    },
+    "configPanel": {
+      "component": "./dashboard/MastodonConfigPanel.html"
+    }
+  },
+  "lifecycle": {
+    "install": {
+      "script": "./hooks/install.sh",
+      "timeout": 300,
+      "retries": 2,
+      "retryDelay": 10
+    },
+    "start": {
+      "script": "./hooks/start.sh",
+      "timeout": 120
+    },
+    "stop": {
+      "script": "./hooks/stop.sh",
+      "timeout": 60
+    },
+    "uninstall": "./hooks/uninstall.sh",
+    "health": {
+      "script": "./hooks/health.sh",
+      "timeout": 30
+    }
+  },
+  "config": {
+    "version": "1.0",
+    "properties": {
+      "instanceDomain": {
+        "type": "string",
+        "description": "Domain name for the Mastodon instance (e.g., mastodon.example.com)",
+        "env": "MASTODON_LOCAL_DOMAIN"
+      },
+      "instanceTitle": {
+        "type": "string",
+        "description": "Display name for the Mastodon instance",
+        "default": "PeerMesh Mastodon",
+        "env": "MASTODON_SITE_TITLE"
+      },
+      "instanceDescription": {
+        "type": "string",
+        "description": "Short description of the instance for federation",
+        "default": "A federated social network powered by PeerMesh",
+        "env": "MASTODON_SITE_DESCRIPTION"
+      },
+      "adminEmail": {
+        "type": "string",
+        "description": "Admin contact email for the instance",
+        "env": "MASTODON_ADMIN_EMAIL"
+      },
+      "singleUserMode": {
+        "type": "boolean",
+        "description": "Enable single-user mode (disables registrations)",
+        "default": false,
+        "env": "MASTODON_SINGLE_USER_MODE"
+      },
+      "registrationMode": {
+        "type": "string",
+        "description": "Registration mode: open, approval_required, or none",
+        "default": "approval_required",
+        "enum": ["open", "approval_required", "none"],
+        "env": "MASTODON_REGISTRATIONS_MODE"
+      },
+      "maxTootChars": {
+        "type": "number",
+        "description": "Maximum characters per post",
+        "default": 500,
+        "minimum": 140,
+        "maximum": 10000,
+        "env": "MASTODON_MAX_TOOT_CHARS"
+      },
+      "mediaMaxSize": {
+        "type": "number",
+        "description": "Maximum media file size in bytes",
+        "default": 10485760,
+        "env": "MASTODON_MAX_IMAGE_SIZE"
+      },
+      "streamingApiBaseUrl": {
+        "type": "string",
+        "description": "WebSocket streaming API base URL",
+        "env": "MASTODON_STREAMING_API_BASE_URL"
+      },
+      "smtpServer": {
+        "type": "string",
+        "description": "SMTP server hostname for sending emails",
+        "env": "MASTODON_SMTP_SERVER"
+      },
+      "smtpPort": {
+        "type": "number",
+        "description": "SMTP server port",
+        "default": 587,
+        "minimum": 1,
+        "maximum": 65535,
+        "env": "MASTODON_SMTP_PORT"
+      },
+      "smtpFromAddress": {
+        "type": "string",
+        "description": "Email address for outgoing emails",
+        "env": "MASTODON_SMTP_FROM_ADDRESS"
+      },
+      "smtpUsername": {
+        "type": "string",
+        "description": "SMTP authentication username",
+        "env": "MASTODON_SMTP_LOGIN"
+      },
+      "smtpPassword": {
+        "type": "string",
+        "description": "SMTP authentication password (use secrets file instead)",
+        "secret": true,
+        "env": "MASTODON_SMTP_PASSWORD"
+      },
+      "s3Enabled": {
+        "type": "boolean",
+        "description": "Enable S3-compatible object storage for media",
+        "default": false,
+        "env": "MASTODON_S3_ENABLED"
+      },
+      "s3Bucket": {
+        "type": "string",
+        "description": "S3 bucket name for media storage",
+        "env": "MASTODON_S3_BUCKET"
+      },
+      "s3Region": {
+        "type": "string",
+        "description": "S3 region",
+        "default": "us-east-1",
+        "env": "MASTODON_S3_REGION"
+      },
+      "s3Endpoint": {
+        "type": "string",
+        "description": "S3-compatible endpoint URL (for MinIO)",
+        "env": "MASTODON_S3_ENDPOINT"
+      },
+      "secretKeyBase": {
+        "type": "string",
+        "description": "Rails secret key base (auto-generated if not set)",
+        "secret": true,
+        "env": "MASTODON_SECRET_KEY_BASE"
+      },
+      "otpSecret": {
+        "type": "string",
+        "description": "OTP secret for 2FA (auto-generated if not set)",
+        "secret": true,
+        "env": "MASTODON_OTP_SECRET"
+      },
+      "vapidPrivateKey": {
+        "type": "string",
+        "description": "VAPID private key for web push notifications",
+        "secret": true,
+        "env": "MASTODON_VAPID_PRIVATE_KEY"
+      },
+      "vapidPublicKey": {
+        "type": "string",
+        "description": "VAPID public key for web push notifications",
+        "env": "MASTODON_VAPID_PUBLIC_KEY"
+      },
+      "opensearchEnabled": {
+        "type": "boolean",
+        "description": "Enable OpenSearch for full-text search",
+        "default": true,
+        "env": "MASTODON_ES_ENABLED"
+      },
+      "opensearchHost": {
+        "type": "string",
+        "description": "OpenSearch hostname",
+        "default": "opensearch",
+        "env": "MASTODON_ES_HOST"
+      },
+      "opensearchPort": {
+        "type": "number",
+        "description": "OpenSearch port",
+        "default": 9200,
+        "minimum": 1,
+        "maximum": 65535,
+        "env": "MASTODON_ES_PORT"
+      },
+      "sidekiqConcurrency": {
+        "type": "number",
+        "description": "Number of Sidekiq worker threads",
+        "default": 5,
+        "minimum": 1,
+        "maximum": 50,
+        "env": "MASTODON_SIDEKIQ_CONCURRENCY"
+      },
+      "webConcurrency": {
+        "type": "number",
+        "description": "Number of Puma web workers",
+        "default": 2,
+        "minimum": 1,
+        "maximum": 16,
+        "env": "MASTODON_WEB_CONCURRENCY"
+      },
+      "maxThreads": {
+        "type": "number",
+        "description": "Maximum threads per Puma worker",
+        "default": 5,
+        "minimum": 1,
+        "maximum": 50,
+        "env": "MASTODON_MAX_THREADS"
+      }
+    },
+    "required": ["instanceDomain", "adminEmail"]
+  }
+}

@@ -1,0 +1,16 @@
+# Backup Module Secrets
+# DO NOT commit actual secrets to version control!
+#
+# The placeholder files are committed to show the expected structure.
+# Replace the placeholder content with your actual secrets.
+
+# Ignore files without placeholder marker
+!restic_password
+!s3_access_key
+!s3_secret_key
+
+# Ignore any other secret files
+*.key
+*.pem
+*.secret
+age_key

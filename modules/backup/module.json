@@ -1,0 +1,191 @@
+{
+  "$schema": "../../foundation/schemas/module.schema.json",
+  "id": "backup",
+  "version": "1.0.0",
+  "name": "Backup Module",
+  "description": "Automated backup and restore for Docker volumes and PostgreSQL databases with restic deduplication, age encryption, and S3/MinIO off-site storage support",
+  "author": {
+    "name": "PeerMesh Team"
+  },
+  "license": "MIT",
+  "tags": ["backup", "restore", "restic", "postgres", "volumes", "disaster-recovery"],
+  "foundation": {
+    "minVersion": "1.0.0"
+  },
+  "requires": {
+    "connections": [],
+    "modules": []
+  },
+  "provides": {
+    "connections": [],
+    "events": [
+      "backup.postgres.started",
+      "backup.postgres.completed",
+      "backup.postgres.failed",
+      "backup.volumes.started",
+      "backup.volumes.completed",
+      "backup.volumes.failed",
+      "backup.offsite.synced",
+      "backup.retention.applied"
+    ]
+  },
+  "dashboard": {
+    "displayName": "Backup",
+    "icon": "archive",
+    "routes": [
+      {
+        "path": "/backup",
+        "component": "./dashboard/BackupPage.html",
+        "nav": {
+          "label": "Backup",
+          "icon": "archive",
+          "order": 80
+        }
+      }
+    ],
+    "statusWidget": {
+      "component": "./dashboard/BackupStatusWidget.html",
+      "size": "medium",
+      "order": 50
+    },
+    "configPanel": {
+      "component": "./dashboard/BackupConfigPanel.html"
+    }
+  },
+  "lifecycle": {
+    "install": {
+      "script": "./hooks/install.sh",
+      "timeout": 120,
+      "retries": 2,
+      "retryDelay": 5
+    },
+    "start": {
+      "script": "./hooks/start.sh",
+      "timeout": 60
+    },
+    "stop": {
+      "script": "./hooks/stop.sh",
+      "timeout": 30
+    },
+    "uninstall": "./hooks/uninstall.sh",
+    "health": {
+      "script": "./hooks/health.sh",
+      "timeout": 30
+    }
+  },
+  "config": {
+    "version": "1.0",
+    "properties": {
+      "backupLocalPath": {
+        "type": "string",
+        "description": "Local directory for storing backups",
+        "default": "/var/backups/pmdl",
+        "env": "BACKUP_LOCAL_PATH"
+      },
+      "postgresContainerName": {
+        "type": "string",
+        "description": "Name of the PostgreSQL container to backup",
+        "default": "pmdl_postgres",
+        "env": "POSTGRES_CONTAINER_NAME"
+      },
+      "volumePrefix": {
+        "type": "string",
+        "description": "Prefix for Docker volumes to include in backups",
+        "default": "pmdl_",
+        "env": "VOLUME_PREFIX"
+      },
+      "retentionDaily": {
+        "type": "number",
+        "description": "Number of days to keep daily backups",
+        "default": 7,
+        "minimum": 1,
+        "maximum": 365,
+        "env": "BACKUP_RETENTION_DAILY"
+      },
+      "retentionWeekly": {
+        "type": "number",
+        "description": "Number of weeks to keep weekly backups",
+        "default": 4,
+        "minimum": 1,
+        "maximum": 52,
+        "env": "BACKUP_RETENTION_WEEKLY"
+      },
+      "retentionMonthly": {
+        "type": "number",
+        "description": "Number of months to keep monthly backups",
+        "default": 3,
+        "minimum": 1,
+        "maximum": 24,
+        "env": "BACKUP_RETENTION_MONTHLY"
+      },
+      "schedulePostgres": {
+        "type": "string",
+        "description": "Cron schedule for PostgreSQL backups",
+        "default": "0 2 * * *",
+        "pattern": "^[0-9*,/-]+ [0-9*,/-]+ [0-9*,/-]+ [0-9*,/-]+ [0-9*,/-]+$",
+        "env": "BACKUP_SCHEDULE_POSTGRES"
+      },
+      "scheduleVolumes": {
+        "type": "string",
+        "description": "Cron schedule for volume backups",
+        "default": "0 3 * * *",
+        "pattern": "^[0-9*,/-]+ [0-9*,/-]+ [0-9*,/-]+ [0-9*,/-]+ [0-9*,/-]+$",
+        "env": "BACKUP_SCHEDULE_VOLUMES"
+      },
+      "scheduleOffsite": {
+        "type": "string",
+        "description": "Cron schedule for off-site sync",
+        "default": "0 4 * * *",
+        "pattern": "^[0-9*,/-]+ [0-9*,/-]+ [0-9*,/-]+ [0-9*,/-]+ [0-9*,/-]+$",
+        "env": "BACKUP_SCHEDULE_OFFSITE"
+      },
+      "resticRepository": {
+        "type": "string",
+        "description": "Restic repository URL for deduplication (local or S3)",
+        "env": "BACKUP_RESTIC_REPOSITORY"
+      },
+      "resticPassword": {
+        "type": "string",
+        "description": "Password for the restic repository (use secrets file instead)",
+        "secret": true,
+        "env": "RESTIC_PASSWORD"
+      },
+      "s3Endpoint": {
+        "type": "string",
+        "description": "S3-compatible endpoint URL for off-site backups",
+        "env": "BACKUP_S3_ENDPOINT"
+      },
+      "s3Bucket": {
+        "type": "string",
+        "description": "S3 bucket name for off-site backups",
+        "env": "BACKUP_S3_BUCKET"
+      },
+      "s3AccessKey": {
+        "type": "string",
+        "description": "S3 access key (use secrets file instead)",
+        "secret": true,
+        "env": "BACKUP_S3_ACCESS_KEY"
+      },
+      "s3SecretKey": {
+        "type": "string",
+        "description": "S3 secret key (use secrets file instead)",
+        "secret": true,
+        "env": "BACKUP_S3_SECRET_KEY"
+      },
+      "ageRecipient": {
+        "type": "string",
+        "description": "Age public key for backup encryption (age1...)",
+        "pattern": "^age1[a-z0-9]{58}$",
+        "env": "BACKUP_AGE_RECIPIENT"
+      },
+      "bandwidthLimit": {
+        "type": "number",
+        "description": "Bandwidth limit for off-site sync in KB/s (0 = unlimited)",
+        "default": 0,
+        "minimum": 0,
+        "env": "BACKUP_BANDWIDTH_LIMIT"
+      }
+    },
+    "required": []
+  }
+}

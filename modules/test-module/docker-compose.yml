@@ -1,0 +1,51 @@
+# Module: test-module
+# Docker Compose configuration for Foundation Testing
+#
+# This minimal module validates the foundation's docker-compose patterns.
+
+services:
+  # ==========================================================================
+  # Test Service
+  # ==========================================================================
+  # A simple Alpine container that stays running for testing.
+
+  test-module-app:
+    # Extend from foundation base service (includes defaults + resource limits)
+    extends:
+      file: ../../foundation/docker-compose.base.yml
+      service: _service-lite
+
+    # Service-specific configuration
+    image: alpine:3.19
+    container_name: test-module-app
+
+    # Keep the container running with a simple sleep loop
+    command: sh -c "echo 'Test module running'; while true; do sleep 3600; done"
+
+    # Environment configuration
+    environment:
+      - TEST_MODULE_SETTING=${TEST_MODULE_SETTING:-test-value}
+      - TEST_MODULE_DEBUG=${TEST_MODULE_DEBUG:-false}
+
+    # Volumes for persistent data
+    volumes:
+      - test-module-data:/data
+
+    # Healthcheck configuration
+    healthcheck:
+      test: ["CMD", "sh", "-c", "test -f /tmp/healthy && echo ok || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+    # Network configuration
+    networks:
+      - default
+
+# =============================================================================
+# Volumes
+# =============================================================================
+volumes:
+  test-module-data:
+    name: test-module-data

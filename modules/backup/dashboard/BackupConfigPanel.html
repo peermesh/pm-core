@@ -1,0 +1,371 @@
+<!--
+  Backup Module - Configuration Panel
+
+  Configuration form for backup settings.
+  Embedded in the dashboard settings area.
+-->
+<div class="backup-config-panel" id="backup-config-panel">
+  <form id="backup-config-form">
+    <!-- Storage Section -->
+    <fieldset class="config-section">
+      <legend>Storage Settings</legend>
+
+      <div class="form-group">
+        <label for="backup-local-path">Local Backup Path</label>
+        <input type="text" id="backup-local-path" name="backupLocalPath"
+               value="/var/backups/pmdl" placeholder="/var/backups/pmdl">
+        <small>Directory for local backup storage</small>
+      </div>
+
+      <div class="form-group">
+        <label for="volume-prefix">Volume Prefix</label>
+        <input type="text" id="volume-prefix" name="volumePrefix"
+               value="pmdl_" placeholder="pmdl_">
+        <small>Filter Docker volumes by this prefix</small>
+      </div>
+    </fieldset>
+
+    <!-- Schedule Section -->
+    <fieldset class="config-section">
+      <legend>Backup Schedule</legend>
+
+      <div class="form-group">
+        <label for="schedule-postgres">PostgreSQL Backup</label>
+        <input type="text" id="schedule-postgres" name="schedulePostgres"
+               value="0 2 * * *" placeholder="0 2 * * *" pattern="^[0-9*,/-]+ [0-9*,/-]+ [0-9*,/-]+ [0-9*,/-]+ [0-9*,/-]+$">
+        <small>Cron schedule (default: 2:00 AM daily)</small>
+      </div>
+
+      <div class="form-group">
+        <label for="schedule-volumes">Volume Backup</label>
+        <input type="text" id="schedule-volumes" name="scheduleVolumes"
+               value="0 3 * * *" placeholder="0 3 * * *">
+        <small>Cron schedule (default: 3:00 AM daily)</small>
+      </div>
+
+      <div class="form-group">
+        <label for="schedule-offsite">Off-site Sync</label>
+        <input type="text" id="schedule-offsite" name="scheduleOffsite"
+               value="0 4 * * *" placeholder="0 4 * * *">
+        <small>Cron schedule (default: 4:00 AM daily)</small>
+      </div>
+    </fieldset>
+
+    <!-- Retention Section -->
+    <fieldset class="config-section">
+      <legend>Retention Policy</legend>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="retention-daily">Daily Backups</label>
+          <input type="number" id="retention-daily" name="retentionDaily"
+                 value="7" min="1" max="365">
+          <small>Days to keep</small>
+        </div>
+
+        <div class="form-group">
+          <label for="retention-weekly">Weekly Backups</label>
+          <input type="number" id="retention-weekly" name="retentionWeekly"
+                 value="4" min="1" max="52">
+          <small>Weeks to keep</small>
+        </div>
+
+        <div class="form-group">
+          <label for="retention-monthly">Monthly Backups</label>
+          <input type="number" id="retention-monthly" name="retentionMonthly"
+                 value="3" min="1" max="24">
+          <small>Months to keep</small>
+        </div>
+      </div>
+    </fieldset>
+
+    <!-- S3 Section -->
+    <fieldset class="config-section">
+      <legend>Off-site Storage (S3/MinIO)</legend>
+
+      <div class="form-group">
+        <label for="s3-endpoint">S3 Endpoint</label>
+        <input type="url" id="s3-endpoint" name="s3Endpoint"
+               placeholder="https://s3.example.com">
+        <small>S3-compatible endpoint URL (leave empty to disable)</small>
+      </div>
+
+      <div class="form-group">
+        <label for="s3-bucket">S3 Bucket</label>
+        <input type="text" id="s3-bucket" name="s3Bucket"
+               placeholder="my-backup-bucket">
+        <small>Bucket name for off-site backups</small>
+      </div>
+
+      <div class="form-group">
+        <label for="bandwidth-limit">Bandwidth Limit (KB/s)</label>
+        <input type="number" id="bandwidth-limit" name="bandwidthLimit"
+               value="0" min="0">
+        <small>0 = unlimited</small>
+      </div>
+
+      <p class="config-note">
+        S3 credentials are configured in <code>modules/backup/configs/</code> directory.
+      </p>
+    </fieldset>
+
+    <!-- Encryption Section -->
+    <fieldset class="config-section">
+      <legend>Encryption</legend>
+
+      <div class="form-group">
+        <label for="age-recipient">Age Public Key</label>
+        <input type="text" id="age-recipient" name="ageRecipient"
+               placeholder="age1..." pattern="^age1[a-z0-9]{58}$">
+        <small>Age encryption public key (age1...)</small>
+      </div>
+
+      <p class="config-note">
+        Restic repository password is configured in <code>modules/backup/configs/restic_password</code>
+      </p>
+    </fieldset>
+
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary">Save Configuration</button>
+      <button type="button" class="btn btn-secondary" id="reset-btn">Reset to Defaults</button>
+    </div>
+  </form>
+</div>
+
+<style>
+  .backup-config-panel {
+    font-family: var(--font-family, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif);
+  }
+
+  .config-section {
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 20px;
+  }
+
+  .config-section legend {
+    font-weight: 600;
+    font-size: 14px;
+    padding: 0 8px;
+    color: var(--text-primary, #111827);
+  }
+
+  .form-group {
+    margin-bottom: 16px;
+  }
+
+  .form-group label {
+    display: block;
+    font-size: 13px;
+    font-weight: 500;
+    margin-bottom: 4px;
+    color: var(--text-primary, #111827);
+  }
+
+  .form-group input {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 6px;
+    font-size: 14px;
+    background: var(--bg-primary, #ffffff);
+    color: var(--text-primary, #111827);
+  }
+
+  .form-group input:focus {
+    outline: none;
+    border-color: var(--primary-color, #3b82f6);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  }
+
+  .form-group small {
+    display: block;
+    font-size: 12px;
+    color: var(--text-secondary, #6b7280);
+    margin-top: 4px;
+  }
+
+  .form-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 16px;
+  }
+
+  .config-note {
+    font-size: 13px;
+    color: var(--text-secondary, #6b7280);
+    background: var(--bg-secondary, #f9fafb);
+    padding: 12px;
+    border-radius: 6px;
+    margin: 0;
+  }
+
+  .config-note code {
+    background: var(--bg-primary, #ffffff);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 12px;
+  }
+
+  .form-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 24px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border-color, #e5e7eb);
+  }
+
+  .btn {
+    padding: 10px 20px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: none;
+  }
+
+  .btn-primary {
+    background: var(--primary-color, #3b82f6);
+    color: white;
+  }
+
+  .btn-primary:hover {
+    background: var(--primary-hover, #2563eb);
+  }
+
+  .btn-secondary {
+    background: var(--bg-primary, #ffffff);
+    color: var(--text-primary, #111827);
+    border: 1px solid var(--border-color, #e5e7eb);
+  }
+
+  .btn-secondary:hover {
+    background: var(--bg-secondary, #f9fafb);
+  }
+
+  .save-success {
+    color: var(--success-color, #10b981);
+    font-size: 13px;
+    margin-left: 12px;
+  }
+
+  /* Dark mode */
+  @media (prefers-color-scheme: dark) {
+    .backup-config-panel {
+      --bg-primary: #1f2937;
+      --bg-secondary: #111827;
+      --text-primary: #f9fafb;
+      --text-secondary: #9ca3af;
+      --border-color: #374151;
+    }
+  }
+</style>
+
+<script>
+(function() {
+  'use strict';
+
+  const form = document.getElementById('backup-config-form');
+  const resetBtn = document.getElementById('reset-btn');
+
+  const defaults = {
+    backupLocalPath: '/var/backups/pmdl',
+    volumePrefix: 'pmdl_',
+    schedulePostgres: '0 2 * * *',
+    scheduleVolumes: '0 3 * * *',
+    scheduleOffsite: '0 4 * * *',
+    retentionDaily: 7,
+    retentionWeekly: 4,
+    retentionMonthly: 3,
+    s3Endpoint: '',
+    s3Bucket: '',
+    bandwidthLimit: 0,
+    ageRecipient: ''
+  };
+
+  // Load current configuration
+  async function loadConfig() {
+    try {
+      const response = await fetch('/api/modules/backup/config');
+      if (response.ok) {
+        const config = await response.json();
+        Object.entries(config).forEach(([key, value]) => {
+          const input = form.elements[key];
+          if (input) {
+            input.value = value;
+          }
+        });
+      }
+    } catch (e) {
+      console.error('Failed to load backup config:', e);
+    }
+  }
+
+  // Save configuration
+  async function saveConfig(data) {
+    try {
+      const response = await fetch('/api/modules/backup/config', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+
+      return response.ok;
+    } catch (e) {
+      console.error('Failed to save backup config:', e);
+      return false;
+    }
+  }
+
+  // Form submit handler
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const formData = new FormData(form);
+    const data = Object.fromEntries(formData.entries());
+
+    // Convert numeric fields
+    data.retentionDaily = parseInt(data.retentionDaily, 10);
+    data.retentionWeekly = parseInt(data.retentionWeekly, 10);
+    data.retentionMonthly = parseInt(data.retentionMonthly, 10);
+    data.bandwidthLimit = parseInt(data.bandwidthLimit, 10);
+
+    const submitBtn = form.querySelector('button[type="submit"]');
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Saving...';
+
+    const success = await saveConfig(data);
+
+    if (success) {
+      submitBtn.textContent = 'Saved!';
+      setTimeout(() => {
+        submitBtn.textContent = 'Save Configuration';
+        submitBtn.disabled = false;
+      }, 2000);
+    } else {
+      submitBtn.textContent = 'Failed to save';
+      setTimeout(() => {
+        submitBtn.textContent = 'Save Configuration';
+        submitBtn.disabled = false;
+      }, 2000);
+    }
+  });
+
+  // Reset to defaults
+  resetBtn.addEventListener('click', () => {
+    if (confirm('Reset all settings to defaults?')) {
+      Object.entries(defaults).forEach(([key, value]) => {
+        const input = form.elements[key];
+        if (input) {
+          input.value = value;
+        }
+      });
+    }
+  });
+
+  // Initial load
+  loadConfig();
+})();
+</script>

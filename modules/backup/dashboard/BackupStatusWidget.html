@@ -1,0 +1,352 @@
+<!--
+  Backup Module - Status Widget
+
+  A dashboard widget showing backup status, last backup times, and storage usage.
+  This widget displays in the main dashboard overview.
+
+  Data is fetched from the module health endpoint or populated via JavaScript.
+-->
+<div class="backup-status-widget" id="backup-status-widget">
+  <div class="widget-header">
+    <div class="widget-icon">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+        <polyline points="7 10 12 15 17 10"/>
+        <line x1="12" y1="15" x2="12" y2="3"/>
+      </svg>
+    </div>
+    <h3 class="widget-title">Backup Status</h3>
+    <span class="status-indicator" id="backup-status-indicator" data-status="unknown"></span>
+  </div>
+
+  <div class="widget-content">
+    <!-- Last Backup Section -->
+    <div class="backup-info-row">
+      <span class="backup-label">PostgreSQL</span>
+      <span class="backup-value" id="backup-postgres-time">--</span>
+    </div>
+    <div class="backup-info-row">
+      <span class="backup-label">Volumes</span>
+      <span class="backup-value" id="backup-volumes-time">--</span>
+    </div>
+    <div class="backup-info-row">
+      <span class="backup-label">Off-site Sync</span>
+      <span class="backup-value" id="backup-offsite-time">--</span>
+    </div>
+
+    <div class="widget-divider"></div>
+
+    <!-- Next Scheduled -->
+    <div class="backup-info-row">
+      <span class="backup-label">Next Backup</span>
+      <span class="backup-value" id="backup-next-scheduled">--</span>
+    </div>
+
+    <!-- Storage Usage -->
+    <div class="backup-info-row">
+      <span class="backup-label">Storage Used</span>
+      <span class="backup-value" id="backup-storage-used">--</span>
+    </div>
+  </div>
+
+  <div class="widget-footer">
+    <button class="widget-action-btn" id="backup-run-now-btn" title="Run backup now">
+      Run Now
+    </button>
+    <a href="/backup" class="widget-link">View Details</a>
+  </div>
+</div>
+
+<style>
+  .backup-status-widget {
+    background: var(--widget-bg, #ffffff);
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    padding: 16px;
+    font-family: var(--font-family, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif);
+  }
+
+  .widget-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border-color, #e5e7eb);
+  }
+
+  .widget-icon {
+    color: var(--primary-color, #3b82f6);
+    display: flex;
+    align-items: center;
+  }
+
+  .widget-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary, #111827);
+    margin: 0;
+    flex: 1;
+  }
+
+  .status-indicator {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--status-unknown, #9ca3af);
+  }
+
+  .status-indicator[data-status="healthy"] {
+    background: var(--status-healthy, #10b981);
+  }
+
+  .status-indicator[data-status="degraded"] {
+    background: var(--status-degraded, #f59e0b);
+  }
+
+  .status-indicator[data-status="unhealthy"] {
+    background: var(--status-unhealthy, #ef4444);
+  }
+
+  .widget-content {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .backup-info-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+  }
+
+  .backup-label {
+    color: var(--text-secondary, #6b7280);
+  }
+
+  .backup-value {
+    color: var(--text-primary, #111827);
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .backup-value.stale {
+    color: var(--status-degraded, #f59e0b);
+  }
+
+  .backup-value.error {
+    color: var(--status-unhealthy, #ef4444);
+  }
+
+  .widget-divider {
+    height: 1px;
+    background: var(--border-color, #e5e7eb);
+    margin: 8px 0;
+  }
+
+  .widget-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 16px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border-color, #e5e7eb);
+  }
+
+  .widget-action-btn {
+    background: var(--primary-color, #3b82f6);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+
+  .widget-action-btn:hover {
+    background: var(--primary-hover, #2563eb);
+  }
+
+  .widget-action-btn:disabled {
+    background: var(--disabled-bg, #9ca3af);
+    cursor: not-allowed;
+  }
+
+  .widget-link {
+    font-size: 12px;
+    color: var(--primary-color, #3b82f6);
+    text-decoration: none;
+  }
+
+  .widget-link:hover {
+    text-decoration: underline;
+  }
+
+  /* Loading state */
+  .backup-status-widget.loading .backup-value {
+    color: var(--text-secondary, #6b7280);
+  }
+
+  /* Dark mode support */
+  @media (prefers-color-scheme: dark) {
+    .backup-status-widget {
+      --widget-bg: #1f2937;
+      --text-primary: #f9fafb;
+      --text-secondary: #9ca3af;
+      --border-color: #374151;
+    }
+  }
+</style>
+
+<script>
+(function() {
+  'use strict';
+
+  const widget = document.getElementById('backup-status-widget');
+  const statusIndicator = document.getElementById('backup-status-indicator');
+  const postgresTime = document.getElementById('backup-postgres-time');
+  const volumesTime = document.getElementById('backup-volumes-time');
+  const offsiteTime = document.getElementById('backup-offsite-time');
+  const nextScheduled = document.getElementById('backup-next-scheduled');
+  const storageUsed = document.getElementById('backup-storage-used');
+  const runNowBtn = document.getElementById('backup-run-now-btn');
+
+  // Format relative time
+  function formatRelativeTime(isoString) {
+    if (!isoString || isoString === 'never' || isoString === 'not configured') {
+      return isoString || '--';
+    }
+
+    try {
+      const date = new Date(isoString);
+      const now = new Date();
+      const diffMs = now - date;
+      const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+      const diffDays = Math.floor(diffHours / 24);
+
+      if (diffHours < 1) {
+        return 'Just now';
+      } else if (diffHours < 24) {
+        return `${diffHours}h ago`;
+      } else if (diffDays < 7) {
+        return `${diffDays}d ago`;
+      } else {
+        return date.toLocaleDateString();
+      }
+    } catch (e) {
+      return isoString;
+    }
+  }
+
+  // Check if backup is stale (> 48 hours)
+  function isStale(isoString) {
+    if (!isoString || isoString === 'never') return true;
+    try {
+      const date = new Date(isoString);
+      const now = new Date();
+      const diffHours = (now - date) / (1000 * 60 * 60);
+      return diffHours > 48;
+    } catch (e) {
+      return true;
+    }
+  }
+
+  // Update widget with health data
+  function updateWidget(data) {
+    widget.classList.remove('loading');
+
+    // Update status indicator
+    statusIndicator.dataset.status = data.status || 'unknown';
+
+    // Update backup times
+    const pgTime = data.lastBackups?.postgres;
+    postgresTime.textContent = formatRelativeTime(pgTime);
+    postgresTime.classList.toggle('stale', isStale(pgTime));
+
+    const volTime = data.lastBackups?.volumes;
+    volumesTime.textContent = formatRelativeTime(volTime);
+    volumesTime.classList.toggle('stale', isStale(volTime));
+
+    const offTime = data.lastBackups?.offsiteSync;
+    offsiteTime.textContent = formatRelativeTime(offTime);
+
+    // Update next scheduled
+    nextScheduled.textContent = formatRelativeTime(data.nextScheduled);
+
+    // Update storage
+    storageUsed.textContent = data.storageUsed || '--';
+  }
+
+  // Fetch health data
+  async function fetchHealth() {
+    widget.classList.add('loading');
+
+    try {
+      // Try to fetch from module API endpoint
+      const response = await fetch('/api/modules/backup/health');
+      if (response.ok) {
+        const data = await response.json();
+        updateWidget(data);
+        return;
+      }
+    } catch (e) {
+      // API not available, try container exec
+    }
+
+    // Fallback to static/cached data if available
+    if (window.backupHealthData) {
+      updateWidget(window.backupHealthData);
+    } else {
+      // Show unknown state
+      updateWidget({
+        status: 'unknown',
+        lastBackups: {},
+        storageUsed: '--'
+      });
+    }
+  }
+
+  // Run backup now
+  async function runBackupNow() {
+    runNowBtn.disabled = true;
+    runNowBtn.textContent = 'Running...';
+
+    try {
+      const response = await fetch('/api/modules/backup/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'all' })
+      });
+
+      if (response.ok) {
+        runNowBtn.textContent = 'Started!';
+        setTimeout(() => {
+          runNowBtn.textContent = 'Run Now';
+          runNowBtn.disabled = false;
+          fetchHealth();
+        }, 3000);
+      } else {
+        throw new Error('Failed to start backup');
+      }
+    } catch (e) {
+      runNowBtn.textContent = 'Failed';
+      setTimeout(() => {
+        runNowBtn.textContent = 'Run Now';
+        runNowBtn.disabled = false;
+      }, 2000);
+    }
+  }
+
+  // Event listeners
+  runNowBtn.addEventListener('click', runBackupNow);
+
+  // Initial fetch
+  fetchHealth();
+
+  // Refresh every 5 minutes
+  setInterval(fetchHealth, 5 * 60 * 1000);
+})();
+</script>

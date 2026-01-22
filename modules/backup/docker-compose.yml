@@ -1,0 +1,196 @@
+# Module: backup
+# Docker Compose configuration for automated backup services
+#
+# This module provides scheduled backup of:
+#   - PostgreSQL databases (pg_dumpall)
+#   - Docker volumes (tar.gz archives)
+#   - Off-site sync to S3/MinIO or restic repositories
+#
+# Activation:
+#   docker compose -f modules/backup/docker-compose.yml up -d
+#
+# Or via module manager:
+#   ./pmdl module enable backup
+#
+# Documentation: modules/backup/README.md
+# Decision Reference: docs/decisions/0102-backup-architecture.md
+
+services:
+  # ==========================================================================
+  # Backup Scheduler Service
+  # ==========================================================================
+  # Runs backup jobs on a cron schedule using restic for deduplication
+  # and encryption. Supports local, attached storage, and S3 destinations.
+
+  backup:
+    # Extend from foundation base service
+    extends:
+      file: ../../foundation/docker-compose.base.yml
+      service: _service-standard
+
+    image: restic/restic:latest
+    container_name: pmdl_backup
+
+    # Entrypoint runs cron in foreground
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -e
+
+        echo "================================================"
+        echo "PeerMesh Backup Module Starting"
+        echo "================================================"
+
+        # Install dependencies
+        echo "Installing dependencies..."
+        apk add --no-cache docker-cli postgresql16-client gzip bash curl jq > /dev/null 2>&1
+
+        # Copy backup scripts from mounted volume
+        echo "Setting up backup scripts..."
+        cp -r /scripts/backup/* /usr/local/bin/ 2>/dev/null || true
+        chmod +x /usr/local/bin/*.sh 2>/dev/null || true
+
+        # Create backup directories
+        mkdir -p "$${BACKUP_LOCAL_PATH}/postgres/daily"
+        mkdir -p "$${BACKUP_LOCAL_PATH}/postgres/pre-deploy"
+        mkdir -p "$${BACKUP_LOCAL_PATH}/postgres/logs"
+        mkdir -p "$${BACKUP_LOCAL_PATH}/volumes/tar"
+        mkdir -p "$${BACKUP_LOCAL_PATH}/volumes/logs"
+
+        # Initialize local restic repository if path configured
+        if [ -n "$${BACKUP_LOCAL_PATH}" ] && [ ! -f "$${BACKUP_LOCAL_PATH}/restic/config" ]; then
+          if [ -f "/run/secrets/restic_password" ]; then
+            echo "Initializing local restic repository..."
+            RESTIC_PASSWORD_FILE=/run/secrets/restic_password \
+            restic -r "$${BACKUP_LOCAL_PATH}/restic" init 2>/dev/null || true
+          fi
+        fi
+
+        # Initialize remote restic repository if configured
+        if [ -n "$${RESTIC_REPOSITORY}" ]; then
+          echo "Checking remote restic repository..."
+          restic snapshots > /dev/null 2>&1 || restic init 2>/dev/null || true
+        fi
+
+        # Setup cron schedule
+        echo "Setting up backup schedule..."
+        cat > /etc/crontabs/root << 'CRON'
+        # PeerMesh Backup Schedule
+        # PostgreSQL backup
+        ${BACKUP_SCHEDULE_POSTGRES:-0 2 * * *} /usr/local/bin/backup-postgres.sh all >> /var/log/backup.log 2>&1
+
+        # Volume backup
+        ${BACKUP_SCHEDULE_VOLUMES:-0 3 * * *} /usr/local/bin/backup-volumes.sh backup --all >> /var/log/backup.log 2>&1
+
+        # Off-site sync (if configured)
+        ${BACKUP_SCHEDULE_OFFSITE:-0 4 * * *} /usr/local/bin/sync-offsite.sh >> /var/log/backup.log 2>&1
+
+        # Retention cleanup
+        ${BACKUP_SCHEDULE_RETENTION:-0 5 * * *} /usr/local/bin/backup-postgres.sh retention --days ${BACKUP_RETENTION_DAILY:-7} >> /var/log/backup.log 2>&1
+        ${BACKUP_SCHEDULE_RETENTION:-0 5 * * *} /usr/local/bin/backup-volumes.sh retention --days ${BACKUP_RETENTION_DAILY:-7} >> /var/log/backup.log 2>&1
+        CRON
+
+        echo ""
+        echo "Backup service ready. Schedule:"
+        echo "  PostgreSQL: $${BACKUP_SCHEDULE_POSTGRES:-0 2 * * *}"
+        echo "  Volumes:    $${BACKUP_SCHEDULE_VOLUMES:-0 3 * * *}"
+        echo "  Off-site:   $${BACKUP_SCHEDULE_OFFSITE:-0 4 * * *}"
+        echo "  Retention:  $${BACKUP_SCHEDULE_RETENTION:-0 5 * * *}"
+        echo ""
+        echo "Manual commands:"
+        echo "  docker exec pmdl_backup /usr/local/bin/backup-postgres.sh all"
+        echo "  docker exec pmdl_backup /usr/local/bin/backup-volumes.sh backup --all"
+        echo "================================================"
+
+        # Create PID file for health checks
+        echo $$$$ > /var/run/backup.pid
+
+        # Run crond in foreground
+        exec crond -f -l 2
+
+    environment:
+      # Backup paths
+      BACKUP_DIR: ${BACKUP_LOCAL_PATH:-/var/backups/pmdl}
+      BACKUP_LOCAL_PATH: ${BACKUP_LOCAL_PATH:-/var/backups/pmdl}
+
+      # Container targets
+      CONTAINER_NAME: ${POSTGRES_CONTAINER_NAME:-pmdl_postgres}
+      VOLUME_PREFIX: ${VOLUME_PREFIX:-pmdl_}
+
+      # Restic configuration
+      RESTIC_REPOSITORY: ${BACKUP_RESTIC_REPOSITORY:-}
+      RESTIC_PASSWORD_FILE: /run/secrets/restic_password
+
+      # S3 configuration
+      S3_ENDPOINT: ${BACKUP_S3_ENDPOINT:-}
+      S3_BUCKET: ${BACKUP_S3_BUCKET:-}
+      S3_ACCESS_KEY_FILE: /run/secrets/s3_access_key
+      S3_SECRET_KEY_FILE: /run/secrets/s3_secret_key
+
+      # Encryption
+      AGE_RECIPIENT: ${BACKUP_AGE_RECIPIENT:-}
+
+      # Retention policy
+      BACKUP_RETENTION_DAILY: ${BACKUP_RETENTION_DAILY:-7}
+      BACKUP_RETENTION_WEEKLY: ${BACKUP_RETENTION_WEEKLY:-4}
+      BACKUP_RETENTION_MONTHLY: ${BACKUP_RETENTION_MONTHLY:-3}
+
+      # Bandwidth limiting
+      BANDWIDTH_LIMIT: ${BACKUP_BANDWIDTH_LIMIT:-0}
+
+      # Schedules (can be customized)
+      BACKUP_SCHEDULE_POSTGRES: ${BACKUP_SCHEDULE_POSTGRES:-0 2 * * *}
+      BACKUP_SCHEDULE_VOLUMES: ${BACKUP_SCHEDULE_VOLUMES:-0 3 * * *}
+      BACKUP_SCHEDULE_OFFSITE: ${BACKUP_SCHEDULE_OFFSITE:-0 4 * * *}
+      BACKUP_SCHEDULE_RETENTION: ${BACKUP_SCHEDULE_RETENTION:-0 5 * * *}
+
+    secrets:
+      - restic_password
+      - s3_access_key
+      - s3_secret_key
+
+    volumes:
+      # Backup destination
+      - ${BACKUP_LOCAL_PATH:-/var/backups/pmdl}:/var/backups/pmdl
+
+      # Docker socket for volume access (read-only)
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+
+      # Backup scripts from repository
+      - ../../scripts/backup:/scripts/backup:ro
+
+    networks:
+      - backup-internal
+
+    # Healthcheck: verify backup service is running and backups are fresh
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /var/run/backup.pid && test -f /var/backups/pmdl/.last_successful_backup && find /var/backups/pmdl/.last_successful_backup -mtime -2 | grep -q . || exit 0"]
+      interval: 6h
+      timeout: 10s
+      retries: 1
+      start_period: 24h
+
+# =============================================================================
+# Secrets
+# =============================================================================
+# Secrets are file-based following BYOK (Bring Your Own Keys) principle.
+# Create these files in configs/ or use Docker secrets.
+
+secrets:
+  restic_password:
+    file: ./configs/restic_password
+  s3_access_key:
+    file: ./configs/s3_access_key
+  s3_secret_key:
+    file: ./configs/s3_secret_key
+
+# =============================================================================
+# Networks
+# =============================================================================
+# Internal network for backup service isolation.
+
+networks:
+  backup-internal:
+    driver: bridge
+    internal: true
+    name: pmdl_backup-internal

@@ -1,0 +1,67 @@
+{
+  "$schema": "../../foundation/schemas/module.schema.json",
+  "id": "test-module",
+  "version": "0.1.0",
+  "name": "Foundation Test Module",
+  "description": "A test module for validating the PeerMesh foundation module system",
+  "author": {
+    "name": "PeerMesh CI/CD",
+    "email": "test@peermesh.local"
+  },
+  "license": "MIT",
+  "repository": "https://github.com/peermesh/docker-lab",
+  "tags": ["test", "foundation", "validation"],
+  "foundation": {
+    "minVersion": "1.0.0"
+  },
+  "requires": {
+    "connections": [],
+    "modules": []
+  },
+  "provides": {
+    "connections": [],
+    "events": [
+      "test-module.health.checked",
+      "test-module.lifecycle.started",
+      "test-module.lifecycle.stopped"
+    ]
+  },
+  "dashboard": {
+    "displayName": "Test Module",
+    "icon": "flask",
+    "routes": [
+      {
+        "path": "/test-module",
+        "nav": {
+          "label": "Test Module",
+          "order": 999
+        }
+      }
+    ]
+  },
+  "lifecycle": {
+    "install": "./scripts/install.sh",
+    "start": "./scripts/start.sh",
+    "stop": "./scripts/stop.sh",
+    "uninstall": "./scripts/uninstall.sh",
+    "health": "./scripts/health.sh"
+  },
+  "config": {
+    "version": "1.0",
+    "properties": {
+      "testSetting": {
+        "type": "string",
+        "description": "A test configuration setting",
+        "default": "test-value",
+        "env": "TEST_MODULE_SETTING"
+      },
+      "debugMode": {
+        "type": "boolean",
+        "description": "Enable debug logging",
+        "default": false,
+        "env": "TEST_MODULE_DEBUG"
+      }
+    },
+    "required": []
+  }
+}

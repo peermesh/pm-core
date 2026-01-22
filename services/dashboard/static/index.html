@@ -68,7 +68,7 @@
                     </span>
                 </div>
                 <div class="flex items-center space-x-4">
-                    <span class="text-sm text-gray-400" id="environment-badge">Local Development</span>
+                    <span id="environment-badge" class="px-2 py-1 rounded text-xs font-medium bg-gray-700 text-gray-300">local</span>
                     <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse" title="Connected"></div>
                 </div>
             </div>
@@ -77,6 +77,55 @@
 
     <!-- Main Content -->
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- Deployment Info Section -->
+        <section class="mb-8" id="deployment-section">
+            <div class="bg-gray-800 rounded-lg border border-gray-700 p-4">
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div class="flex items-center space-x-6">
+                        <!-- Version & Commit -->
+                        <div class="flex items-center space-x-2">
+                            <svg class="w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                            </svg>
+                            <span class="text-sm text-gray-400">Version:</span>
+                            <span id="deploy-version" class="text-sm font-mono text-gray-200">--</span>
+                        </div>
+                        <!-- Git Commit -->
+                        <div class="flex items-center space-x-2">
+                            <svg class="w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                            </svg>
+                            <span class="text-sm text-gray-400">Commit:</span>
+                            <code id="deploy-commit" class="text-sm font-mono text-primary-400 bg-gray-900 px-2 py-0.5 rounded" title="Click to copy">--</code>
+                        </div>
+                        <!-- Deployed At -->
+                        <div class="flex items-center space-x-2">
+                            <svg class="w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <span class="text-sm text-gray-400">Deployed:</span>
+                            <span id="deploy-time" class="text-sm text-gray-200" title="">--</span>
+                        </div>
+                    </div>
+                    <!-- Sync Button -->
+                    <div id="sync-container" class="flex items-center space-x-3">
+                        <span id="sync-status" class="text-xs text-gray-500 hidden"></span>
+                        <button
+                            id="sync-button"
+                            class="hidden inline-flex items-center px-3 py-1.5 border border-gray-600 rounded-md text-sm font-medium text-gray-300 bg-gray-700 hover:bg-gray-600 hover:border-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-primary-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            data-action="sync"
+                            onclick="triggerSync()"
+                        >
+                            <svg id="sync-icon" class="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </svg>
+                            <span id="sync-text">Sync</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
         <!-- System Info Section -->
         <section class="mb-8">
             <h2 class="text-lg font-semibold text-gray-200 mb-4">System Information</h2>
@@ -121,6 +170,99 @@
                 </div>
                 <!-- Module cards will be inserted here -->
                 <div id="modules-grid" class="grid grid-cols-1 lg:grid-cols-2 gap-4 hidden"></div>
+            </div>
+        </section>
+
+        <!-- Alerts Section -->
+        <section class="mb-8" id="alerts-section">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-semibold text-gray-200">System Alerts</h2>
+                <div id="alerts-summary" class="flex items-center space-x-2 text-sm">
+                    <!-- Alert counts will be rendered here -->
+                </div>
+            </div>
+            <div id="alerts-container" class="space-y-3">
+                <!-- Alerts will be rendered here -->
+                <div id="alerts-empty" class="bg-green-900/30 border border-green-700/50 rounded-lg p-4 text-center">
+                    <svg class="mx-auto h-8 w-8 text-green-500 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <p class="text-green-400 text-sm">All systems healthy - no alerts</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Resource Charts Section -->
+        <section class="mb-8">
+            <h2 class="text-lg font-semibold text-gray-200 mb-4">Resource Overview</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- Memory Usage Chart -->
+                <div class="bg-gray-800 rounded-lg border border-gray-700 p-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="text-sm font-medium text-gray-300">Memory Usage by Container</h3>
+                        <span id="memory-total" class="text-xs text-gray-500">-- / -- MB</span>
+                    </div>
+                    <div id="memory-chart" class="space-y-2">
+                        <!-- Memory bars will be rendered here -->
+                        <div class="animate-pulse space-y-2">
+                            <div class="h-6 bg-gray-700 rounded"></div>
+                            <div class="h-6 bg-gray-700 rounded"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CPU Usage Chart -->
+                <div class="bg-gray-800 rounded-lg border border-gray-700 p-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="text-sm font-medium text-gray-300">CPU Usage by Container</h3>
+                        <span id="cpu-total" class="text-xs text-gray-500">-- %</span>
+                    </div>
+                    <div id="cpu-chart" class="space-y-2">
+                        <!-- CPU bars will be rendered here -->
+                        <div class="animate-pulse space-y-2">
+                            <div class="h-6 bg-gray-700 rounded"></div>
+                            <div class="h-6 bg-gray-700 rounded"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Volumes Section -->
+        <section class="mb-8">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-semibold text-gray-200">Docker Volumes</h2>
+                <span id="volumes-count" class="text-sm text-gray-500">-- volumes</span>
+            </div>
+            <div id="volumes-container" class="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden">
+                <div id="volumes-loading" class="p-6 text-center">
+                    <svg class="animate-spin h-6 w-6 text-primary-500 mx-auto" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span class="text-gray-400 mt-2 block text-sm">Loading volumes...</span>
+                </div>
+                <div id="volumes-table" class="hidden">
+                    <table class="w-full text-sm">
+                        <thead class="bg-gray-750 border-b border-gray-700">
+                            <tr>
+                                <th class="px-4 py-3 text-left text-gray-400 font-medium">Name</th>
+                                <th class="px-4 py-3 text-left text-gray-400 font-medium">Driver</th>
+                                <th class="px-4 py-3 text-right text-gray-400 font-medium">Size</th>
+                                <th class="px-4 py-3 text-center text-gray-400 font-medium">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="volumes-tbody" class="divide-y divide-gray-700">
+                            <!-- Volume rows will be rendered here -->
+                        </tbody>
+                    </table>
+                </div>
+                <div id="volumes-empty" class="p-6 text-center hidden">
+                    <svg class="mx-auto h-8 w-8 text-gray-500 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4" />
+                    </svg>
+                    <p class="text-gray-500 text-sm">No volumes found</p>
+                </div>
             </div>
         </section>
 
@@ -626,6 +768,426 @@
                     disableGuestActions();
                 }
             };
+        })();
+    </script>
+
+    <!-- Volumes, Alerts, and Resource Charts -->
+    <script>
+        (function() {
+            // Format bytes to human-readable size
+            function formatBytes(bytes) {
+                if (bytes === 0) return '0 B';
+                const k = 1024;
+                const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+            }
+
+            // Fetch and render volumes
+            function loadVolumes() {
+                fetch('/api/volumes')
+                    .then(r => r.json())
+                    .then(data => {
+                        const loading = document.getElementById('volumes-loading');
+                        const table = document.getElementById('volumes-table');
+                        const empty = document.getElementById('volumes-empty');
+                        const tbody = document.getElementById('volumes-tbody');
+                        const count = document.getElementById('volumes-count');
+
+                        loading.classList.add('hidden');
+
+                        if (!data.volumes || data.volumes.length === 0) {
+                            empty.classList.remove('hidden');
+                            table.classList.add('hidden');
+                            count.textContent = '0 volumes';
+                            return;
+                        }
+
+                        empty.classList.add('hidden');
+                        table.classList.remove('hidden');
+                        count.textContent = data.total_count + ' volume' + (data.total_count !== 1 ? 's' : '') + ' (' + formatBytes(data.total_size_bytes) + ')';
+
+                        tbody.innerHTML = data.volumes.map(vol => `
+                            <tr class="hover:bg-gray-750/50">
+                                <td class="px-4 py-3">
+                                    <div class="font-medium text-gray-200">${vol.name}</div>
+                                    <div class="text-xs text-gray-500 truncate max-w-xs" title="${vol.mount_point}">${vol.mount_point}</div>
+                                </td>
+                                <td class="px-4 py-3 text-gray-400">${vol.driver}</td>
+                                <td class="px-4 py-3 text-right text-gray-300">${formatBytes(vol.size_bytes)}</td>
+                                <td class="px-4 py-3 text-center">
+                                    ${vol.in_use
+                                        ? '<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-900/50 text-green-400">In Use</span>'
+                                        : '<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-700 text-gray-400">Unused</span>'
+                                    }
+                                </td>
+                            </tr>
+                        `).join('');
+                    })
+                    .catch(e => {
+                        console.error('Failed to load volumes:', e);
+                        document.getElementById('volumes-loading').innerHTML = '<p class="text-red-400 text-sm">Failed to load volumes</p>';
+                    });
+            }
+
+            // Fetch and render alerts
+            function loadAlerts() {
+                fetch('/api/alerts')
+                    .then(r => r.json())
+                    .then(data => {
+                        const container = document.getElementById('alerts-container');
+                        const summary = document.getElementById('alerts-summary');
+                        const emptyState = document.getElementById('alerts-empty');
+
+                        // Update summary badges
+                        summary.innerHTML = `
+                            ${data.summary.critical > 0 ? `<span class="px-2 py-0.5 bg-red-900/50 text-red-400 rounded text-xs font-medium">${data.summary.critical} critical</span>` : ''}
+                            ${data.summary.warning > 0 ? `<span class="px-2 py-0.5 bg-amber-900/50 text-amber-400 rounded text-xs font-medium">${data.summary.warning} warning</span>` : ''}
+                            ${data.summary.total === 0 ? `<span class="px-2 py-0.5 bg-green-900/50 text-green-400 rounded text-xs font-medium">All clear</span>` : ''}
+                        `;
+
+                        if (!data.alerts || data.alerts.length === 0) {
+                            emptyState.classList.remove('hidden');
+                            return;
+                        }
+
+                        emptyState.classList.add('hidden');
+
+                        // Render alert cards
+                        const alertCards = data.alerts.map(alert => {
+                            const severityClasses = {
+                                critical: 'border-red-700/50 bg-red-900/20',
+                                warning: 'border-amber-700/50 bg-amber-900/20',
+                                info: 'border-blue-700/50 bg-blue-900/20'
+                            };
+                            const iconColors = {
+                                critical: 'text-red-500',
+                                warning: 'text-amber-500',
+                                info: 'text-blue-500'
+                            };
+                            const titleColors = {
+                                critical: 'text-red-400',
+                                warning: 'text-amber-400',
+                                info: 'text-blue-400'
+                            };
+
+                            return `
+                                <div class="rounded-lg border ${severityClasses[alert.severity]} p-4">
+                                    <div class="flex items-start">
+                                        <svg class="w-5 h-5 ${iconColors[alert.severity]} mr-3 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                        </svg>
+                                        <div class="flex-1">
+                                            <h4 class="font-medium ${titleColors[alert.severity]}">${alert.title}</h4>
+                                            <p class="text-sm text-gray-400 mt-1">${alert.description}</p>
+                                            ${alert.resource ? `<p class="text-xs text-gray-500 mt-2">Resource: ${alert.resource}</p>` : ''}
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                        }).join('');
+
+                        // Keep empty state element but add alert cards before it
+                        container.innerHTML = alertCards + '<div id="alerts-empty" class="bg-green-900/30 border border-green-700/50 rounded-lg p-4 text-center hidden"><svg class="mx-auto h-8 w-8 text-green-500 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg><p class="text-green-400 text-sm">All systems healthy - no alerts</p></div>';
+                    })
+                    .catch(e => {
+                        console.error('Failed to load alerts:', e);
+                    });
+            }
+
+            // Render resource charts from container data
+            function renderResourceCharts(containers) {
+                if (!containers || containers.length === 0) return;
+
+                const memoryChart = document.getElementById('memory-chart');
+                const cpuChart = document.getElementById('cpu-chart');
+                const memoryTotal = document.getElementById('memory-total');
+                const cpuTotal = document.getElementById('cpu-total');
+
+                // Filter running containers with resources
+                const runningContainers = containers.filter(c => c.status === 'running');
+
+                // Calculate totals
+                let totalMemory = 0;
+                let totalMemoryLimit = 0;
+                let totalCPU = 0;
+
+                runningContainers.forEach(c => {
+                    totalMemory += c.resources?.memory_mb || 0;
+                    totalMemoryLimit += c.resources?.memory_limit_mb || 0;
+                    totalCPU += c.resources?.cpu_percent || 0;
+                });
+
+                memoryTotal.textContent = `${totalMemory} / ${totalMemoryLimit || '--'} MB`;
+                cpuTotal.textContent = totalCPU.toFixed(1) + ' %';
+
+                // Sort by memory usage
+                const byMemory = [...runningContainers].sort((a, b) =>
+                    (b.resources?.memory_mb || 0) - (a.resources?.memory_mb || 0)
+                ).slice(0, 5);
+
+                // Sort by CPU usage
+                const byCPU = [...runningContainers].sort((a, b) =>
+                    (b.resources?.cpu_percent || 0) - (a.resources?.cpu_percent || 0)
+                ).slice(0, 5);
+
+                // Render memory bars
+                if (byMemory.length > 0) {
+                    const maxMemory = Math.max(...byMemory.map(c => c.resources?.memory_mb || 0), 1);
+                    memoryChart.innerHTML = byMemory.map(c => {
+                        const memMB = c.resources?.memory_mb || 0;
+                        const percent = (memMB / maxMemory) * 100;
+                        const barColor = memMB > 1024 ? 'bg-amber-500' : 'bg-primary-500';
+                        return `
+                            <div class="flex items-center">
+                                <span class="w-24 text-xs text-gray-400 truncate" title="${c.name}">${c.name.split('_').pop()}</span>
+                                <div class="flex-1 h-5 bg-gray-700 rounded-full overflow-hidden mx-2">
+                                    <div class="${barColor} h-full rounded-full transition-all duration-500" style="width: ${percent}%"></div>
+                                </div>
+                                <span class="w-16 text-xs text-gray-300 text-right">${memMB} MB</span>
+                            </div>
+                        `;
+                    }).join('');
+                } else {
+                    memoryChart.innerHTML = '<p class="text-gray-500 text-sm text-center py-4">No running containers</p>';
+                }
+
+                // Render CPU bars
+                if (byCPU.length > 0) {
+                    const maxCPU = Math.max(...byCPU.map(c => c.resources?.cpu_percent || 0), 1);
+                    cpuChart.innerHTML = byCPU.map(c => {
+                        const cpu = c.resources?.cpu_percent || 0;
+                        const percent = (cpu / Math.max(maxCPU, 100)) * 100;
+                        const barColor = cpu > 80 ? 'bg-red-500' : cpu > 50 ? 'bg-amber-500' : 'bg-green-500';
+                        return `
+                            <div class="flex items-center">
+                                <span class="w-24 text-xs text-gray-400 truncate" title="${c.name}">${c.name.split('_').pop()}</span>
+                                <div class="flex-1 h-5 bg-gray-700 rounded-full overflow-hidden mx-2">
+                                    <div class="${barColor} h-full rounded-full transition-all duration-500" style="width: ${percent}%"></div>
+                                </div>
+                                <span class="w-16 text-xs text-gray-300 text-right">${cpu.toFixed(1)} %</span>
+                            </div>
+                        `;
+                    }).join('');
+                } else {
+                    cpuChart.innerHTML = '<p class="text-gray-500 text-sm text-center py-4">No running containers</p>';
+                }
+            }
+
+            // Hook into existing SSE to update charts
+            const origProcessContainersData = window.processContainersData || function() {};
+            window.processContainersData = function(containers) {
+                // Call original function if it exists
+                if (typeof origProcessContainersData === 'function') {
+                    origProcessContainersData(containers);
+                }
+                // Update resource charts
+                renderResourceCharts(containers);
+            };
+
+            // Initial load
+            loadVolumes();
+            loadAlerts();
+
+            // Refresh periodically
+            setInterval(loadVolumes, 60000);  // Every minute
+            setInterval(loadAlerts, 30000);   // Every 30 seconds
+        })();
+    </script>
+
+    <!-- Deployment Info and Sync Handler -->
+    <script>
+        (function() {
+            // Environment badge color mapping
+            const envColors = {
+                'production': 'bg-red-600 text-white',
+                'staging': 'bg-amber-600 text-white',
+                'development': 'bg-blue-600 text-white',
+                'testing': 'bg-purple-600 text-white',
+                'local': 'bg-gray-700 text-gray-300'
+            };
+
+            // Environment display names
+            const envNames = {
+                'production': 'Production',
+                'staging': 'Staging',
+                'development': 'Development',
+                'testing': 'Testing',
+                'local': 'Local'
+            };
+
+            let deploymentInfo = null;
+
+            // Load deployment info
+            function loadDeploymentInfo() {
+                fetch('/api/deployment')
+                    .then(r => r.json())
+                    .then(data => {
+                        deploymentInfo = data;
+                        renderDeploymentInfo(data);
+                    })
+                    .catch(e => {
+                        console.error('Failed to load deployment info:', e);
+                    });
+            }
+
+            // Render deployment info to the UI
+            function renderDeploymentInfo(data) {
+                // Update environment badge in header
+                const envBadge = document.getElementById('environment-badge');
+                if (envBadge) {
+                    const env = data.environment || 'local';
+                    const colorClass = envColors[env] || envColors['local'];
+                    envBadge.className = 'px-2 py-1 rounded text-xs font-medium ' + colorClass;
+                    envBadge.textContent = envNames[env] || env;
+                }
+
+                // Update version
+                const versionEl = document.getElementById('deploy-version');
+                if (versionEl) {
+                    versionEl.textContent = data.version || '--';
+                }
+
+                // Update commit SHA
+                const commitEl = document.getElementById('deploy-commit');
+                if (commitEl) {
+                    const shortSha = data.git_commit_short || '--';
+                    commitEl.textContent = shortSha;
+                    if (data.git_commit_sha && data.git_commit_sha !== 'unknown') {
+                        commitEl.title = 'Full SHA: ' + data.git_commit_sha + ' (click to copy)';
+                        commitEl.style.cursor = 'pointer';
+                        commitEl.onclick = function() {
+                            copyToClipboard(data.git_commit_sha);
+                            showCopyFeedback(commitEl);
+                        };
+                    }
+                }
+
+                // Update deployment time
+                const timeEl = document.getElementById('deploy-time');
+                if (timeEl) {
+                    timeEl.textContent = data.deployed_at || '--';
+                    if (data.deployed_at_iso) {
+                        timeEl.title = new Date(data.deployed_at_iso).toLocaleString();
+                    }
+                }
+
+                // Show/hide sync button based on capabilities and auth
+                const syncButton = document.getElementById('sync-button');
+                if (syncButton) {
+                    if (data.can_sync && !window.isGuestMode) {
+                        syncButton.classList.remove('hidden');
+                    } else {
+                        syncButton.classList.add('hidden');
+                    }
+                }
+
+                // Update sync status if available
+                if (data.last_sync_status) {
+                    updateSyncStatus(data.last_sync_status, data.last_sync_message);
+                }
+            }
+
+            // Copy text to clipboard
+            function copyToClipboard(text) {
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(text).catch(e => console.error('Copy failed:', e));
+                } else {
+                    // Fallback for older browsers
+                    const textarea = document.createElement('textarea');
+                    textarea.value = text;
+                    textarea.style.position = 'fixed';
+                    textarea.style.opacity = '0';
+                    document.body.appendChild(textarea);
+                    textarea.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(textarea);
+                }
+            }
+
+            // Show copy feedback
+            function showCopyFeedback(element) {
+                const originalText = element.textContent;
+                element.textContent = 'Copied!';
+                element.classList.add('text-green-400');
+                setTimeout(() => {
+                    element.textContent = originalText;
+                    element.classList.remove('text-green-400');
+                }, 1500);
+            }
+
+            // Update sync status display
+            function updateSyncStatus(status, message) {
+                const statusEl = document.getElementById('sync-status');
+                if (!statusEl) return;
+
+                if (status === 'success') {
+                    statusEl.className = 'text-xs text-green-400';
+                    statusEl.textContent = message || 'Sync completed';
+                } else if (status === 'failed') {
+                    statusEl.className = 'text-xs text-red-400';
+                    statusEl.textContent = message || 'Sync failed';
+                } else if (status === 'syncing') {
+                    statusEl.className = 'text-xs text-primary-400';
+                    statusEl.textContent = 'Syncing...';
+                } else {
+                    statusEl.className = 'text-xs text-gray-500 hidden';
+                    statusEl.textContent = '';
+                    return;
+                }
+                statusEl.classList.remove('hidden');
+            }
+
+            // Trigger sync operation
+            window.triggerSync = function() {
+                const button = document.getElementById('sync-button');
+                const icon = document.getElementById('sync-icon');
+                const text = document.getElementById('sync-text');
+
+                if (!button || button.disabled) return;
+
+                // Disable button and show loading state
+                button.disabled = true;
+                icon.classList.add('animate-spin');
+                text.textContent = 'Syncing...';
+                updateSyncStatus('syncing', 'Syncing...');
+
+                fetch('/api/deployment', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                })
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.success) {
+                            updateSyncStatus('success', data.message);
+                            // Reload deployment info after successful sync
+                            setTimeout(loadDeploymentInfo, 1000);
+                        } else {
+                            updateSyncStatus('failed', data.message);
+                        }
+                    })
+                    .catch(e => {
+                        console.error('Sync failed:', e);
+                        updateSyncStatus('failed', 'Sync request failed');
+                    })
+                    .finally(() => {
+                        // Re-enable button
+                        button.disabled = false;
+                        icon.classList.remove('animate-spin');
+                        text.textContent = 'Sync';
+                    });
+            };
+
+            // Initial load
+            loadDeploymentInfo();
+
+            // Refresh deployment info periodically (every 5 minutes)
+            setInterval(loadDeploymentInfo, 300000);
+
+            // Also reload when session changes (to update sync button visibility)
+            window.addEventListener('sessionUpdated', loadDeploymentInfo);
         })();
     </script>
 </body>

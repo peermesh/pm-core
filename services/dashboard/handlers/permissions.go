@@ -48,6 +48,9 @@ func isSafeEndpoint(method, path string) bool {
 		"/api/events",
 		"/api/system",
 		"/api/session",
+		"/api/deployment",
+		"/api/volumes",
+		"/api/alerts",
 	}
 
 	// Check if the path matches any safe endpoint

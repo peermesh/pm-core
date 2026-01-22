@@ -1,5 +1,38 @@
 # =============================================================================
-# GitHub Actions CI/CD Workflow for Docker Compose VPS Deployment
+# DISABLED: Push-Based CI/CD Workflow
+# =============================================================================
+#
+# STATUS: DISABLED (renamed from deploy.yml)
+# DATE DISABLED: 2026-01-21
+# REASON: Security - Push-based deployment stores SSH credentials in GitHub
+#
+# SECURITY CONCERN (FIND-008):
+# -----------------------------------------------------------------------------
+# Push-based deployment (this workflow) requires storing SSH private keys in
+# GitHub Secrets. This creates security risks:
+#
+#   1. If GitHub account is compromised, attackers gain direct VPS access
+#   2. SSH credentials exist outside your infrastructure (GitHub's servers)
+#   3. Blast radius of credential exposure is larger
+#   4. Audit trail more complex (credentials in two places)
+#
+# RECOMMENDED ALTERNATIVE: Pull-Based Webhook Deployment
+# -----------------------------------------------------------------------------
+# Use the webhook-based deployment instead:
+#   - See: docs/WEBHOOK-DEPLOYMENT.md
+#   - Webhook container pulls code when notified
+#   - SSH credentials never leave VPS
+#   - Even if webhook secret is compromised, attackers can only trigger
+#     deployments of code already in the repo (no shell access)
+#
+# TO RE-ENABLE (NOT RECOMMENDED):
+# -----------------------------------------------------------------------------
+# 1. Rename this file back to deploy.yml
+# 2. Configure required GitHub secrets (see below)
+# 3. Understand the security tradeoffs documented in FIND-008
+#
+# =============================================================================
+# ORIGINAL DOCUMENTATION (for reference only)
 # =============================================================================
 #
 # This workflow automates deployment of a Docker Compose project to a VPS.
@@ -34,7 +67,7 @@
 #
 # =============================================================================
 
-name: Deploy to VPS
+name: Deploy to VPS (DISABLED)
 
 # Trigger: Deploy on push to main branch
 on:

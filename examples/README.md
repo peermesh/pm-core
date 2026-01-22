@@ -261,11 +261,12 @@ Before considering an example complete, verify:
 
 ## References
 
-- Foundation Decisions: `../.dev/execution_strategy/05-execution/`
+- Foundation Decisions: `../foundation/docs/decisions/`
+- Full ADR Index: `../docs/decisions/INDEX.md`
 - Supporting Tech Profiles: `../profiles/`
-- Vision Document: `../../VISION.md`
-- D2.1 Database Selection: `../.dev/execution_strategy/05-execution/wave-1/D2.1-DATABASE-SELECTION.md`
-- D3.4 Authentication: `../.dev/execution_strategy/05-execution/wave-2/D3.4-AUTHENTICATION.md`
+- Database Profiles: [ADR-0100](../docs/decisions/0100-multi-database-profiles.md)
+- Profile System: [ADR-0400](../docs/decisions/0400-profile-system.md)
+- Example Application Pattern: [ADR-0401](../docs/decisions/0401-example-application-pattern.md)
 
 ---
 

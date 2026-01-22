@@ -67,6 +67,12 @@ type dockerAPIInspect struct {
 	HostConfig struct {
 		Memory int64 `json:"Memory"`
 	} `json:"HostConfig"`
+	Mounts []struct {
+		Type        string `json:"Type"`
+		Name        string `json:"Name"`
+		Source      string `json:"Source"`
+		Destination string `json:"Destination"`
+	} `json:"Mounts"`
 }
 
 type dockerAPIStats struct {

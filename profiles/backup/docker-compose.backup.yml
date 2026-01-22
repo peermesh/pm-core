@@ -1,0 +1,163 @@
+# ==============================================================
+# Backup Profile - Automated Backup Container
+# ==============================================================
+# Purpose: Automated backup of databases and volumes
+# Features:
+#   - Cron-based scheduling
+#   - Restic for deduplication and encryption
+#   - S3/MinIO off-site backup support
+#   - Database quiescence hooks
+#
+# Activation:
+#   COMPOSE_PROFILES=postgresql,backup docker compose up -d
+#
+# Documentation: profiles/backup/PROFILE-SPEC.md
+# Decision Reference: docs/decisions/0102-backup-architecture.md
+# ==============================================================
+
+services:
+  # Backup service using restic
+  backup:
+    image: restic/restic:latest
+    container_name: pmdl_backup
+    profiles:
+      - backup
+
+    # Entrypoint runs cron in foreground
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        # Install dependencies
+        apk add --no-cache docker-cli postgresql16-client gzip bash curl
+
+        # Copy backup scripts
+        cp -r /scripts/backup/* /usr/local/bin/
+        chmod +x /usr/local/bin/*.sh
+
+        # Initialize restic repository if needed (local)
+        if [ -n "$${BACKUP_LOCAL_PATH}" ] && [ ! -f "$${BACKUP_LOCAL_PATH}/restic/config" ]; then
+          echo "Initializing local restic repository..."
+          restic -r "$${BACKUP_LOCAL_PATH}/restic" init || true
+        fi
+
+        # Initialize restic repository if needed (S3)
+        if [ -n "$${RESTIC_REPOSITORY}" ]; then
+          restic snapshots > /dev/null 2>&1 || restic init || true
+        fi
+
+        # Setup cron
+        echo "Setting up cron schedule..."
+        cat > /etc/crontabs/root << 'CRON'
+        # PostgreSQL backup - 2:00 AM daily
+        0 2 * * * /usr/local/bin/backup-postgres.sh all >> /var/log/backup.log 2>&1
+
+        # Volume backup - 3:00 AM daily
+        0 3 * * * /usr/local/bin/backup-volumes.sh backup --all >> /var/log/backup.log 2>&1
+
+        # S3 sync - 4:00 AM daily (if configured)
+        0 4 * * * /usr/local/bin/sync-offsite.sh >> /var/log/backup.log 2>&1
+
+        # Retention cleanup - 5:00 AM daily
+        0 5 * * * /usr/local/bin/backup-postgres.sh retention --days 7 >> /var/log/backup.log 2>&1
+        0 5 * * * /usr/local/bin/backup-volumes.sh retention --days 7 >> /var/log/backup.log 2>&1
+        CRON
+
+        echo "Backup service started. Schedule:"
+        cat /etc/crontabs/root
+        echo ""
+        echo "Run manual backup: docker exec pmdl_backup /usr/local/bin/backup-postgres.sh all"
+        echo ""
+
+        # Run crond in foreground
+        exec crond -f -l 2
+
+    environment:
+      # Backup paths
+      BACKUP_DIR: ${BACKUP_LOCAL_PATH:-/var/backups/pmdl}
+      BACKUP_LOCAL_PATH: ${BACKUP_LOCAL_PATH:-/var/backups/pmdl}
+
+      # Container names
+      CONTAINER_NAME: ${POSTGRES_CONTAINER_NAME:-pmdl_postgres}
+      VOLUME_PREFIX: ${VOLUME_PREFIX:-pmdl_}
+
+      # Restic configuration
+      RESTIC_REPOSITORY: ${BACKUP_RESTIC_REPOSITORY:-}
+      RESTIC_PASSWORD_FILE: /run/secrets/restic_password
+
+      # S3 configuration
+      S3_ENDPOINT: ${BACKUP_S3_ENDPOINT:-}
+      S3_BUCKET: ${BACKUP_S3_BUCKET:-}
+      S3_ACCESS_KEY_FILE: /run/secrets/s3_access_key
+      S3_SECRET_KEY_FILE: /run/secrets/s3_secret_key
+
+      # Encryption
+      AGE_RECIPIENT: ${BACKUP_AGE_RECIPIENT:-}
+
+      # Retention
+      BACKUP_RETENTION_DAILY: ${BACKUP_RETENTION_DAILY:-7}
+      BACKUP_RETENTION_WEEKLY: ${BACKUP_RETENTION_WEEKLY:-4}
+      BACKUP_RETENTION_MONTHLY: ${BACKUP_RETENTION_MONTHLY:-3}
+
+    secrets:
+      - restic_password
+      - s3_access_key
+      - s3_secret_key
+
+    volumes:
+      # Backup destination
+      - ${BACKUP_LOCAL_PATH:-/var/backups/pmdl}:/var/backups/pmdl
+
+      # Docker socket for volume access (read-only)
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+
+      # Backup scripts
+      - ../../scripts/backup:/scripts/backup:ro
+
+      # Access to volumes for backup (via docker run)
+      # Note: Actual volume access happens via docker cli
+
+    networks:
+      - db-internal
+
+    restart: unless-stopped
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 128M
+
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /var/backups/pmdl/.last_successful_backup && find /var/backups/pmdl/.last_successful_backup -mtime -2 | grep -q ."]
+      interval: 6h
+      timeout: 10s
+      retries: 1
+      start_period: 24h
+
+# ==============================================================
+# Secrets
+# ==============================================================
+
+secrets:
+  restic_password:
+    file: ./secrets/restic_password
+  s3_access_key:
+    file: ./secrets/s3_access_key
+  s3_secret_key:
+    file: ./secrets/s3_secret_key
+
+# ==============================================================
+# Networks (reference from main compose)
+# ==============================================================
+
+networks:
+  db-internal:
+    external: true
+    name: pmdl_db-internal

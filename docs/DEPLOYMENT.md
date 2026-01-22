@@ -2,6 +2,19 @@
 
 Deploy Peer Mesh Docker Lab to a commodity VPS ($20-50/month) running Ubuntu 22.04/24.04 LTS.
 
+## Security Notice: Deployment Method
+
+**This project uses webhook-based (pull) deployment exclusively.**
+
+Push-based CI/CD (GitHub Actions SSHing into your VPS) is **disabled by default** because it requires storing SSH credentials in GitHub Secrets, which expands your attack surface. If your GitHub account is compromised, attackers would gain direct VPS access.
+
+With webhook deployment:
+- VPS pulls code when notified via HTTPS webhook
+- SSH credentials never leave your VPS
+- Attackers with webhook secret can only trigger deployments of existing code
+
+**Setup webhook deployment**: See [WEBHOOK-DEPLOYMENT.md](WEBHOOK-DEPLOYMENT.md)
+
 ## VPS Provider Requirements
 
 ### Minimum Specifications
@@ -634,6 +647,69 @@ echo | openssl s_client -servername $DOMAIN -connect $DOMAIN:443 2>/dev/null | \
 
 ---
 
+---
+
+## Deployment Security: .deployignore
+
+The `.deployignore` file specifies files and directories that should **never** be present on production VPS servers. This provides defense-in-depth against sensitive data leakage.
+
+### Files Excluded from Deployment
+
+| Category | Files/Patterns | Reason |
+|----------|---------------|--------|
+| Secrets | `.env`, `secrets/`, `*.key`, `*.pem` | Contain credentials |
+| AI Workspace | `.dev/` | Work orders, findings, development notes |
+| Local Overrides | `*.local.*`, `docker-compose.override.yml` | Dev-specific configs |
+| IDE Config | `.vscode/`, `.idea/` | Developer settings |
+| Test Fixtures | `**/test/fixtures/`, `*.test.env` | May contain mock credentials |
+| Git/CI | `.git/`, `.github/` | Not needed when pulling via git |
+
+### How It Works
+
+The webhook deployment script includes a security verification step that:
+
+1. Checks for sensitive file patterns after `git pull`
+2. Blocks deployment if sensitive files are detected
+3. Logs warnings for manual investigation
+
+```bash
+# From deploy/webhook/deploy.sh
+verify_no_sensitive_files() {
+    # Checks for .env, secrets/, .dev/, etc.
+    # Blocks deployment if found
+}
+```
+
+### Manual Verification
+
+To verify your deployment doesn't contain sensitive files:
+
+```bash
+# On VPS, check for files that shouldn't exist
+find /opt/peermesh -name ".env" -o -name "*.key" -o -type d -name ".dev"
+
+# Using rsync dry-run with .deployignore
+rsync -av --exclude-from='.deployignore' --dry-run ./ /tmp/deploy-test/
+```
+
+### Production .env Management
+
+The production `.env` file should be:
+1. Created directly on the VPS (never committed to git)
+2. Stored outside the git-managed directory, symlinked in
+3. Backed up separately with encryption
+
+```bash
+# Example: Store .env outside git directory
+/opt/peermesh/.env -> /opt/secrets/peermesh.env
+
+# Verify .env is not tracked
+cd /opt/peermesh
+git status  # .env should not appear
+```
+
+---
+
 ## Next Steps
 
 After successful deployment:
@@ -650,4 +726,5 @@ After successful deployment:
 - [Security Guide](SECURITY.md) - Hardening and best practices
 - [Profiles Guide](PROFILES.md) - Resource and tech profiles
 - [Troubleshooting Guide](TROUBLESHOOTING.md) - Common issues and solutions
+- [Webhook Deployment](WEBHOOK-DEPLOYMENT.md) - Automated deployment setup
 - [Operational Runbook](system-design-docs/06-operations/OPERATIONAL-RUNBOOK.md) - Day-to-day operations

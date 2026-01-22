@@ -26,6 +26,7 @@ Decisions about database selection, configuration, and data persistence.
 |-----|-------|--------|------|
 | [0100](./0100-multi-database-profiles.md) | Multi-Database Profiles | **accepted** | 2026-01-02 |
 | [0101](./0101-postgresql-pgvector.md) | PostgreSQL with pgvector Extension | **accepted** | 2026-01-02 |
+| [0102](./0102-backup-architecture.md) | Backup Architecture | **accepted** | 2026-01-21 |
 
 ---
 
@@ -77,8 +78,8 @@ Project organization and compose file structure decisions.
 
 ## Statistics
 
-- **Total Decisions**: 12 accepted
-- **Last Updated**: 2026-01-02
+- **Total Decisions**: 13 accepted
+- **Last Updated**: 2026-01-21
 
 ---
 
@@ -99,6 +100,9 @@ Project organization and compose file structure decisions.
 ### How are databases organized?
 - [ADR-0100](./0100-multi-database-profiles.md) describes the multi-database profile approach.
 - [ADR-0101](./0101-postgresql-pgvector.md) details the PostgreSQL image selection with pgvector.
+
+### How are backups managed?
+- [ADR-0102](./0102-backup-architecture.md) covers the three-tier backup architecture with restic and S3 support.
 
 ### What security measures are in place?
 - [ADR-0200](./0200-non-root-containers.md) covers non-root execution and security baselines.

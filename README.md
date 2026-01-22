@@ -106,6 +106,7 @@ See `examples/` for complete configurations.
 ## Documentation
 
 - [Quick Start Guide](docs/QUICKSTART.md) - Get running in 5 minutes
+- [System Architecture](docs/ARCHITECTURE.md) - Four-tier modular architecture overview
 - [Configuration Reference](docs/CONFIGURATION.md) - Environment variables and options
 - [Profiles Guide](docs/PROFILES.md) - Choosing and customizing profiles
 - [Security Guide](docs/SECURITY.md) - Security architecture and hardening
@@ -113,6 +114,7 @@ See `examples/` for complete configurations.
 - [Deployment Guide](docs/DEPLOYMENT.md) - Production deployment guidance
 - [Troubleshooting](docs/TROUBLESHOOTING.md) - Common issues and solutions
 - [Architecture Decisions](docs/decisions/) - ADR documentation
+- [Foundation Reference](foundation/README.md) - Module system documentation
 
 ## Requirements
 

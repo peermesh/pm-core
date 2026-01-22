@@ -284,6 +284,8 @@ foundation/
 │   ├── dashboard.ts             # Dashboard TypeScript interface
 │   └── dashboard.py             # Dashboard Python interface
 ├── docs/
+│   ├── decisions/               # Foundation ADR symlinks
+│   │   └── README.md            # Decision mapping guide
 │   ├── MODULE-MANIFEST.md       # Manifest documentation
 │   ├── LIFECYCLE-HOOKS.md       # Lifecycle documentation
 │   ├── COMPOSE-PATTERNS.md      # Docker Compose patterns
@@ -311,6 +313,8 @@ foundation/
 
 ## Related Documentation
 
+### Foundation Docs
+
 - [Module Manifest Reference](docs/MODULE-MANIFEST.md)
 - [Lifecycle Hooks Guide](docs/LIFECYCLE-HOOKS.md)
 - [Docker Compose Patterns](docs/COMPOSE-PATTERNS.md)
@@ -320,6 +324,12 @@ foundation/
 - [Configuration Schema](docs/CONFIGURATION-SCHEMA.md)
 - [Migration Guide](docs/MIGRATION-GUIDE.md)
 - [Version Compatibility](docs/VERSION-COMPATIBILITY.md)
+
+### Architecture
+
+- [System Architecture](../docs/ARCHITECTURE.md) - Four-tier modular architecture overview
+- [Foundation Decisions](docs/decisions/) - ADR symlinks with legacy reference mapping
+- [Full ADR Index](../docs/decisions/INDEX.md) - Complete decision record index
 
 ## License
 

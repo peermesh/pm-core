@@ -1,0 +1,1 @@
+../../../docs/decisions/0000-template.md

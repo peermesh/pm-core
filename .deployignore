@@ -1,0 +1,158 @@
+# =============================================================================
+# .deployignore - Files excluded from VPS deployment
+# =============================================================================
+#
+# This file specifies files and directories that should NEVER be deployed
+# to production VPS servers. The webhook deployment script uses this file
+# with rsync --exclude-from to prevent sensitive data leakage.
+#
+# Reference: FIND-006 (Private Files Leaked to VPS)
+# See also: docs/DEPLOYMENT.md, docs/SECURITY.md
+#
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# SECRETS AND CREDENTIALS
+# Critical: These contain sensitive authentication data
+# -----------------------------------------------------------------------------
+.env
+.env.*
+!.env.example
+secrets/
+*.key
+*.pem
+*.p12
+*.pfx
+credentials.*
+*.password
+id_rsa*
+id_dsa*
+id_ecdsa*
+id_ed25519*
+
+# Deploy keys (managed separately on VPS)
+deploy/keys/
+
+# -----------------------------------------------------------------------------
+# AI/DEVELOPMENT WORKSPACE
+# Contains work orders, findings, handoffs - not needed in production
+# -----------------------------------------------------------------------------
+.dev/
+
+# -----------------------------------------------------------------------------
+# LOCAL OVERRIDE FILES
+# Development-specific configuration that should not reach production
+# -----------------------------------------------------------------------------
+*.local
+*.local.*
+docker-compose.local.yml
+docker-compose.override.yml
+
+# -----------------------------------------------------------------------------
+# IDE AND EDITOR CONFIGURATION
+# Developer-specific settings, not part of deployment
+# -----------------------------------------------------------------------------
+.vscode/
+.idea/
+*.sublime-*
+*.iml
+.project
+.classpath
+.settings/
+
+# -----------------------------------------------------------------------------
+# TEST FIXTURES AND DEVELOPMENT DATA
+# May contain sensitive test data or mock credentials
+# -----------------------------------------------------------------------------
+**/test/fixtures/
+**/tests/fixtures/
+**/__fixtures__/
+**/testdata/
+*.test.env
+*.test.json
+test-*.yml
+test-*.yaml
+
+# -----------------------------------------------------------------------------
+# DOCUMENTATION (optional - reduce deployment size)
+# Uncomment if docs should not be deployed
+# -----------------------------------------------------------------------------
+# docs/
+# *.md
+# !README.md
+
+# -----------------------------------------------------------------------------
+# GIT AND VERSION CONTROL
+# Not needed on VPS (VPS pulls via git, not rsync)
+# Included here for rsync-based deployments
+# -----------------------------------------------------------------------------
+.git/
+.gitignore
+.gitattributes
+.github/
+
+# -----------------------------------------------------------------------------
+# BUILD AND CACHE ARTIFACTS
+# These are generated, not deployed
+# -----------------------------------------------------------------------------
+node_modules/
+__pycache__/
+*.pyc
+.cache/
+dist/
+build/
+target/
+
+# -----------------------------------------------------------------------------
+# BACKUP AND TEMPORARY FILES
+# Never deploy backup data or temporary files
+# -----------------------------------------------------------------------------
+backups/*
+!backups/.gitkeep
+*.backup
+*.backup-*
+*.bak
+*.orig
+*.tmp
+*.temp
+*~
+.*.swp
+.*.swo
+#*#
+
+# -----------------------------------------------------------------------------
+# OS-SPECIFIC FILES
+# System metadata, not part of project
+# -----------------------------------------------------------------------------
+.DS_Store
+Thumbs.db
+desktop.ini
+.Spotlight-V100
+.Trashes
+
+# -----------------------------------------------------------------------------
+# LOGS
+# Logs should be generated on VPS, not deployed from dev
+# -----------------------------------------------------------------------------
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# =============================================================================
+# USAGE
+# =============================================================================
+#
+# For git-based deployment (webhook):
+#   The deploy script uses git pull, which respects .gitignore but not this file.
+#   Sensitive files should be in .gitignore AND .deployignore.
+#
+# For rsync-based deployment:
+#   rsync -av --exclude-from='.deployignore' ./ user@vps:/opt/peermesh/
+#
+# For manual verification:
+#   # Check what would be excluded
+#   rsync -av --exclude-from='.deployignore' --dry-run ./ /tmp/deploy-test/
+#
+# =============================================================================

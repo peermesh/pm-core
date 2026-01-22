@@ -244,20 +244,20 @@ Profiles are **built on** the foundation decisions:
 
 | Foundation Decision | Profile Implementation |
 |---------------------|------------------------|
-| D3.1 Secret Management | All secrets via `_FILE`, mounted from `./secrets/` |
-| D4.1 Health Checks | YAML anchors, tiered timing |
-| D4.3 Startup Ordering | `depends_on: condition: service_healthy` |
-| D3.3 Network Isolation | Named networks, zone placement |
-| D2.4 Backup Recovery | Native dump tools, rclone sync |
+| [ADR-0003](../docs/decisions/0003-file-based-secrets.md) File-Based Secrets | All secrets via `_FILE`, mounted from `./secrets/` |
+| [ADR-0300](../docs/decisions/0300-health-check-strategy.md) Health Check Strategy | YAML anchors, tiered timing |
+| [ADR-0300](../docs/decisions/0300-health-check-strategy.md) Health Check Strategy | `depends_on: condition: service_healthy` |
+| [ADR-0002](../docs/decisions/0002-four-network-topology.md) Four-Network Topology | Named networks, zone placement |
+| [ADR-0300](../docs/decisions/0300-health-check-strategy.md) Health Check Strategy | Native dump tools, rclone sync (backup context) |
 
 ---
 
 ## References
 
 - Template Specification: `./_template/PROFILE-SPEC.md`
-- Foundation Decisions: `../.dev/execution_strategy/05-execution/`
-- Vision Document: `../../VISION.md`
-- Work Order: `../.dev/ai/workorders/WO-PMDL-2026-01-01-001.md`
+- Foundation Decisions: `../foundation/docs/decisions/`
+- Full ADR Index: `../docs/decisions/INDEX.md`
+- Decision Provenance: `../docs/decisions/PROVENANCE.md`
 
 ---
 

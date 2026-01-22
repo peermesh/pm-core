@@ -1,0 +1,222 @@
+# ==============================================================
+# PeerMesh Docker Lab - Project Configuration
+# ==============================================================
+# This is the primary configuration file for PeerMesh Docker Lab.
+#
+# Copy to .peermesh.yml and customize:
+#   cp .peermesh.yml.example .peermesh.yml
+#
+# This file configures:
+#   - Default profiles and services
+#   - Deployment targets
+#   - Module settings
+#   - CLI preferences
+#
+# For full reproducibility, commit this file to your repository
+# (after removing sensitive values).
+#
+# Documentation: docs/cli.md
+# ==============================================================
+
+# --------------------------------------------------------------
+# Project Settings
+# --------------------------------------------------------------
+
+project:
+  # Project name (used for container prefixes)
+  name: peermesh
+
+  # Primary domain
+  domain: example.com
+
+  # Admin email for Let's Encrypt
+  admin_email: admin@example.com
+
+# --------------------------------------------------------------
+# Default Profiles
+# --------------------------------------------------------------
+# Profiles to enable by default when running `./launch_peermesh.sh up`
+
+profiles:
+  default:
+    - postgresql
+    - redis
+
+  # Profile sets for different environments
+  development:
+    - postgresql
+    - redis
+    - dev
+
+  production:
+    - postgresql
+    - redis
+    - backup
+    - monitoring
+
+# --------------------------------------------------------------
+# Resource Profiles
+# --------------------------------------------------------------
+# Memory allocation presets
+
+resources:
+  # lite: 1GB VPS (minimal services)
+  lite:
+    postgres_memory_limit: 512M
+    postgres_shared_buffers: 128MB
+    redis_maxmemory: 64mb
+
+  # core: 4GB VPS (standard deployment)
+  core:
+    postgres_memory_limit: 1G
+    postgres_shared_buffers: 256MB
+    redis_maxmemory: 128mb
+
+  # full: 8GB+ VPS (everything + observability)
+  full:
+    postgres_memory_limit: 2G
+    postgres_shared_buffers: 512MB
+    redis_maxmemory: 256mb
+
+# --------------------------------------------------------------
+# Modules
+# --------------------------------------------------------------
+# Module-specific configuration
+
+modules:
+  backup:
+    enabled: true
+    schedule:
+      postgres: "0 2 * * *"
+      volumes: "0 3 * * *"
+      offsite: "0 4 * * *"
+    retention:
+      daily: 7
+      weekly: 4
+      monthly: 3
+
+  pki:
+    enabled: false
+    ca_name: "PeerMesh Internal CA"
+    validity_days: 365
+
+# --------------------------------------------------------------
+# Deployment Targets
+# --------------------------------------------------------------
+# Where to deploy (can also be in config/targets.yml)
+
+targets:
+  local:
+    description: "Local development"
+    profiles:
+      - postgresql
+      - redis
+      - dev
+
+  staging:
+    description: "Staging environment"
+    webhook:
+      url: https://webhook.staging.example.com/hooks/deploy
+      secret_env: STAGING_WEBHOOK_SECRET
+    profiles:
+      - postgresql
+      - redis
+      - backup
+
+  production:
+    description: "Production environment"
+    webhook:
+      url: https://webhook.example.com/hooks/deploy
+      secret_env: PRODUCTION_WEBHOOK_SECRET
+    require_confirmation: true
+    profiles:
+      - postgresql
+      - redis
+      - backup
+      - monitoring
+
+# --------------------------------------------------------------
+# CLI Preferences
+# --------------------------------------------------------------
+
+cli:
+  # Default output format: text, json, yaml
+  output_format: text
+
+  # Show colors in output
+  colors: true
+
+  # Default log tail lines
+  log_tail: 100
+
+  # Auto-follow logs
+  log_follow: false
+
+  # Confirm destructive operations
+  confirm_destructive: true
+
+# --------------------------------------------------------------
+# Notifications
+# --------------------------------------------------------------
+# Notification settings for deployments
+
+notifications:
+  slack:
+    enabled: false
+    webhook_env: SLACK_WEBHOOK_URL
+    channel: "#deployments"
+    notify_on:
+      - deploy_start
+      - deploy_success
+      - deploy_failure
+
+  email:
+    enabled: false
+    smtp_host: smtp.example.com
+    smtp_port: 587
+    from: noreply@example.com
+    recipients:
+      - ops@example.com
+
+# --------------------------------------------------------------
+# Health Checks
+# --------------------------------------------------------------
+# Custom health check endpoints
+
+health:
+  # Timeout for health checks (seconds)
+  timeout: 30
+
+  # Custom endpoints to check
+  endpoints:
+    - name: "Traefik"
+      url: "http://localhost:8080/ping"
+      expected_status: 200
+
+    - name: "Dashboard"
+      url: "http://localhost:8080/health"
+      expected_status: 200
+
+# --------------------------------------------------------------
+# Backup Configuration
+# --------------------------------------------------------------
+# Override default backup settings
+
+backup:
+  # Local backup path
+  local_path: /var/backups/pmdl
+
+  # Remote backup destination (S3, MinIO, etc.)
+  remote:
+    enabled: false
+    type: s3
+    endpoint_env: BACKUP_S3_ENDPOINT
+    bucket_env: BACKUP_S3_BUCKET
+    access_key_env: BACKUP_S3_ACCESS_KEY
+    secret_key_env: BACKUP_S3_SECRET_KEY
+
+  # Encryption
+  encryption:
+    enabled: true
+    method: age
+    recipient_env: BACKUP_AGE_RECIPIENT

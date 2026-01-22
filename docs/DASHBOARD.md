@@ -175,3 +175,161 @@ http://localhost:8080
 - Session-based authentication
 - Bcrypt password hashing
 - No sensitive data exposure in logs or responses
+
+## Multi-Instance Management (Phase 5)
+
+The dashboard supports managing multiple PeerMesh deployments from a single interface, enabling cross-system management for distributed environments.
+
+### Features
+
+- **Instance Registry**: Register and track multiple remote PeerMesh dashboard instances
+- **Health Monitoring**: Automatic health checks every 30 seconds with visual status indicators
+- **Remote Actions**: Trigger sync operations on remote instances
+- **Container Visibility**: View containers running on remote instances
+- **Persistent Storage**: Instance registry survives dashboard restarts
+
+### API Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/instances` | GET | List all registered instances |
+| `/api/instances` | POST | Register a new remote instance |
+| `/api/instances/{id}` | GET | Get instance details |
+| `/api/instances/{id}` | DELETE | Remove a registered instance |
+| `/api/instances/{id}/health` | GET | Check instance health |
+| `/api/instances/{id}/sync` | POST | Trigger sync on remote instance |
+| `/api/instances/{id}/containers` | GET | Get containers from remote instance |
+
+### Configuration
+
+Configure the dashboard instance identity and inter-instance communication:
+
+```bash
+# .env or environment variables
+
+# This instance's identity (optional - defaults to hostname)
+INSTANCE_NAME=production-server
+INSTANCE_ID=prod-01  # Optional: auto-generated from name if not set
+INSTANCE_URL=https://dashboard.example.com  # URL other instances use to reach this one
+
+# Shared secret for instance-to-instance authentication (recommended for production)
+INSTANCE_SECRET=your-secure-shared-secret
+
+# Data persistence path
+INSTANCE_DATA_PATH=/data/instances.json  # Default: /data/instances.json
+```
+
+### Security Model
+
+Multi-instance communication follows a trust model designed for internal networks:
+
+#### Instance Token Authentication
+
+1. **Shared Secret**: All instances in a cluster share the same `INSTANCE_SECRET`
+2. **Header-Based Auth**: Remote requests include `X-Instance-Token` header
+3. **Constant-Time Comparison**: Tokens are compared securely to prevent timing attacks
+
+#### Recommended Setup
+
+For production environments:
+
+```bash
+# Generate a strong shared secret (run once, share across all instances)
+openssl rand -base64 32
+
+# Set on all instances in the cluster
+INSTANCE_SECRET=your-generated-secret
+```
+
+#### Permission Model
+
+| User Type | View Instances | Register/Remove | Health Check | Trigger Sync | View Remote Containers |
+|-----------|---------------|-----------------|--------------|--------------|----------------------|
+| Authenticated | Yes | Yes | Yes | Yes | Yes |
+| Guest | Yes | No | Yes | No | Yes |
+| Unauthenticated | No | No | No | No | No |
+
+#### Network Security Recommendations
+
+1. **Internal Network**: Deploy instances on a private network or VPN
+2. **HTTPS**: Always use TLS for instance-to-instance communication
+3. **Firewall**: Restrict dashboard ports to known IP addresses
+4. **Audit Logging**: Monitor `/api/instances/*` endpoints for unusual activity
+
+### Usage Examples
+
+#### Register a Remote Instance via API
+
+```bash
+curl -X POST https://dashboard.example.com/api/instances \
+  -H "Content-Type: application/json" \
+  -H "Cookie: session=your-session-cookie" \
+  -d '{
+    "name": "Staging Server",
+    "url": "https://staging.example.com",
+    "description": "Staging environment",
+    "token": "optional-shared-secret"
+  }'
+```
+
+#### Check Instance Health
+
+```bash
+curl https://dashboard.example.com/api/instances/abc123/health \
+  -H "Cookie: session=your-session-cookie"
+```
+
+#### Trigger Remote Sync
+
+```bash
+curl -X POST https://dashboard.example.com/api/instances/abc123/sync \
+  -H "Cookie: session=your-session-cookie"
+```
+
+### Data Persistence
+
+Instance registrations are stored in a JSON file:
+
+- **Default Location**: `/data/instances.json`
+- **File Permissions**: `0600` (owner read/write only)
+- **Format**: JSON array of instance objects
+- **Automatic Backup**: Consider mounting the data directory as a Docker volume
+
+Example instance data:
+
+```json
+[
+  {
+    "id": "a1b2c3d4",
+    "name": "Production",
+    "url": "https://prod.example.com",
+    "description": "Main production cluster",
+    "created_at": "2026-01-21T10:30:00Z",
+    "last_seen": "2026-01-21T11:45:00Z",
+    "health": "healthy",
+    "version": "0.2.0",
+    "environment": "production"
+  }
+]
+```
+
+### Troubleshooting
+
+#### Instance Shows "Unhealthy"
+
+1. Verify the remote instance is accessible from this instance
+2. Check network connectivity: `curl -I https://remote-instance.com/health`
+3. Verify firewall rules allow traffic between instances
+4. Check if `INSTANCE_SECRET` matches on both ends
+
+#### "Unauthorized" When Registering Instance
+
+- Ensure you are logged in with a non-guest account
+- Check that your session cookie is valid
+- Guest users cannot register or remove instances
+
+#### Remote Sync Fails
+
+- Verify the remote instance has sync capability enabled
+- Check that the remote user has permission to trigger sync
+- Review remote instance logs for error details

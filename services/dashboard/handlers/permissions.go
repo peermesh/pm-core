@@ -51,6 +51,7 @@ func isSafeEndpoint(method, path string) bool {
 		"/api/deployment",
 		"/api/volumes",
 		"/api/alerts",
+		"/api/instances",
 	}
 
 	// Check if the path matches any safe endpoint
@@ -79,6 +80,9 @@ var DangerousEndpoints = []string{
 	// Profile/module operations (future implementation)
 	"/api/profiles",
 	"/api/modules",
+
+	// Instance management operations (POST/DELETE are blocked for guests)
+	"/api/instances",
 }
 
 // IsGuestUser checks if the current request is from a guest user

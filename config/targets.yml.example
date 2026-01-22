@@ -1,0 +1,222 @@
+# ==============================================================
+# PeerMesh Docker Lab - Deployment Targets Configuration
+# ==============================================================
+# This file defines deployment targets for the unified CLI.
+#
+# Copy to targets.yml and customize for your environment:
+#   cp config/targets.yml.example config/targets.yml
+#
+# Usage:
+#   ./launch_peermesh.sh deploy --target=staging
+#   ./launch_peermesh.sh sync --target=production
+#
+# Documentation: docs/cli.md
+# ==============================================================
+
+# --------------------------------------------------------------
+# Default Settings
+# --------------------------------------------------------------
+# These apply to all targets unless overridden
+
+defaults:
+  # Profiles to enable by default
+  profiles:
+    - postgresql
+    - redis
+    - backup
+
+  # Pre-deployment actions
+  pre_deploy:
+    - validate_config
+    - backup_database
+
+  # Post-deployment actions
+  post_deploy:
+    - health_check
+    - notify_slack
+
+  # Deployment timeout (seconds)
+  timeout: 300
+
+  # Retry configuration
+  retries: 3
+  retry_delay: 10
+
+# --------------------------------------------------------------
+# Local Development Target
+# --------------------------------------------------------------
+# Used when running: ./launch_peermesh.sh deploy --target=local
+
+local:
+  description: "Local development environment"
+
+  # Override default profiles for development
+  profiles:
+    - postgresql
+    - redis
+    - dev
+
+  # Local-specific environment
+  environment:
+    TRAEFIK_LOG_LEVEL: DEBUG
+    DEMO_MODE: "true"
+
+  # Skip certain pre-deploy actions locally
+  pre_deploy:
+    - validate_config
+
+  # Local doesn't need health checks or notifications
+  post_deploy: []
+
+# --------------------------------------------------------------
+# Staging Target
+# --------------------------------------------------------------
+# Used when running: ./launch_peermesh.sh deploy --target=staging
+
+staging:
+  description: "Staging/testing environment"
+
+  # Remote host configuration
+  host: staging.example.com
+  port: 22
+  user: deploy
+
+  # SSH key for authentication (optional, uses ssh-agent if not set)
+  # ssh_key: ~/.ssh/staging_deploy_key
+
+  # Remote project directory
+  remote_path: /opt/peermesh
+
+  # Webhook configuration (alternative to SSH deployment)
+  webhook:
+    url: https://webhook.staging.example.com/hooks/deploy
+    # Secret can also be read from environment: STAGING_WEBHOOK_SECRET
+    secret_env: STAGING_WEBHOOK_SECRET
+
+  # Profiles for staging
+  profiles:
+    - postgresql
+    - redis
+    - backup
+    - monitoring
+
+  # Staging environment overrides
+  environment:
+    TRAEFIK_LOG_LEVEL: INFO
+    RESOURCE_PROFILE: core
+
+  # Notifications
+  notifications:
+    slack:
+      webhook_env: SLACK_WEBHOOK_URL
+      channel: "#deployments"
+
+# --------------------------------------------------------------
+# Production Target
+# --------------------------------------------------------------
+# Used when running: ./launch_peermesh.sh deploy --target=production
+
+production:
+  description: "Production environment"
+
+  # Remote host configuration
+  host: prod.example.com
+  port: 22
+  user: deploy
+
+  # Remote project directory
+  remote_path: /opt/peermesh
+
+  # Webhook configuration
+  webhook:
+    url: https://webhook.example.com/hooks/deploy
+    secret_env: PRODUCTION_WEBHOOK_SECRET
+
+  # Production profiles
+  profiles:
+    - postgresql
+    - redis
+    - backup
+    - monitoring
+
+  # Production environment
+  environment:
+    TRAEFIK_LOG_LEVEL: WARN
+    RESOURCE_PROFILE: full
+
+  # Production requires confirmation
+  require_confirmation: true
+
+  # Pre-deployment requirements
+  pre_deploy:
+    - validate_config
+    - backup_database
+    - check_disk_space
+
+  # Post-deployment verification
+  post_deploy:
+    - health_check
+    - smoke_test
+    - notify_slack
+    - notify_email
+
+  # Rollback configuration
+  rollback:
+    enabled: true
+    keep_releases: 5
+
+  # Notifications
+  notifications:
+    slack:
+      webhook_env: SLACK_WEBHOOK_URL
+      channel: "#production-deployments"
+    email:
+      recipients:
+        - ops@example.com
+      on_failure: true
+      on_success: false
+
+# --------------------------------------------------------------
+# Custom Target Template
+# --------------------------------------------------------------
+# Copy and modify for additional environments
+
+# my_custom_target:
+#   description: "Custom deployment target"
+#   host: custom.example.com
+#   port: 22
+#   user: deploy
+#   remote_path: /opt/peermesh
+#
+#   # Choose deployment method: ssh, webhook, or docker_context
+#   deployment_method: webhook
+#
+#   webhook:
+#     url: https://webhook.custom.example.com/hooks/deploy
+#     secret_env: CUSTOM_WEBHOOK_SECRET
+#     # Headers to include with webhook
+#     headers:
+#       X-Deploy-Environment: custom
+#
+#   profiles:
+#     - postgresql
+#     - redis
+#
+#   environment:
+#     DOMAIN: custom.example.com
+#     ADMIN_EMAIL: admin@custom.example.com
+
+# --------------------------------------------------------------
+# Environment Variable Reference
+# --------------------------------------------------------------
+# The following environment variables are used by targets:
+#
+# STAGING_WEBHOOK_SECRET    - Webhook token for staging
+# PRODUCTION_WEBHOOK_SECRET - Webhook token for production
+# SLACK_WEBHOOK_URL         - Slack notifications
+# SMTP_HOST                 - Email notifications
+# SMTP_USER                 - Email authentication
+# SMTP_PASSWORD             - Email authentication
+#
+# Set these in your shell or in a .env.local file:
+#   export PRODUCTION_WEBHOOK_SECRET="your-secret-token"

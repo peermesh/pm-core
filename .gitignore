@@ -85,3 +85,9 @@ target/
 
 # Compiled binaries
 services/dashboard/dashboard
+
+# Configuration Files (keep examples, ignore actual configs)
+.peermesh.yml
+config/targets.yml
+!.peermesh.yml.example
+!config/targets.yml.example

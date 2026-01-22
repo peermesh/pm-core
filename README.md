@@ -30,20 +30,42 @@ This is infrastructure boilerplate - a starting point you clone and customize fo
 git clone https://github.com/peermesh/docker-lab.git
 cd docker-lab
 
-# Copy environment template
-cp .env.example .env
-
-# Generate secrets
-./scripts/generate-secrets.sh
+# Initialize configuration
+./launch_peermesh.sh config init
 
 # Start services
-docker compose up -d
+./launch_peermesh.sh up --profile=postgresql,redis
 
-# Verify
-docker compose ps
+# Check status
+./launch_peermesh.sh status
 ```
 
 Your services are now running with Traefik reverse proxy at ports 80/443.
+
+## Unified CLI
+
+The `launch_peermesh.sh` script provides a single entry point for all deployment operations:
+
+```bash
+# Interactive menu (run without arguments)
+./launch_peermesh.sh
+
+# Direct commands
+./launch_peermesh.sh status              # Show deployment status
+./launch_peermesh.sh up --profile=redis  # Start with specific profiles
+./launch_peermesh.sh down                # Stop services
+./launch_peermesh.sh logs traefik -f     # Follow service logs
+./launch_peermesh.sh health -v           # Run health checks
+./launch_peermesh.sh deploy --target=prod # Deploy to production
+./launch_peermesh.sh backup run          # Run backup
+./launch_peermesh.sh module list         # List available modules
+./launch_peermesh.sh config validate     # Validate configuration
+
+# Help
+./launch_peermesh.sh --help
+```
+
+See [CLI Documentation](docs/cli.md) for complete usage.
 
 ## Features
 

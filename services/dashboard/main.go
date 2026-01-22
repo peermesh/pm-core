@@ -49,15 +49,18 @@ func main() {
 	mux.HandleFunc("/api/alerts", handlers.AlertsHandler)
 	mux.HandleFunc("/api/events", handlers.EventsHandler)
 	mux.HandleFunc("/api/deployment", handlers.DeploymentHandler)
+	mux.HandleFunc("/api/instances", handlers.InstancesHandler)
+	mux.HandleFunc("/api/instances/", handlers.InstancesHandler)
 
 	// Static file server
 	staticFS := http.FileServer(http.Dir("./static"))
 	mux.Handle("/", staticFS)
 
-	// Wrap with middleware chain: Auth -> Permissions -> Handler
+	// Wrap with middleware chain: Auth -> InstanceToken -> Permissions -> Handler
 	// Auth middleware runs first to ensure user is authenticated
-	// Permission middleware runs second to check guest restrictions
-	handler := handlers.AuthMiddleware(handlers.PermissionMiddleware(mux))
+	// InstanceToken middleware validates inter-instance communication
+	// Permission middleware runs last to check guest restrictions
+	handler := handlers.AuthMiddleware(handlers.InstanceTokenMiddleware(handlers.PermissionMiddleware(mux)))
 
 	server := &http.Server{
 		Addr:         ":" + port,

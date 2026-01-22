@@ -228,6 +228,65 @@
             </div>
         </section>
 
+        <!-- Remote Instances Section -->
+        <section class="mb-8" id="instances-section">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-semibold text-gray-200">Connected Instances</h2>
+                <div class="flex items-center space-x-3">
+                    <span id="instances-count" class="text-sm text-gray-500">-- instances</span>
+                    <button
+                        id="add-instance-btn"
+                        data-action="add-instance"
+                        class="inline-flex items-center px-3 py-1.5 border border-gray-600 rounded-md text-sm font-medium text-gray-300 bg-gray-700 hover:bg-gray-600 hover:border-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-primary-500 transition-colors"
+                        onclick="showAddInstanceModal()"
+                    >
+                        <svg class="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                        </svg>
+                        Add Instance
+                    </button>
+                </div>
+            </div>
+
+            <!-- This Instance Card -->
+            <div id="this-instance-card" class="bg-gray-800 rounded-lg border border-primary-600 p-4 mb-4">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center">
+                        <div class="w-3 h-3 bg-green-500 rounded-full animate-pulse mr-3"></div>
+                        <div>
+                            <h3 class="text-md font-medium text-gray-200">
+                                <span id="this-instance-name">This Instance</span>
+                                <span class="ml-2 px-2 py-0.5 bg-primary-600/30 text-primary-400 text-xs rounded">Current</span>
+                            </h3>
+                            <p class="text-sm text-gray-400" id="this-instance-url">--</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <div class="text-right">
+                            <p class="text-xs text-gray-500">Environment</p>
+                            <p class="text-sm text-gray-300" id="this-instance-env">--</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-xs text-gray-500">Version</p>
+                            <p class="text-sm text-gray-300" id="this-instance-version">--</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Remote Instances Grid -->
+            <div id="instances-container">
+                <div id="instances-empty" class="bg-gray-800 rounded-lg border border-gray-700 border-dashed p-6 text-center">
+                    <svg class="mx-auto h-10 w-10 text-gray-500 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+                    </svg>
+                    <h3 class="text-md font-medium text-gray-400">No remote instances connected</h3>
+                    <p class="text-sm text-gray-500 mt-1">Add remote PeerMesh dashboards to manage them from here.</p>
+                </div>
+                <div id="instances-grid" class="grid grid-cols-1 lg:grid-cols-2 gap-4 hidden"></div>
+            </div>
+        </section>
+
         <!-- Volumes Section -->
         <section class="mb-8">
             <div class="flex items-center justify-between mb-4">
@@ -1190,5 +1249,447 @@
             window.addEventListener('sessionUpdated', loadDeploymentInfo);
         })();
     </script>
+
+    <!-- Instance Management -->
+    <script>
+        (function() {
+            let instancesData = null;
+
+            // Load and render instances
+            function loadInstances() {
+                fetch('/api/instances')
+                    .then(r => r.json())
+                    .then(data => {
+                        instancesData = data;
+                        renderInstances(data);
+                    })
+                    .catch(e => {
+                        console.error('Failed to load instances:', e);
+                    });
+            }
+
+            // Render instances to the UI
+            function renderInstances(data) {
+                // Update this instance card
+                const thisInst = data.this_instance;
+                if (thisInst) {
+                    document.getElementById('this-instance-name').textContent = thisInst.name || 'This Instance';
+                    document.getElementById('this-instance-url').textContent = thisInst.url || '--';
+                    document.getElementById('this-instance-env').textContent = capitalizeFirst(thisInst.environment || 'local');
+                    document.getElementById('this-instance-version').textContent = thisInst.version || '--';
+                }
+
+                // Update count
+                const countEl = document.getElementById('instances-count');
+                if (countEl) {
+                    const total = data.total_count || 0;
+                    const healthy = data.healthy_count || 0;
+                    if (total > 0) {
+                        countEl.textContent = `${healthy}/${total} healthy`;
+                        countEl.className = healthy === total
+                            ? 'text-sm text-green-400'
+                            : 'text-sm text-amber-400';
+                    } else {
+                        countEl.textContent = '0 instances';
+                        countEl.className = 'text-sm text-gray-500';
+                    }
+                }
+
+                // Render remote instances
+                const emptyState = document.getElementById('instances-empty');
+                const grid = document.getElementById('instances-grid');
+
+                if (!data.instances || data.instances.length === 0) {
+                    emptyState.classList.remove('hidden');
+                    grid.classList.add('hidden');
+                    return;
+                }
+
+                emptyState.classList.add('hidden');
+                grid.classList.remove('hidden');
+
+                grid.innerHTML = data.instances.map(inst => {
+                    const healthColor = inst.health === 'healthy' ? 'bg-green-500' : inst.health === 'unhealthy' ? 'bg-red-500' : 'bg-gray-500';
+                    const healthText = inst.health === 'healthy' ? 'Healthy' : inst.health === 'unhealthy' ? 'Unhealthy' : 'Unknown';
+                    const lastSeen = inst.last_seen ? formatTimeAgo(new Date(inst.last_seen)) : 'Never';
+
+                    return `
+                        <div class="bg-gray-800 rounded-lg border border-gray-700 p-4 hover:border-gray-600 transition-colors" data-instance-id="${inst.id}">
+                            <div class="flex items-start justify-between">
+                                <div class="flex items-center">
+                                    <div class="w-3 h-3 ${healthColor} rounded-full mr-3 ${inst.health === 'healthy' ? 'animate-pulse' : ''}"></div>
+                                    <div>
+                                        <h3 class="text-md font-medium text-gray-200">${escapeHtml(inst.name)}</h3>
+                                        <p class="text-sm text-gray-500 truncate max-w-xs" title="${escapeHtml(inst.url)}">${escapeHtml(inst.url)}</p>
+                                    </div>
+                                </div>
+                                <div class="flex items-center space-x-2">
+                                    <button
+                                        data-action="check-health"
+                                        onclick="checkInstanceHealth('${inst.id}')"
+                                        class="p-1.5 text-gray-400 hover:text-gray-200 hover:bg-gray-700 rounded transition-colors guest-allowed"
+                                        title="Check health"
+                                    >
+                                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                        </svg>
+                                    </button>
+                                    <button
+                                        data-action="remove-instance"
+                                        onclick="removeInstance('${inst.id}', '${escapeHtml(inst.name)}')"
+                                        class="p-1.5 text-gray-400 hover:text-red-400 hover:bg-gray-700 rounded transition-colors"
+                                        title="Remove instance"
+                                    >
+                                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+                            ${inst.description ? `<p class="text-sm text-gray-400 mt-2">${escapeHtml(inst.description)}</p>` : ''}
+                            <div class="mt-3 flex items-center justify-between text-xs">
+                                <div class="flex items-center space-x-3">
+                                    <span class="px-2 py-0.5 rounded ${healthColor === 'bg-green-500' ? 'bg-green-900/50 text-green-400' : healthColor === 'bg-red-500' ? 'bg-red-900/50 text-red-400' : 'bg-gray-700 text-gray-400'}">${healthText}</span>
+                                    ${inst.environment ? `<span class="text-gray-500">${capitalizeFirst(inst.environment)}</span>` : ''}
+                                    ${inst.version ? `<span class="text-gray-500">v${inst.version}</span>` : ''}
+                                </div>
+                                <span class="text-gray-500">Last seen: ${lastSeen}</span>
+                            </div>
+                            <div class="mt-3 pt-3 border-t border-gray-700 flex items-center justify-end space-x-2">
+                                <button
+                                    data-action="view-containers"
+                                    onclick="viewRemoteContainers('${inst.id}', '${escapeHtml(inst.name)}')"
+                                    class="px-2 py-1 text-xs text-gray-400 hover:text-gray-200 hover:bg-gray-700 rounded transition-colors guest-allowed"
+                                >
+                                    View Containers
+                                </button>
+                                <button
+                                    data-action="trigger-sync"
+                                    onclick="triggerRemoteSync('${inst.id}', '${escapeHtml(inst.name)}')"
+                                    class="px-2 py-1 text-xs text-primary-400 hover:text-primary-300 hover:bg-gray-700 rounded transition-colors"
+                                >
+                                    Trigger Sync
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+                // Reapply guest mode restrictions if needed
+                if (window.isGuestMode && typeof window.refreshGuestMode === 'function') {
+                    window.refreshGuestMode();
+                }
+            }
+
+            // Helper functions
+            function capitalizeFirst(str) {
+                if (!str) return '';
+                return str.charAt(0).toUpperCase() + str.slice(1);
+            }
+
+            function escapeHtml(str) {
+                if (!str) return '';
+                const div = document.createElement('div');
+                div.textContent = str;
+                return div.innerHTML;
+            }
+
+            function formatTimeAgo(date) {
+                const seconds = Math.floor((new Date() - date) / 1000);
+                if (seconds < 60) return 'Just now';
+                const minutes = Math.floor(seconds / 60);
+                if (minutes < 60) return `${minutes}m ago`;
+                const hours = Math.floor(minutes / 60);
+                if (hours < 24) return `${hours}h ago`;
+                const days = Math.floor(hours / 24);
+                return `${days}d ago`;
+            }
+
+            // Check instance health
+            window.checkInstanceHealth = function(instanceId) {
+                const card = document.querySelector(`[data-instance-id="${instanceId}"]`);
+                if (card) {
+                    const dot = card.querySelector('.rounded-full');
+                    if (dot) {
+                        dot.className = 'w-3 h-3 bg-yellow-500 rounded-full mr-3 animate-pulse';
+                    }
+                }
+
+                fetch(`/api/instances/${instanceId}/health`)
+                    .then(r => r.json())
+                    .then(data => {
+                        // Reload all instances to update UI
+                        loadInstances();
+                    })
+                    .catch(e => {
+                        console.error('Health check failed:', e);
+                        loadInstances();
+                    });
+            };
+
+            // Remove instance
+            window.removeInstance = function(instanceId, instanceName) {
+                if (!confirm(`Remove instance "${instanceName}"? This action cannot be undone.`)) {
+                    return;
+                }
+
+                fetch(`/api/instances/${instanceId}`, { method: 'DELETE' })
+                    .then(r => {
+                        if (r.ok) {
+                            loadInstances();
+                        } else {
+                            return r.text().then(text => {
+                                throw new Error(text || 'Failed to remove instance');
+                            });
+                        }
+                    })
+                    .catch(e => {
+                        alert('Error: ' + e.message);
+                    });
+            };
+
+            // Trigger remote sync
+            window.triggerRemoteSync = function(instanceId, instanceName) {
+                if (!confirm(`Trigger sync on "${instanceName}"? This will pull latest images on the remote instance.`)) {
+                    return;
+                }
+
+                fetch(`/api/instances/${instanceId}/sync`, { method: 'POST' })
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.success) {
+                            alert('Sync triggered successfully on ' + instanceName);
+                        } else {
+                            alert('Sync failed: ' + (data.message || 'Unknown error'));
+                        }
+                    })
+                    .catch(e => {
+                        alert('Error: ' + e.message);
+                    });
+            };
+
+            // View remote containers (opens modal)
+            window.viewRemoteContainers = function(instanceId, instanceName) {
+                fetch(`/api/instances/${instanceId}/containers`)
+                    .then(r => r.json())
+                    .then(data => {
+                        showRemoteContainersModal(instanceName, data.containers || []);
+                    })
+                    .catch(e => {
+                        alert('Failed to fetch containers: ' + e.message);
+                    });
+            };
+
+            // Show add instance modal
+            window.showAddInstanceModal = function() {
+                const modal = document.getElementById('add-instance-modal');
+                if (modal) {
+                    modal.classList.remove('hidden');
+                    document.getElementById('instance-name-input').focus();
+                }
+            };
+
+            // Hide add instance modal
+            window.hideAddInstanceModal = function() {
+                const modal = document.getElementById('add-instance-modal');
+                if (modal) {
+                    modal.classList.add('hidden');
+                    // Clear form
+                    document.getElementById('instance-name-input').value = '';
+                    document.getElementById('instance-url-input').value = '';
+                    document.getElementById('instance-desc-input').value = '';
+                    document.getElementById('instance-token-input').value = '';
+                }
+            };
+
+            // Add instance form submission
+            window.submitAddInstance = function(event) {
+                event.preventDefault();
+
+                const name = document.getElementById('instance-name-input').value.trim();
+                const url = document.getElementById('instance-url-input').value.trim();
+                const description = document.getElementById('instance-desc-input').value.trim();
+                const token = document.getElementById('instance-token-input').value.trim();
+
+                if (!name || !url) {
+                    alert('Name and URL are required');
+                    return;
+                }
+
+                fetch('/api/instances', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, url, description, token })
+                })
+                    .then(r => {
+                        if (r.ok) {
+                            hideAddInstanceModal();
+                            loadInstances();
+                        } else {
+                            return r.text().then(text => {
+                                throw new Error(text || 'Failed to add instance');
+                            });
+                        }
+                    })
+                    .catch(e => {
+                        alert('Error: ' + e.message);
+                    });
+            };
+
+            // Show remote containers modal
+            function showRemoteContainersModal(instanceName, containers) {
+                let modal = document.getElementById('remote-containers-modal');
+                if (!modal) {
+                    // Create modal if it doesn't exist
+                    modal = document.createElement('div');
+                    modal.id = 'remote-containers-modal';
+                    modal.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden';
+                    modal.innerHTML = `
+                        <div class="bg-gray-800 rounded-lg border border-gray-700 shadow-xl max-w-2xl w-full mx-4 max-h-[80vh] overflow-hidden flex flex-col">
+                            <div class="flex items-center justify-between p-4 border-b border-gray-700">
+                                <h3 id="remote-modal-title" class="text-lg font-semibold text-gray-200">Remote Containers</h3>
+                                <button onclick="hideRemoteContainersModal()" class="text-gray-400 hover:text-gray-200">
+                                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </button>
+                            </div>
+                            <div id="remote-modal-content" class="p-4 overflow-y-auto"></div>
+                        </div>
+                    `;
+                    document.body.appendChild(modal);
+                }
+
+                document.getElementById('remote-modal-title').textContent = `Containers on ${instanceName}`;
+
+                const content = document.getElementById('remote-modal-content');
+                if (!containers || containers.length === 0) {
+                    content.innerHTML = '<p class="text-gray-400 text-center py-4">No containers found</p>';
+                } else {
+                    content.innerHTML = `
+                        <table class="w-full text-sm">
+                            <thead class="bg-gray-750 text-gray-400">
+                                <tr>
+                                    <th class="px-3 py-2 text-left">Name</th>
+                                    <th class="px-3 py-2 text-left">Status</th>
+                                    <th class="px-3 py-2 text-right">Memory</th>
+                                    <th class="px-3 py-2 text-right">CPU</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-700">
+                                ${containers.map(c => `
+                                    <tr class="hover:bg-gray-750/50">
+                                        <td class="px-3 py-2">
+                                            <div class="font-medium text-gray-200">${escapeHtml(c.name)}</div>
+                                            <div class="text-xs text-gray-500">${escapeHtml(c.image)}</div>
+                                        </td>
+                                        <td class="px-3 py-2">
+                                            <span class="px-2 py-0.5 rounded text-xs ${c.status === 'running' ? 'bg-green-900/50 text-green-400' : 'bg-gray-700 text-gray-400'}">${c.status}</span>
+                                        </td>
+                                        <td class="px-3 py-2 text-right text-gray-300">${c.resources?.memory_mb || 0} MB</td>
+                                        <td class="px-3 py-2 text-right text-gray-300">${(c.resources?.cpu_percent || 0).toFixed(1)}%</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    `;
+                }
+
+                modal.classList.remove('hidden');
+            }
+
+            window.hideRemoteContainersModal = function() {
+                const modal = document.getElementById('remote-containers-modal');
+                if (modal) {
+                    modal.classList.add('hidden');
+                }
+            };
+
+            // Initial load
+            loadInstances();
+
+            // Refresh periodically
+            setInterval(loadInstances, 60000);
+
+            // Close modals on escape key
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') {
+                    hideAddInstanceModal();
+                    hideRemoteContainersModal();
+                }
+            });
+        })();
+    </script>
+
+    <!-- Add Instance Modal -->
+    <div id="add-instance-modal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
+        <div class="bg-gray-800 rounded-lg border border-gray-700 shadow-xl max-w-md w-full mx-4">
+            <div class="flex items-center justify-between p-4 border-b border-gray-700">
+                <h3 class="text-lg font-semibold text-gray-200">Add Remote Instance</h3>
+                <button onclick="hideAddInstanceModal()" class="text-gray-400 hover:text-gray-200">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            <form onsubmit="submitAddInstance(event)" class="p-4 space-y-4">
+                <div>
+                    <label for="instance-name-input" class="block text-sm font-medium text-gray-300 mb-1">Name *</label>
+                    <input
+                        type="text"
+                        id="instance-name-input"
+                        class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-gray-200 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                        placeholder="Production Server"
+                        required
+                    >
+                </div>
+                <div>
+                    <label for="instance-url-input" class="block text-sm font-medium text-gray-300 mb-1">Dashboard URL *</label>
+                    <input
+                        type="url"
+                        id="instance-url-input"
+                        class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-gray-200 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                        placeholder="https://dashboard.example.com"
+                        required
+                    >
+                    <p class="text-xs text-gray-500 mt-1">Full URL to the remote PeerMesh dashboard</p>
+                </div>
+                <div>
+                    <label for="instance-desc-input" class="block text-sm font-medium text-gray-300 mb-1">Description</label>
+                    <input
+                        type="text"
+                        id="instance-desc-input"
+                        class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-gray-200 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                        placeholder="Main production deployment"
+                    >
+                </div>
+                <div>
+                    <label for="instance-token-input" class="block text-sm font-medium text-gray-300 mb-1">Shared Secret (Optional)</label>
+                    <input
+                        type="password"
+                        id="instance-token-input"
+                        class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-gray-200 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                        placeholder="Optional authentication token"
+                    >
+                    <p class="text-xs text-gray-500 mt-1">If the remote instance requires authentication between instances</p>
+                </div>
+                <div class="flex justify-end space-x-3 pt-2">
+                    <button
+                        type="button"
+                        onclick="hideAddInstanceModal()"
+                        class="px-4 py-2 text-sm font-medium text-gray-300 bg-gray-700 border border-gray-600 rounded-md hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-gray-500"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        type="submit"
+                        class="px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-primary-500"
+                    >
+                        Add Instance
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
 </body>
 </html>

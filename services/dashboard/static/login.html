@@ -94,10 +94,11 @@
         }
 
         // Check if demo mode is enabled and show guest access button
-        fetch('/api/config')
+        // Use /api/session which is accessible without auth and returns demo_mode status
+        fetch('/api/session')
             .then(r => r.json())
-            .then(config => {
-                if (config.demo_mode_enabled) {
+            .then(session => {
+                if (session.demo_mode) {
                     document.getElementById('demo-access-section').classList.remove('hidden');
                 }
             })

@@ -79,6 +79,48 @@ This frontend stack requires **zero build step** - everything loads via CDN.
 | `/api/logout` | POST | End session |
 | `/health` | GET | Liveness probe |
 
+## Quick Start: Setting Up Credentials
+
+> **Naming Convention**: This dashboard uses the `DOCKERLAB_` prefix.
+> See [GLOSSARY.md](./GLOSSARY.md) for all naming conventions.
+
+### Local Development
+
+Add to your `.env` file:
+
+```bash
+# Docker Lab Dashboard credentials (REQUIRED for local dev with auth)
+DOCKERLAB_USERNAME=admin
+DOCKERLAB_PASSWORD=your-local-dev-password
+
+# Or disable auth for local testing by leaving PASSWORD empty
+# DOCKERLAB_PASSWORD=
+```
+
+Generate a secure password:
+
+```bash
+# Generate random password
+openssl rand -base64 24
+```
+
+### Production Deployment
+
+For VPS/production, set secure credentials:
+
+```bash
+# Generate and set password
+export DOCKERLAB_PASSWORD=$(openssl rand -base64 24)
+echo "DOCKERLAB_PASSWORD=$DOCKERLAB_PASSWORD" >> .env
+
+# Save this password somewhere secure!
+echo "Docker Lab Dashboard login: admin / $DOCKERLAB_PASSWORD"
+```
+
+### Current VPS Credentials (dockerlab.peermesh.org)
+
+See `AGENTS.md` for current production credentials. These are only documented in the private repo, not committed to the public repo.
+
 ## Features
 
 - Real-time container monitoring and status
@@ -97,10 +139,12 @@ The dashboard supports a demo mode for public showcases and demonstrations.
 Set the following environment variable in your `.env` file:
 
 ```bash
-DEMO_MODE=true
+DOCKERLAB_DEMO_MODE=true
 ```
 
 For production deployment at dockerlab.peermesh.org, this should be set to true to enable public access.
+
+> **Backwards Compatibility**: `DEMO_MODE=true` still works but is deprecated.
 
 ### Guest Access
 
@@ -149,9 +193,11 @@ This will remove the guest access button and require authentication for all dash
 
 When demo mode is disabled, all access requires authentication:
 
-- Username: Set via `DASHBOARD_USERNAME` environment variable (default: admin)
-- Password: Set via `DASHBOARD_PASSWORD` environment variable
+- Username: Set via `DOCKERLAB_USERNAME` environment variable (default: admin)
+- Password: Set via `DOCKERLAB_PASSWORD` environment variable
 - Use `./scripts/generate-secrets.sh` to create secure credentials
+
+> **Backwards Compatibility**: Old variable names (`DASHBOARD_USERNAME`, `DASHBOARD_PASSWORD`) still work but are deprecated.
 
 ## Access
 

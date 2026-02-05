@@ -92,7 +92,12 @@ func init() {
 	}
 
 	// Initialize this instance's identity
-	thisInstanceName = os.Getenv("INSTANCE_NAME")
+	// New naming: DOCKERLAB_INSTANCE_* (see docs/GLOSSARY.md)
+	// Backwards compatible: INSTANCE_* still works but is deprecated
+	thisInstanceName = os.Getenv("DOCKERLAB_INSTANCE_NAME")
+	if thisInstanceName == "" {
+		thisInstanceName = os.Getenv("INSTANCE_NAME") // deprecated
+	}
 	if thisInstanceName == "" {
 		hostname, err := os.Hostname()
 		if err == nil {
@@ -103,19 +108,28 @@ func init() {
 	}
 
 	// Generate or load instance ID
-	thisInstanceID = os.Getenv("INSTANCE_ID")
+	thisInstanceID = os.Getenv("DOCKERLAB_INSTANCE_ID")
+	if thisInstanceID == "" {
+		thisInstanceID = os.Getenv("INSTANCE_ID") // deprecated
+	}
 	if thisInstanceID == "" {
 		thisInstanceID = generateInstanceID(thisInstanceName)
 	}
 
 	// Load shared secret for instance-to-instance communication
-	instanceSecret = os.Getenv("INSTANCE_SECRET")
+	instanceSecret = os.Getenv("DOCKERLAB_INSTANCE_SECRET")
+	if instanceSecret == "" {
+		instanceSecret = os.Getenv("INSTANCE_SECRET") // deprecated
+	}
 	if instanceSecret == "" {
 		instanceSecret = getEnvOrFile("", "/run/secrets/instance_secret", "")
 	}
 
 	// Set data path for persistence
-	instanceDataPath = os.Getenv("INSTANCE_DATA_PATH")
+	instanceDataPath = os.Getenv("DOCKERLAB_INSTANCE_DATA_PATH")
+	if instanceDataPath == "" {
+		instanceDataPath = os.Getenv("INSTANCE_DATA_PATH") // deprecated
+	}
 	if instanceDataPath == "" {
 		instanceDataPath = "/data/instances.json"
 	}
@@ -670,7 +684,11 @@ func verifyToken(token, storedHash string) bool {
 
 // getThisInstanceURL returns the URL of this instance
 func getThisInstanceURL() string {
-	url := os.Getenv("INSTANCE_URL")
+	// New naming: DOCKERLAB_INSTANCE_URL (see docs/GLOSSARY.md)
+	url := os.Getenv("DOCKERLAB_INSTANCE_URL")
+	if url == "" {
+		url = os.Getenv("INSTANCE_URL") // deprecated
+	}
 	if url != "" {
 		return url
 	}

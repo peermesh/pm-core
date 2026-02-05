@@ -44,18 +44,30 @@ type SessionInfo struct {
 
 func init() {
 	// Load credentials from environment (preferred) or secrets file (fallback)
-	authUsername = os.Getenv("DASHBOARD_USERNAME")
+	// New naming: DOCKERLAB_* (see docs/GLOSSARY.md)
+	// Backwards compatible: DASHBOARD_* still works but is deprecated
+	authUsername = os.Getenv("DOCKERLAB_USERNAME")
+	if authUsername == "" {
+		authUsername = os.Getenv("DASHBOARD_USERNAME") // deprecated
+	}
 	if authUsername == "" {
 		authUsername = getEnvOrFile("", "/run/secrets/dashboard_username", "admin")
 	}
 
-	authPassword = os.Getenv("DASHBOARD_PASSWORD")
+	authPassword = os.Getenv("DOCKERLAB_PASSWORD")
+	if authPassword == "" {
+		authPassword = os.Getenv("DASHBOARD_PASSWORD") // deprecated
+	}
 	if authPassword == "" {
 		authPassword = getEnvOrFile("", "/run/secrets/dashboard_password", "")
 	}
 
 	// Load demo mode configuration
-	demoMode = os.Getenv("DEMO_MODE") == "true"
+	// New naming: DOCKERLAB_DEMO_MODE (see docs/GLOSSARY.md)
+	demoMode = os.Getenv("DOCKERLAB_DEMO_MODE") == "true"
+	if !demoMode {
+		demoMode = os.Getenv("DEMO_MODE") == "true" // deprecated
+	}
 	// Guest is enabled by default when demo mode is on, unless explicitly disabled
 	demoModeGuestEnabled = true
 	if guestEnv := os.Getenv("DEMO_MODE_GUEST_ENABLED"); guestEnv != "" {

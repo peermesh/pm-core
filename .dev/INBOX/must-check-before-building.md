@@ -1,0 +1,1 @@
+https://search.opentofu.org/docs

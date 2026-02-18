@@ -19,7 +19,7 @@ sudo ./scripts/security/run-docker-bench.sh
 ./scripts/security/run-docker-bench.sh --help
 ```
 
-**Output**: Reports saved to `.dev/ai/security/docker-bench-*.log`
+**Output**: Reports saved to `../../.dev/ai/security/docker-bench-*.log`
 
 ## Documentation
 

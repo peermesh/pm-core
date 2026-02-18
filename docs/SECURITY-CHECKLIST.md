@@ -315,7 +315,7 @@ Comprehensive security checklist based on CIS Docker Benchmark and OWASP Contain
 
 - [SECURITY.md](SECURITY.md) - Security guide
 - [SECURITY-ARCHITECTURE.md](SECURITY-ARCHITECTURE.md) - Architecture details
-- [SECURITY-FINDINGS.md](../.dev/ai/security/SECURITY-FINDINGS.md) - Issue tracking
+- [SECURITY-FINDINGS.md](../../../.dev/ai/security/SECURITY-FINDINGS.md) - Issue tracking
 - [Docker Bench Guide](../scripts/security/DOCKER-BENCH-GUIDE.md) - Benchmark details
 
 ---

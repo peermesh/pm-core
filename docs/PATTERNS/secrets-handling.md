@@ -348,6 +348,6 @@ When upgrading an app to use file-based secrets:
 
 ## References
 
-- Universal Patterns Research: `.dev/ai/research/2026-01-03-universal-patterns-from-app-testing.md`
+- Universal Patterns Research: `../../.dev/ai/research/2026-01-03-universal-patterns-from-app-testing.md`
 - Secrets Management Runbook: `docs/SECRETS-MANAGEMENT.md`
 - Docker Secrets Documentation: https://docs.docker.com/compose/compose-file/09-secrets/

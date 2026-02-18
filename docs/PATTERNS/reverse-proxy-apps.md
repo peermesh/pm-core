@@ -214,6 +214,6 @@ Matrix servers validate homeserver identity. Without proxy trust:
 
 ## References
 
-- [Pattern 7: Trusted Proxy Configuration](../.dev/ai/research/2026-01-03-universal-patterns-from-app-testing.md)
+- [Pattern 7: Trusted Proxy Configuration](../../../.dev/ai/research/2026-01-03-universal-patterns-from-app-testing.md)
 - [Traefik Forwarded Headers](https://doc.traefik.io/traefik/routing/entrypoints/#forwarded-headers)
 - [GoToSocial Proxy Docs](https://docs.gotosocial.org/en/latest/advanced/proxy/)

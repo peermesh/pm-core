@@ -188,9 +188,9 @@ secrets/
 
 ### Research
 
-- `.dev/ai/research/secrets-management-team-workflows/RESEARCH-SYNTHESIS.md` - Consolidated research findings and team workflow procedures
-- `.dev/ai/research/secrets-management-team-workflows/01-storage-patterns-comparison/responses/claude-cli.md` - Detailed comparison of 12 secrets storage patterns
-- `.dev/ai/proposals/2026-01-03-secrets-management-tooling-design.md` - Justfile wrapper implementation design
+- `../../.dev/ai/research/secrets-management-team-workflows/RESEARCH-SYNTHESIS.md` - Consolidated research findings and team workflow procedures
+- `../../.dev/ai/research/secrets-management-team-workflows/01-storage-patterns-comparison/responses/claude-cli.md` - Detailed comparison of 12 secrets storage patterns
+- `../../.dev/ai/proposals/2026-01-03-secrets-management-tooling-design.md` - Justfile wrapper implementation design
 
 ### Related ADRs
 

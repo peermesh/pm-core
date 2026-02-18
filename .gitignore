@@ -83,6 +83,9 @@ target/
 # Nested Git Repositories (should be submodules)
 .dev/reference-repos/nself/
 
+# AI artifacts are managed in parent project only
+.dev/
+
 # Compiled binaries
 services/dashboard/dashboard
 

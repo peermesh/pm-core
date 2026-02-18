@@ -256,7 +256,7 @@ The platform implements defense-in-depth with:
 | Security Architecture | [`docs/SECURITY-ARCHITECTURE.md`](SECURITY-ARCHITECTURE.md) | Comprehensive security design |
 | Security Guide | [`docs/SECURITY.md`](SECURITY.md) | Hardening and best practices |
 | Security Checklist | [`docs/SECURITY-CHECKLIST.md`](SECURITY-CHECKLIST.md) | CIS/OWASP controls |
-| Security Findings | [`.dev/ai/security/SECURITY-FINDINGS.md`](../.dev/ai/security/SECURITY-FINDINGS.md) | Issue tracking |
+| Security Findings | [`.dev/ai/security/SECURITY-FINDINGS.md`](../../../.dev/ai/security/SECURITY-FINDINGS.md) | Issue tracking |
 
 ### Architecture Decision Records
 
@@ -397,7 +397,7 @@ socket-proxy:
 | SEC-004 | Medium | SSH keys in CI/CD | Webhook deployment |
 | SEC-005 | Medium | Traefik dashboard exposure | Localhost binding |
 
-Full details: [`.dev/ai/security/SECURITY-FINDINGS.md`](../.dev/ai/security/SECURITY-FINDINGS.md)
+Full details: [`.dev/ai/security/SECURITY-FINDINGS.md`](../../../.dev/ai/security/SECURITY-FINDINGS.md)
 
 ---
 
@@ -415,7 +415,7 @@ sudo ./scripts/security/run-docker-bench.sh
 ./scripts/security/run-docker-bench.sh --quick
 ```
 
-Reports saved to: `.dev/ai/security/docker-bench-*.log`
+Reports saved to: `../../.dev/ai/security/docker-bench-*.log`
 
 Documentation: [`scripts/security/DOCKER-BENCH-GUIDE.md`](../scripts/security/DOCKER-BENCH-GUIDE.md)
 

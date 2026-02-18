@@ -6,7 +6,7 @@
 #
 # Usage:
 #   docker compose -f docker-compose.yml \
-#                  -f .dev/examples/landing/docker-compose.landing.yml \
+#                  -f examples/landing/docker-compose.landing.yml \
 #                  up -d
 # ==============================================================
 
@@ -16,7 +16,7 @@ services:
     container_name: pmdl_landing
 
     volumes:
-      - ./.dev/examples/landing/html:/usr/share/nginx/html:ro
+      - ./examples/landing/html:/usr/share/nginx/html:ro
 
     networks:
       - proxy-external
@@ -33,7 +33,7 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
-      start_period: 5s
+      start_period: 30s
 
     restart: unless-stopped
 

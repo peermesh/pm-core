@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+fail=0
+
+# Files staged for commit.
+staged_files=$(git diff --cached --name-only --diff-filter=ACMR)
+
+is_allowed_secret_path() {
+  case "$1" in
+    secrets/.gitkeep|secrets/README.md|secrets/justfile|secrets/.sops.yaml|secrets/.sops.yaml.example)
+      return 0
+      ;;
+    secrets/lib/*|secrets/keys/public/*)
+      return 0
+      ;;
+    secrets/*.enc.yaml|secrets/*.enc.yaml.example)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+while IFS= read -r file; do
+  [[ -z "$file" ]] && continue
+
+  # Block plaintext env files.
+  case "$file" in
+    .env|*.env)
+      if [[ "$file" != *.env.example ]]; then
+        echo "[pre-commit] Blocked plaintext env file: $file"
+        fail=1
+      fi
+      ;;
+  esac
+
+  # Block plaintext secret files in secrets/ unless explicitly allowed.
+  if [[ "$file" == secrets/* ]]; then
+    if ! is_allowed_secret_path "$file"; then
+      echo "[pre-commit] Blocked plaintext secret artifact: $file"
+      fail=1
+    fi
+  fi
+
+  # Block obvious secret literals in non-encrypted files.
+  if [[ "$file" != secrets/*.enc.yaml ]]; then
+    if git diff --cached -- "$file" | grep -E '^\+.*(BEGIN (RSA|OPENSSH|EC) PRIVATE KEY|password[[:space:]]*[:=][[:space:]]*[^$]|secret[[:space:]]*[:=][[:space:]]*[^$])' >/dev/null; then
+      echo "[pre-commit] Possible plaintext secret in staged diff: $file"
+      fail=1
+    fi
+  fi
+done <<< "$staged_files"
+
+if [[ $fail -ne 0 ]]; then
+  echo "[pre-commit] Commit rejected. Use encrypted secrets (*.enc.yaml) and secret files/variables patterns."
+  exit 1
+fi
+
+exit 0

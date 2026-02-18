@@ -38,7 +38,7 @@ x-element-healthcheck: &element-healthcheck
   interval: 30s
   timeout: 5s
   retries: 3
-  start_period: 10s
+  start_period: 30s
 
 x-synapse-logging: &synapse-logging
   driver: "json-file"
@@ -57,6 +57,30 @@ x-element-logging: &element-logging
 # ==============================================================
 
 services:
+  # =============================================================
+  # Matrix Config Init
+  # =============================================================
+  # Pre-creates bind-mounted config files so Docker does not create
+  # directories when a file path is missing on the host.
+  # =============================================================
+  matrix-config-init:
+    image: alpine:3.20
+    container_name: pmdl_matrix_config_init
+    profiles:
+      - matrix
+      - full
+    command: >
+      sh -c "
+      mkdir -p /config &&
+      [ -f /config/homeserver.yaml ] || touch /config/homeserver.yaml &&
+      [ -f /config/log.config ] || touch /config/log.config &&
+      [ -f /config/signing.key ] || touch /config/signing.key &&
+      [ -f /config/element-config.json ] || printf '{\\n  \"default_server_config\": {}\\n}\\n' > /config/element-config.json
+      "
+    volumes:
+      - ./examples/matrix/config:/config
+    restart: \"no\"
+
   # =============================================================
   # Matrix Synapse Homeserver
   # =============================================================
@@ -82,6 +106,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      matrix-config-init:
+        condition: service_completed_successfully
 
     # ---------------------------------------------------------
     # Environment Configuration
@@ -113,9 +139,9 @@ services:
       # Main data directory (config, media, logs)
       - pmdl_synapse_data:/data
       # Configuration (must be generated first)
-      - ./.dev/examples/matrix/config/homeserver.yaml:/data/homeserver.yaml:ro
-      - ./.dev/examples/matrix/config/log.config:/data/log.config:ro
-      - ./.dev/examples/matrix/config/signing.key:/data/signing.key:ro
+      - ./examples/matrix/config/homeserver.yaml:/data/homeserver.yaml:ro
+      - ./examples/matrix/config/log.config:/data/log.config:ro
+      - ./examples/matrix/config/signing.key:/data/signing.key:ro
 
     # ---------------------------------------------------------
     # Network Configuration
@@ -222,7 +248,7 @@ services:
     # ---------------------------------------------------------
     volumes:
       # Element configuration
-      - ./.dev/examples/matrix/config/element-config.json:/app/config.json:ro
+      - ./examples/matrix/config/element-config.json:/app/config.json:ro
 
     # ---------------------------------------------------------
     # Network Configuration

@@ -1,23 +1,22 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # ==============================================================
-# Volume Initialization Script
+# Volume and Bind-File Initialization Script
 # ==============================================================
-# Prepares Docker volumes with correct ownership for non-root containers.
-# Must be run after compose file parsing but before container start.
+# Prepares Docker volumes with correct ownership for non-root containers
+# and pre-creates bind-mounted config files to avoid "directory instead
+# of file" mount issues.
 #
 # Usage:
-#   ./scripts/init-volumes.sh           # Initialize all volumes
-#   ./scripts/init-volumes.sh --check   # Check ownership only
-# ==============================================================
+#   ./scripts/init-volumes.sh
+#   ./scripts/init-volumes.sh --check
+# ============================================================== 
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
-
 cd "$PROJECT_DIR"
 
-# Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -29,97 +28,158 @@ log_ok() { echo -e "${GREEN}[OK]${NC} $1"; }
 log_warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
 log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 
-# Parse arguments
 CHECK_ONLY=false
-if [ "${1:-}" = "--check" ] || [ "${1:-}" = "-c" ]; then
+if [[ "${1:-}" == "--check" || "${1:-}" == "-c" ]]; then
     CHECK_ONLY=true
 fi
 
-echo "=== Initializing Docker Volumes ==="
-echo ""
-
-# Volume ownership requirements
-# Format: volume_name uid:gid description
-# Note: Only volumes for non-root containers need initialization
-declare -A VOLUME_OWNERS=(
-    ["pmdl_synapse_data"]="991:991"
-    ["pmdl_peertube_data"]="1000:1000"
-    ["pmdl_peertube_config"]="1000:1000"
-    ["pmdl_redis_data"]="999:999"
+# volume:uid:gid:description
+VOLUME_SPECS=(
+    "pmdl_synapse_data:991:991:Synapse Matrix server"
+    "pmdl_peertube_data:1000:1000:PeerTube data"
+    "pmdl_peertube_config:1000:1000:PeerTube config"
+    "pmdl_redis_data:999:999:Redis cache"
+    "pmdl_peertube_redis:999:999:PeerTube Redis"
 )
 
-declare -A VOLUME_DESCRIPTIONS=(
-    ["pmdl_synapse_data"]="Synapse Matrix server (runs as uid 991)"
-    ["pmdl_peertube_data"]="PeerTube video data (runs as uid 1000)"
-    ["pmdl_peertube_config"]="PeerTube config (runs as uid 1000)"
-    ["pmdl_redis_data"]="Redis cache (runs as uid 999)"
+# file_path:seed_line
+BIND_FILE_SPECS=(
+    "examples/matrix/config/homeserver.yaml:# generate with examples/matrix/README.md"
+    "examples/matrix/config/log.config:# generate with examples/matrix/README.md"
+    "examples/matrix/config/signing.key:# generate with examples/matrix/README.md"
+    "examples/matrix/config/element-config.json:{}"
 )
 
-init_volume() {
-    local volume=$1
-    local owner=$2
-    local description="${VOLUME_DESCRIPTIONS[$volume]:-}"
+ensure_bind_files() {
+    local changed=0
+    local spec path seed dir
 
-    # Check if volume exists
-    if ! docker volume inspect "$volume" >/dev/null 2>&1; then
-        log_warn "[SKIP] $volume - not created yet"
-        echo "        Hint: Run 'docker compose up -d' first to create volumes"
-        return 0
+    log_info "Ensuring bind-mounted config files exist..."
+
+    for spec in "${BIND_FILE_SPECS[@]}"; do
+        path="${spec%%:*}"
+        seed="${spec#*:}"
+        dir="$(dirname "$path")"
+
+        mkdir -p "$dir"
+
+        if [[ ! -f "$path" ]]; then
+            if [[ "$CHECK_ONLY" == true ]]; then
+                log_warn "[NEEDS FILE] $path"
+                changed=1
+                continue
+            fi
+
+            if [[ -n "$seed" ]]; then
+                printf '%s\n' "$seed" > "$path"
+            else
+                : > "$path"
+            fi
+            log_ok "[CREATED] $path"
+            changed=1
+        else
+            log_ok "[OK] $path"
+        fi
+    done
+
+    return $changed
+}
+
+current_owner() {
+    local volume="$1"
+    local mountpoint
+    mountpoint=$(docker volume inspect "$volume" --format '{{ .Mountpoint }}' 2>/dev/null || true)
+
+    if [[ -z "$mountpoint" || ! -d "$mountpoint" ]]; then
+        echo "unknown"
+        return
     fi
 
-    local volume_path
-    volume_path=$(docker volume inspect "$volume" --format '{{ .Mountpoint }}')
-
-    if [ ! -d "$volume_path" ]; then
-        log_warn "[SKIP] $volume - path not found: $volume_path"
-        return 0
-    fi
-
-    # Get current owner
-    local current_owner
-    current_owner=$(stat -c '%u:%g' "$volume_path" 2>/dev/null || stat -f '%u:%g' "$volume_path" 2>/dev/null)
-
-    if [ "$current_owner" = "$owner" ]; then
-        log_ok "[OK] $volume ($owner)"
-        return 0
-    fi
-
-    if [ "$CHECK_ONLY" = true ]; then
-        log_warn "[NEEDS FIX] $volume: current=$current_owner, expected=$owner"
-        echo "        $description"
-        return 1
-    fi
-
-    # Fix ownership
-    log_info "[INIT] $volume -> $owner"
-    echo "        $description"
-
-    if sudo chown -R "$owner" "$volume_path" 2>/dev/null; then
-        log_ok "[FIXED] $volume"
+    # macOS + Linux compatibility
+    if stat -f '%u:%g' "$mountpoint" >/dev/null 2>&1; then
+        stat -f '%u:%g' "$mountpoint"
     else
-        log_error "[FAILED] $volume - could not change ownership"
-        echo "        Try running: sudo chown -R $owner $volume_path"
-        return 1
+        stat -c '%u:%g' "$mountpoint"
     fi
 }
 
-needs_fix=0
-for volume in "${!VOLUME_OWNERS[@]}"; do
-    if ! init_volume "$volume" "${VOLUME_OWNERS[$volume]}"; then
-        ((needs_fix++))
+fix_volume_owner() {
+    local volume="$1"
+    local uid="$2"
+    local gid="$3"
+    local desc="$4"
+    local expected="${uid}:${gid}"
+
+    if ! docker volume inspect "$volume" >/dev/null 2>&1; then
+        if [[ "$CHECK_ONLY" == true ]]; then
+            log_warn "[MISSING VOLUME] $volume ($desc)"
+            return 1
+        fi
+
+        docker volume create "$volume" >/dev/null
+        log_info "[CREATED VOLUME] $volume"
     fi
-done
 
-echo ""
+    local owner
+    owner=$(current_owner "$volume")
 
-if [ "$CHECK_ONLY" = true ]; then
-    if [ $needs_fix -gt 0 ]; then
-        echo "=== Volume Check: $needs_fix volumes need fixing ==="
-        echo "Run without --check to fix ownership"
+    if [[ "$owner" == "$expected" ]]; then
+        log_ok "[OK] $volume owner=$owner"
+        return 0
+    fi
+
+    if [[ "$CHECK_ONLY" == true ]]; then
+        log_warn "[NEEDS FIX] $volume current=${owner} expected=${expected}"
+        return 1
+    fi
+
+    log_info "[CHOWN] $volume -> ${expected} (${desc})"
+    if docker run --rm -v "${volume}:/target" alpine:3.20 sh -c "chown -R ${expected} /target" >/dev/null; then
+        log_ok "[FIXED] $volume"
+        return 0
+    fi
+
+    log_error "[FAILED] Could not set owner for $volume"
+    return 1
+}
+
+main() {
+    local failures=0
+
+    echo ""
+    echo "=========================================="
+    echo "  Peer Mesh Docker Lab - Volume Init"
+    echo "=========================================="
+    echo ""
+
+    ensure_bind_files || failures=$((failures + 1))
+    echo ""
+
+    log_info "Checking volume ownership for non-root services..."
+    local spec volume uid gid desc
+    for spec in "${VOLUME_SPECS[@]}"; do
+        IFS=':' read -r volume uid gid desc <<< "$spec"
+        if ! fix_volume_owner "$volume" "$uid" "$gid" "$desc"; then
+            failures=$((failures + 1))
+        fi
+    done
+
+    echo ""
+    if [[ "$CHECK_ONLY" == true ]]; then
+        if [[ $failures -gt 0 ]]; then
+            log_warn "Check completed with ${failures} issue(s)"
+            exit 1
+        fi
+        log_ok "Check completed: no issues"
+        exit 0
+    fi
+
+    if [[ $failures -gt 0 ]]; then
+        log_warn "Initialization completed with ${failures} issue(s)"
         exit 1
-    else
-        echo "=== Volume Check: All volumes OK ==="
     fi
-else
-    echo "=== Volume Initialization Complete ==="
-fi
+
+    log_ok "Initialization completed"
+}
+
+main "$@"

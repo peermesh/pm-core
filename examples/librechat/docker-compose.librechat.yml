@@ -30,7 +30,7 @@ x-librechat-healthcheck: &librechat-healthcheck
   interval: 30s
   timeout: 10s
   retries: 5
-  start_period: 60s
+  start_period: 120s
 
 x-librechat-logging: &librechat-logging
   driver: "json-file"

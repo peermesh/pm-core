@@ -135,6 +135,10 @@ See `examples/` for complete configurations.
 - [Secrets Management](docs/SECRETS-MANAGEMENT.md) - Docker secrets patterns
 - [Deployment Guide](docs/DEPLOYMENT.md) - Production deployment guidance
 - [Troubleshooting](docs/TROUBLESHOOTING.md) - Common issues and solutions
+- [Gotchas](docs/GOTCHAS.md) - High-friction deployment pitfalls and fixes
+- [Secrets Per App](docs/SECRETS-PER-APP.md) - Required keys per example app
+- [Multi-Domain Pattern](docs/MULTI-DOMAIN.md) - Domain override strategy and usage
+- [Public Repo Manifest](docs/PUBLIC-REPO-MANIFEST.md) - Public/private file boundaries
 - [Architecture Decisions](docs/decisions/) - ADR documentation
 - [Foundation Reference](foundation/README.md) - Module system documentation
 
@@ -147,11 +151,7 @@ See `examples/` for complete configurations.
 
 ## Contributing
 
-Contributions welcome. Please:
-
-1. Fork the repository
-2. Create a feature branch
-3. Submit a pull request with clear description
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, validation commands, and secrets safety requirements.
 
 ## License
 

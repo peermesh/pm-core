@@ -1,28 +1,27 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # ==============================================================
 # Deployment Helper Script
 # ==============================================================
 # Orchestrates the complete deployment workflow:
-# 1. Validates configuration
-# 2. Generates missing secrets
-# 3. Initializes volumes
-# 4. Starts services
-# 5. Monitors health
+# 1. Validates prerequisites and configuration
+# 2. Validates required secrets for active profiles
+# 3. Pre-creates containers/volumes
+# 4. Initializes non-root volume ownership
+# 5. Starts services and monitors health
 #
 # Usage:
-#   ./scripts/deploy.sh              # Full deployment
-#   ./scripts/deploy.sh --validate   # Validate only
-#   ./scripts/deploy.sh --profiles   # Show active profiles
-# ==============================================================
+#   ./scripts/deploy.sh
+#   ./scripts/deploy.sh --validate
+#   ./scripts/deploy.sh --profiles
+#   ./scripts/deploy.sh -f docker-compose.dc.yml
+# ============================================================== 
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
-
 cd "$PROJECT_DIR"
 
-# Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -34,203 +33,228 @@ log_ok() { echo -e "${GREEN}[OK]${NC} $1"; }
 log_warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
 log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 
-# Parse arguments
 VALIDATE_ONLY=false
-SHOW_PROFILES=false
-COMPOSE_FILES=""
+SHOW_PROFILES_ONLY=false
+PROFILES_OVERRIDE=""
+WAIT_SECONDS=180
+COMPOSE_ARGS=()
+
+usage() {
+    cat <<USAGE
+Usage: $0 [OPTIONS]
+
+Options:
+  --validate, -v          Validate configuration and secrets only
+  --profiles, -p          Show active profiles and exit
+  --set-profiles LIST     Override COMPOSE_PROFILES for this run
+  -f FILE                 Include additional compose file (repeatable)
+  --wait-seconds N        Health wait timeout (default: 180)
+  --help, -h              Show this help
+USAGE
+}
 
 while [[ $# -gt 0 ]]; do
-    case $1 in
+    case "$1" in
         --validate|-v)
             VALIDATE_ONLY=true
             shift
             ;;
         --profiles|-p)
-            SHOW_PROFILES=true
+            SHOW_PROFILES_ONLY=true
             shift
             ;;
-        -f)
-            COMPOSE_FILES="$COMPOSE_FILES -f $2"
+        --set-profiles)
+            PROFILES_OVERRIDE="${2:-}"
+            if [[ -z "$PROFILES_OVERRIDE" ]]; then
+                log_error "--set-profiles requires a value"
+                exit 1
+            fi
             shift 2
+            ;;
+        -f)
+            if [[ -z "${2:-}" ]]; then
+                log_error "-f requires a file"
+                exit 1
+            fi
+            COMPOSE_ARGS+=("-f" "$2")
+            shift 2
+            ;;
+        --wait-seconds)
+            WAIT_SECONDS="${2:-}"
+            if ! [[ "$WAIT_SECONDS" =~ ^[0-9]+$ ]]; then
+                log_error "--wait-seconds must be an integer"
+                exit 1
+            fi
+            shift 2
+            ;;
+        --help|-h)
+            usage
+            exit 0
             ;;
         *)
             log_error "Unknown option: $1"
-            echo ""
-            echo "Usage: $0 [OPTIONS]"
-            echo ""
-            echo "Options:"
-            echo "  --validate, -v    Validate configuration only"
-            echo "  --profiles, -p    Show active profiles"
-            echo "  -f FILE           Include additional compose file"
+            usage
             exit 1
             ;;
     esac
 done
 
-# ==============================================================
-# Step 1: Check prerequisites
-# ==============================================================
+if [[ ${#COMPOSE_ARGS[@]} -eq 0 ]]; then
+    COMPOSE_ARGS=("-f" "docker-compose.yml")
+fi
+
+if [[ -n "$PROFILES_OVERRIDE" ]]; then
+    export COMPOSE_PROFILES="$PROFILES_OVERRIDE"
+fi
+
+load_env() {
+    if [[ ! -f .env ]]; then
+        if [[ -f .env.example ]]; then
+            cp .env.example .env
+            log_warn ".env missing; copied .env.example to .env"
+        else
+            log_error ".env and .env.example are both missing"
+            return 1
+        fi
+    fi
+
+    set -a
+    # shellcheck disable=SC1091
+    source .env
+    set +a
+
+    if [[ -n "$PROFILES_OVERRIDE" ]]; then
+        export COMPOSE_PROFILES="$PROFILES_OVERRIDE"
+    fi
+}
+
+show_active_profiles() {
+    local profiles="${COMPOSE_PROFILES:-}"
+    if [[ -z "$profiles" ]]; then
+        echo "none (foundation-only)"
+    else
+        echo "$profiles"
+    fi
+}
+
 check_prerequisites() {
-    log_info "Checking prerequisites..."
+    local failed=0
 
-    local errors=0
-
-    # Check Docker
-    if ! command -v docker &> /dev/null; then
+    if ! command -v docker >/dev/null 2>&1; then
         log_error "Docker is not installed"
-        ((errors++))
+        failed=1
     else
         log_ok "Docker installed"
     fi
 
-    # Check Docker Compose v2
-    if ! docker compose version &> /dev/null; then
-        log_error "Docker Compose v2 is not installed"
-        ((errors++))
+    if ! docker compose version >/dev/null 2>&1; then
+        log_error "Docker Compose v2 is not available"
+        failed=1
     else
-        log_ok "Docker Compose v2 installed"
+        log_ok "Docker Compose v2 available"
     fi
 
-    # Check .env file
-    if [ ! -f ".env" ]; then
-        log_warn ".env file not found - copying from .env.example"
-        cp .env.example .env
-    else
-        log_ok ".env file exists"
+    if [[ ! -x "$SCRIPT_DIR/generate-secrets.sh" ]]; then
+        log_error "Missing executable: scripts/generate-secrets.sh"
+        failed=1
     fi
 
-    # Check secrets directory
-    if [ ! -d "secrets" ]; then
-        log_warn "secrets/ directory not found - will be created"
-    else
-        log_ok "secrets/ directory exists"
+    if [[ ! -x "$SCRIPT_DIR/init-volumes.sh" ]]; then
+        log_warn "scripts/init-volumes.sh missing or not executable"
     fi
 
-    return $errors
+    return $failed
 }
 
-# ==============================================================
-# Step 2: Validate configuration
-# ==============================================================
-validate_config() {
-    log_info "Validating configuration..."
-
-    local errors=0
-
-    # Source .env
-    set -a
-    source .env
-    set +a
-
-    # Check DOMAIN
-    if [ "${DOMAIN:-}" = "example.com" ] || [ -z "${DOMAIN:-}" ]; then
-        log_error "DOMAIN not configured (still set to example.com)"
-        ((errors++))
-    else
-        log_ok "DOMAIN=$DOMAIN"
+validate_compose_config() {
+    log_info "Validating compose configuration..."
+    if docker compose "${COMPOSE_ARGS[@]}" config -q; then
+        log_ok "docker compose config is valid"
+        return 0
     fi
 
-    # Check ADMIN_EMAIL
-    if [ "${ADMIN_EMAIL:-}" = "admin@example.com" ] || [ -z "${ADMIN_EMAIL:-}" ]; then
-        log_warn "ADMIN_EMAIL not configured (using default)"
-    else
-        log_ok "ADMIN_EMAIL=$ADMIN_EMAIL"
-    fi
-
-    # Check COMPOSE_PROFILES
-    if [ -z "${COMPOSE_PROFILES:-}" ]; then
-        log_warn "COMPOSE_PROFILES is empty - only foundation will start"
-    else
-        log_ok "COMPOSE_PROFILES=$COMPOSE_PROFILES"
-    fi
-
-    return $errors
+    log_error "docker compose config validation failed"
+    return 1
 }
 
-# ==============================================================
-# Step 3: Generate secrets
-# ==============================================================
-generate_secrets() {
-    log_info "Checking secrets..."
+validate_configuration() {
+    local failed=0
 
-    if [ -x "$SCRIPT_DIR/generate-secrets.sh" ]; then
-        "$SCRIPT_DIR/generate-secrets.sh"
+    if [[ -z "${DOMAIN:-}" || "${DOMAIN}" == "example.com" ]]; then
+        log_error "DOMAIN is not configured (still example.com)"
+        failed=1
     else
-        log_error "generate-secrets.sh not found or not executable"
-        return 1
+        log_ok "DOMAIN=${DOMAIN}"
     fi
+
+    if [[ -z "${ADMIN_EMAIL:-}" || "${ADMIN_EMAIL}" == "admin@example.com" ]]; then
+        log_warn "ADMIN_EMAIL is using default placeholder"
+    else
+        log_ok "ADMIN_EMAIL=${ADMIN_EMAIL}"
+    fi
+
+    log_info "Active profiles: $(show_active_profiles)"
+
+    if ! "$SCRIPT_DIR/generate-secrets.sh" --validate; then
+        failed=1
+    fi
+
+    if ! validate_compose_config; then
+        failed=1
+    fi
+
+    return $failed
 }
 
-# ==============================================================
-# Step 4: Initialize volumes
-# ==============================================================
-init_volumes() {
-    log_info "Initializing volumes..."
+prepare_volumes() {
+    log_info "Pre-creating containers/volumes (no start)..."
+    docker compose "${COMPOSE_ARGS[@]}" up -d --no-start
 
-    if [ -x "$SCRIPT_DIR/init-volumes.sh" ]; then
+    if [[ -x "$SCRIPT_DIR/init-volumes.sh" ]]; then
         "$SCRIPT_DIR/init-volumes.sh"
     else
-        log_warn "init-volumes.sh not found - skipping volume initialization"
+        log_warn "Skipping volume ownership initialization"
     fi
 }
 
-# ==============================================================
-# Step 5: Start services
-# ==============================================================
 start_services() {
-    log_info "Starting services..."
-
-    local compose_cmd="docker compose"
-
-    # Add compose files if specified
-    if [ -n "$COMPOSE_FILES" ]; then
-        compose_cmd="$compose_cmd $COMPOSE_FILES"
-    fi
-
-    # Pull latest images
     log_info "Pulling latest images..."
-    $compose_cmd pull
+    docker compose "${COMPOSE_ARGS[@]}" pull
 
-    # Start services
-    log_info "Starting containers..."
-    $compose_cmd up -d
+    log_info "Starting services..."
+    docker compose "${COMPOSE_ARGS[@]}" up -d
 
     log_ok "Services started"
 }
 
-# ==============================================================
-# Step 6: Monitor health
-# ==============================================================
 monitor_health() {
-    log_info "Monitoring service health (30s timeout)..."
-
-    local timeout=30
-    local elapsed=0
+    local timeout="$WAIT_SECONDS"
     local interval=5
+    local elapsed=0
 
-    while [ $elapsed -lt $timeout ]; do
-        sleep $interval
-        ((elapsed+=interval))
+    log_info "Waiting for healthy services (${timeout}s timeout)..."
 
-        # Count container states
-        local total=$(docker compose ps --format json 2>/dev/null | wc -l)
-        local healthy=$(docker compose ps --format json 2>/dev/null | grep -c '"healthy"' || true)
-        local unhealthy=$(docker compose ps --format json 2>/dev/null | grep -c '"unhealthy"' || true)
+    while [[ $elapsed -lt $timeout ]]; do
+        sleep "$interval"
+        elapsed=$((elapsed + interval))
 
-        if [ "$unhealthy" -eq 0 ] && [ "$healthy" -gt 0 ]; then
-            log_ok "All services healthy ($healthy containers)"
+        local total unhealthy healthy
+        total=$(docker compose "${COMPOSE_ARGS[@]}" ps --format json 2>/dev/null | wc -l | tr -d ' ')
+        unhealthy=$(docker compose "${COMPOSE_ARGS[@]}" ps --format json 2>/dev/null | grep -c '"unhealthy"' || true)
+        healthy=$(docker compose "${COMPOSE_ARGS[@]}" ps --format json 2>/dev/null | grep -c '"healthy"' || true)
+
+        if [[ "$total" -gt 0 && "$unhealthy" -eq 0 && "$healthy" -gt 0 ]]; then
+            log_ok "Health checks passed (${healthy}/${total} healthy)"
             return 0
         fi
 
-        log_info "Waiting for services... ($elapsed/${timeout}s) - healthy: $healthy, unhealthy: $unhealthy"
+        log_info "Health wait ${elapsed}s/${timeout}s (healthy=${healthy}, unhealthy=${unhealthy}, total=${total})"
     done
 
-    log_warn "Some services may still be starting - check with: docker compose ps"
+    log_warn "Timeout reached before all services reported healthy"
+    return 1
 }
 
-# ==============================================================
-# Main execution
-# ==============================================================
 main() {
     echo ""
     echo "=========================================="
@@ -238,54 +262,38 @@ main() {
     echo "=========================================="
     echo ""
 
-    # Show profiles mode
-    if [ "$SHOW_PROFILES" = true ]; then
-        if [ -f ".env" ]; then
-            source .env
-            echo "Active profiles: ${COMPOSE_PROFILES:-none}"
-        else
-            echo "No .env file found"
-        fi
+    check_prerequisites || exit 1
+    load_env || exit 1
+
+    if [[ "$SHOW_PROFILES_ONLY" == true ]]; then
+        echo "Active profiles: $(show_active_profiles)"
         exit 0
     fi
 
-    # Run checks
-    check_prerequisites || exit 1
-    echo ""
-
-    validate_config
-    local config_errors=$?
-    echo ""
-
-    # Validate only mode
-    if [ "$VALIDATE_ONLY" = true ]; then
-        if [ $config_errors -gt 0 ]; then
-            log_error "Validation failed with $config_errors errors"
-            exit 1
-        else
-            log_ok "Validation passed"
-            exit 0
-        fi
+    if ! validate_configuration; then
+        log_error "Validation failed"
+        exit 1
     fi
 
-    # Full deployment
-    generate_secrets
-    echo ""
+    if [[ "$VALIDATE_ONLY" == true ]]; then
+        log_ok "Validation passed"
+        exit 0
+    fi
 
-    init_volumes
-    echo ""
-
+    prepare_volumes
     start_services
-    echo ""
 
-    monitor_health
-    echo ""
+    if ! monitor_health; then
+        log_warn "Run 'docker compose ${COMPOSE_ARGS[*]} ps' and inspect unhealthy services"
+    fi
 
+    echo ""
     echo "=========================================="
     echo "  Deployment Complete"
     echo "=========================================="
     echo ""
-    docker compose ps
+
+    docker compose "${COMPOSE_ARGS[@]}" ps
 }
 
 main "$@"

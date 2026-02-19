@@ -125,6 +125,15 @@ Custom services that integrate with the foundation for specific functionality.
 |---------|---------|----------|
 | Dashboard | Module registry, container management | `services/dashboard/` |
 
+### Optional Boundary Modules
+
+| Module | Purpose | Location |
+|--------|---------|----------|
+| Federation Adapter | Optional federation/syndication boundary scaffold | `modules/federation-adapter/` |
+
+Adapter modules are opt-in and must never be required for baseline compose startup.
+See [FEDERATION-ADAPTER-BOUNDARY.md](FEDERATION-ADAPTER-BOUNDARY.md).
+
 ### Service Integration
 
 Services integrate with the foundation through:

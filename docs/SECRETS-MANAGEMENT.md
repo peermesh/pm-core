@@ -12,6 +12,26 @@ This project uses **SOPS** (Secrets OPerationS) with **age** encryption for mana
 - **Audit trail**: All operations are logged locally
 - **No cloud dependencies**: Works offline, no external services required
 
+## Canonical vs Compatibility Keysets
+
+The secrets lifecycle contract separates canonical runtime keys from compatibility-only keys:
+
+- canonical runtime keyset: `secrets/keysets/canonical-runtime-keys.txt`
+- canonical compose keyset: `secrets/keysets/canonical-compose-keys.txt`
+- compatibility-only keyset: `secrets/keysets/compatibility-only-keys.txt`
+
+Policy:
+
+- canonical keys are baseline deployment contract and drift is `CRITICAL`
+- compatibility keys support optional profiles/apps and cannot silently become canonical
+- root compose `secrets:` entries must remain aligned to canonical compose keyset
+
+Run parity validation:
+
+```bash
+./scripts/validate-secret-parity.sh --environment production
+```
+
 ## Quick Start (Existing Team Members)
 
 ```bash
@@ -126,6 +146,20 @@ just rotate API_KEY staging
 # Prompts for new value (hidden input)
 # Shows reminder to update external systems
 ```
+
+### Rotation + Recovery Drill
+
+Run an auditable drill that validates rotation and recovery workflow without exposing secret values:
+
+```bash
+# Non-destructive simulation (default)
+./scripts/secrets-rotation-recovery-drill.sh --environment staging --key postgres_password
+
+# Destructive drill (apply candidate, validate, then restore backup)
+./scripts/secrets-rotation-recovery-drill.sh --environment staging --key postgres_password --apply
+```
+
+Drill artifacts are written to `/tmp/pmdl-secrets-drills/` by default.
 
 ### Deploy with Secrets
 

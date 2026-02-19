@@ -15,6 +15,7 @@ This directory supports a progressive secrets model:
 - `development.enc.yaml` - encrypted development env bundle
 - `justfile` - secrets lifecycle tooling
 - `lib/secrets-lib.sh` - shared shell library for secrets commands
+- `keysets/` - canonical/compatibility keyset contract used by parity validation
 
 ## Tier 1: Local Development
 
@@ -64,6 +65,9 @@ Validation command:
 just validate ghost production
 just validate matrix production
 just validate peertube production
+
+# contract parity (canonical + compatibility + compose + bundles)
+just validate-secrets production
 ```
 
 ## Rotation Policy
@@ -84,6 +88,20 @@ After rotation:
 2. Redeploy affected services
 3. Verify health checks
 4. Record change in changelog or operations notes
+
+## Rotation + Recovery Drill
+
+Run a deterministic drill with evidence output:
+
+```bash
+# simulation mode (non-destructive)
+just rotate-drill postgres_password staging
+
+# direct invocation
+./scripts/secrets-rotation-recovery-drill.sh --environment staging --key postgres_password
+```
+
+Evidence default path: `/tmp/pmdl-secrets-drills/`.
 
 ## Hook Setup
 

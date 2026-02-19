@@ -139,22 +139,27 @@ sudo rm -rf /var/lib/docker/volumes/synapse_data/_data/homeserver.yaml
 
 ### Shell Compatibility
 
-- [ ] **All scripts use POSIX shebang**
+- [ ] **Script shebang matches runtime requirements**
   ```bash
-  grep -r "#!/.*bash" scripts/
-  # Expected: No output (no bash shebangs)
-  # All scripts should use: #!/bin/sh
+  # Canonical entrypoint is Bash:
+  head -n 1 scripts/deploy.sh
+  # Expected: #!/usr/bin/env bash
+
+  # Webhook wrapper stays POSIX:
+  head -n 1 deploy/webhook/deploy.sh
+  # Expected: #!/bin/sh
   ```
 
 - [ ] **Scripts pass shellcheck**
   ```bash
-  shellcheck -s sh scripts/*.sh
+  shellcheck -s bash scripts/deploy.sh
+  shellcheck -s sh deploy/webhook/deploy.sh scripts/init-volumes.sh scripts/generate-secrets.sh
   # Expected: No errors (warnings acceptable)
   ```
 
-### Common Bash-isms to Avoid
+### Common Bash-isms To Avoid In POSIX Scripts
 
-If shellcheck finds issues, fix these common problems:
+If shellcheck finds issues in POSIX scripts, fix these common problems:
 
 | Bash-ism | POSIX Alternative |
 |----------|-------------------|
@@ -233,6 +238,34 @@ If shellcheck finds issues, fix these common problems:
   # Method 2: Direct environment variable (if app doesn't support _FILE)
   environment:
     SECRET_KEY_BASE: ${SECRET_KEY_BASE}
+  ```
+
+### Secret Contract Parity
+
+- [ ] **Canonical keyset parity passes**
+  ```bash
+  ./scripts/validate-secret-parity.sh --environment production
+  # Expected: Secret parity summary with CRITICAL=0
+  ```
+
+- [ ] **Rotation + recovery drill is runnable**
+  ```bash
+  ./scripts/secrets-rotation-recovery-drill.sh --environment staging --key postgres_password
+  # Expected: Drill complete with evidence path in /tmp/pmdl-secrets-drills/
+  ```
+
+### Federation Adapter Boundary
+
+- [ ] **Core runtime is stable without adapter**
+  ```bash
+  docker compose -f docker-compose.yml config -q
+  # Expected: exit 0 with no adapter requirement
+  ```
+
+- [ ] **Adapter boundary validation passes**
+  ```bash
+  ./scripts/validate-federation-adapter-boundary.sh
+  # Expected: failures=0
   ```
 
 ---

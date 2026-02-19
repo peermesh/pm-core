@@ -13,6 +13,7 @@ USER root
 
 # Install git and docker-cli (docker-compose is included in docker-cli-compose)
 RUN apk add --no-cache \
+    bash \
     git \
     docker-cli \
     docker-cli-compose

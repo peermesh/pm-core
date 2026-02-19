@@ -45,51 +45,51 @@ Before starting, ensure you have:
 - [ ] Domain pointed to your VPS (A record + wildcard `*.domain.com`)
 - [ ] Traefik running from base setup (handles TLS automatically)
 - [ ] Repository cloned to `/opt/peermesh` on VPS
-- [ ] `just` command runner installed (`apt install just` or `brew install just`)
+
+## Canonical Deployment Contract
+
+Webhook deployment uses a wrapper (`deploy/webhook/deploy.sh`) that always calls the canonical deploy entrypoint:
+
+- canonical deploy entrypoint: `./scripts/deploy.sh`
+- webhook target environment: `production`
+- required promotion source: `staging`
+- evidence output root: `/tmp/deploy-logs/evidence` (override with `EVIDENCE_ROOT`)
+
+This keeps operator and webhook deployment logic aligned.
 
 ---
 
 ## Quick Setup
 
-Run this single command on your VPS:
+Run the webhook profile and set the webhook secret on your VPS:
 
 ```bash
 cd /opt/peermesh
-just webhook-setup
+
+# 1) Generate a webhook secret (hex string)
+openssl rand -hex 32
+
+# 2) Put it in your local VPS .env (untracked)
+nano .env
+# WEBHOOK_SECRET=<paste value>
+
+# 3) Start webhook listener profile
+docker compose -f docker-compose.yml -f docker-compose.webhook.yml --profile webhook up -d
 ```
 
-### What This Command Does
+### What This Setup Does
 
-1. Generates a secure webhook secret (32 random bytes, hex-encoded)
-2. Creates a read-only deploy key for GitHub access
-3. Configures the webhook listener container
-4. Sets up the deployment script
-5. Outputs configuration values for GitHub
+1. Configures webhook listener container from `docker-compose.webhook.yml`
+2. Uses `deploy/webhook/hooks.json` for signature validation and branch filtering
+3. Routes webhook trigger to `deploy/webhook/deploy.sh`
+4. Calls canonical deployment path (`scripts/deploy.sh`) for apply and evidence capture
 
 ### Expected Output
 
 ```
-Webhook Setup Complete
-=====================
-
-Deploy Key (add to GitHub):
-ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI... deploy@your-vps
-
-Webhook Secret (add to GitHub):
-a1b2c3d4e5f6...
-
-Webhook URL:
-https://webhook.yourdomain.com/hooks/deploy
-
-(Where yourdomain.com matches DOMAIN in your .env file)
-
-Next Steps:
-1. Add deploy key to: Settings > Deploy keys
-2. Add webhook to: Settings > Webhooks
-3. Test with: just webhook-test
+<webhook profile starts>
+<webhook container healthy>
 ```
-
-Save these values for the GitHub configuration steps below.
 
 ---
 
@@ -99,12 +99,19 @@ Save these values for the GitHub configuration steps below.
 
 The deploy key allows your VPS to pull code from your repository.
 
+Create a key pair on the VPS if needed:
+
+```bash
+ssh-keygen -t ed25519 -f ~/.ssh/deploy_key -N ""
+cat ~/.ssh/deploy_key.pub
+```
+
 1. Go to your repository on GitHub
 2. Navigate to **Settings** > **Deploy keys**
 3. Click **Add deploy key**
 4. Configure:
    - **Title**: `VPS Deploy Key` (or descriptive name)
-   - **Key**: Paste the public key from `just webhook-setup` output
+   - **Key**: Paste the public key from `~/.ssh/deploy_key.pub`
    - **Allow write access**: Leave **unchecked** (read-only is more secure)
 5. Click **Add key**
 
@@ -121,7 +128,7 @@ The webhook notifies your VPS when code is pushed.
 |-------|-------|
 | **Payload URL** | `https://webhook.YOURDOMAIN.COM/hooks/deploy` (replace with your domain) |
 | **Content type** | `application/json` |
-| **Secret** | The webhook secret from `just webhook-setup` output |
+| **Secret** | `WEBHOOK_SECRET` value from your VPS `.env` |
 | **SSL verification** | Enable (default) |
 | **Which events?** | Just the push event |
 | **Active** | Checked |
@@ -142,7 +149,7 @@ git commit --allow-empty -m "test deployment"
 git push
 
 # On the VPS, check if deployment was triggered
-just webhook-logs
+docker compose -f docker-compose.yml -f docker-compose.webhook.yml logs webhook --tail 50
 ```
 
 ### Verify Deployment Worked
@@ -152,10 +159,11 @@ just webhook-logs
 docker compose ps
 
 # View recent deployment logs
-just webhook-logs --tail 50
+docker compose -f docker-compose.yml -f docker-compose.webhook.yml logs webhook --tail 50
 
 # Manually trigger a deployment (for testing)
-just webhook-trigger
+cd /opt/peermesh
+./deploy/webhook/deploy.sh refs/heads/main manual-test
 ```
 
 ### Check Webhook Delivery Status
@@ -200,10 +208,13 @@ This means the webhook secret on GitHub does not match the VPS.
 
 ```bash
 # View current secret on VPS
-just webhook-show-secret
+cd /opt/peermesh
+grep '^WEBHOOK_SECRET=' .env
 
 # Regenerate if needed
-just webhook-rotate-secret
+openssl rand -hex 32
+# Replace WEBHOOK_SECRET in .env, then restart webhook profile:
+docker compose -f docker-compose.yml -f docker-compose.webhook.yml --profile webhook up -d
 ```
 
 Then update the secret in GitHub webhook settings.
@@ -227,10 +238,11 @@ ssh-keygen -lf ~/.ssh/deploy_key.pub
 
 ```bash
 # Check deployment logs
-cat /var/log/deploy/latest.log
+ls -la /tmp/deploy-logs/
 
 # Run deployment manually to see errors
-just webhook-deploy --verbose
+cd /opt/peermesh
+./deploy/webhook/deploy.sh refs/heads/main manual-debug
 ```
 
 ### Manual Deployment Trigger
@@ -239,27 +251,33 @@ If webhooks are not working, you can trigger deployment manually:
 
 ```bash
 # Pull and deploy without webhook
-just webhook-deploy
+cd /opt/peermesh
+./deploy/webhook/deploy.sh refs/heads/main manual-trigger
 
 # Or the full manual process
 cd /opt/peermesh
 git fetch --all
 git checkout -f origin/main
-docker compose pull
-docker compose up -d
+./scripts/deploy.sh \
+  --deploy-mode operator \
+  --environment production \
+  --promotion-from staging \
+  --promotion-id manual-$(date -u +%Y%m%dT%H%M%SZ) \
+  --evidence-root /tmp/pmdl-deploy-evidence \
+  -f docker-compose.yml
 ```
 
 ### Viewing Logs
 
 ```bash
 # Webhook receiver logs
-just webhook-logs
+docker compose -f docker-compose.yml -f docker-compose.webhook.yml logs webhook --tail 100
 
 # Deployment execution logs
-ls -la /var/log/deploy/
+ls -la /tmp/deploy-logs/
 
 # Most recent deployment
-cat /var/log/deploy/latest.log
+ls -1t /tmp/deploy-logs/deploy-*.log | head -n 1 | xargs cat
 ```
 
 ---
@@ -285,13 +303,14 @@ Rotate the webhook secret every 90 days:
 
 ```bash
 # Generate new secret and update config
-just webhook-rotate-secret
-
-# Output shows new secret - update in GitHub webhook settings
+cd /opt/peermesh
+openssl rand -hex 32
+# Update WEBHOOK_SECRET in .env
+docker compose -f docker-compose.yml -f docker-compose.webhook.yml --profile webhook up -d
 ```
 
 After rotation:
-1. Copy the new secret from command output
+1. Copy the new secret value
 2. Go to GitHub > Settings > Webhooks
 3. Edit your webhook
 4. Update the Secret field
@@ -311,7 +330,7 @@ To rotate the deploy key:
 
 ```bash
 # Generate new key
-just webhook-rotate-key
+ssh-keygen -t ed25519 -f ~/.ssh/deploy_key.new -N ""
 
 # Add the new key to GitHub (Settings > Deploy keys)
 # Remove the old key after verifying the new one works
@@ -337,14 +356,10 @@ Additional hardening (optional):
 
 | Command | Description |
 |---------|-------------|
-| `just webhook-setup` | Initial setup: create keys, secrets, configuration |
-| `just webhook-deploy` | Manually trigger deployment |
-| `just webhook-logs` | View webhook receiver logs |
-| `just webhook-test` | Send test webhook to verify setup |
-| `just webhook-status` | Check webhook container health |
-| `just webhook-rotate-secret` | Generate new webhook secret |
-| `just webhook-rotate-key` | Generate new deploy key |
-| `just webhook-show-secret` | Display current webhook secret |
+| `./deploy/webhook/deploy.sh refs/heads/main <sha>` | Manual webhook-equivalent deployment trigger |
+| `./scripts/deploy.sh --environment production --promotion-from staging ...` | Canonical operator deployment path |
+| `docker compose -f docker-compose.yml -f docker-compose.webhook.yml logs webhook --tail 100` | View webhook receiver logs |
+| `ls -la /tmp/deploy-logs/` | View webhook deployment logs and evidence root |
 
 ---
 
@@ -377,10 +392,10 @@ Additional hardening (optional):
 │                                     ▼                        │
 │  ┌──────────────────────────────────────────────────────┐   │
 │  │               Deployment Script                       │   │
-│  │  1. git fetch --all (using local deploy key)         │   │
-│  │  2. git checkout origin/main                         │   │
-│  │  3. docker compose pull                              │   │
-│  │  4. docker compose up -d                             │   │
+│  │  1. git fetch/reset to origin/main                    │   │
+│  │  2. wrapper verifies sensitive-file policy            │   │
+│  │  3. wrapper calls ./scripts/deploy.sh                 │   │
+│  │  4. deploy.sh runs gates + emits evidence             │   │
 │  └──────────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────────┘
 ```

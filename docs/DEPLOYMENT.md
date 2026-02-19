@@ -16,6 +16,55 @@ With webhook deployment:
 **Setup webhook deployment**: See [WEBHOOK-DEPLOYMENT.md](WEBHOOK-DEPLOYMENT.md)
 **Promotion runbook**: See [DEPLOYMENT-PROMOTION-RUNBOOK.md](DEPLOYMENT-PROMOTION-RUNBOOK.md)
 
+## Observability Defaults
+
+Current default observability profile is the low-ops overlay:
+
+- `profiles/observability-lite/docker-compose.observability-lite.yml` (Netdata + Uptime Kuma)
+
+Validation command:
+
+```bash
+./scripts/validate-observability-profile.sh
+```
+
+Reference: [OBSERVABILITY-PROFILES.md](OBSERVABILITY-PROFILES.md)
+
+## Supply-Chain Baseline Gates
+
+Deployment preflight includes a supply-chain gate that runs:
+
+1. image policy validation (`tag`/`digest` contract)
+2. SBOM generation (CycloneDX)
+3. vulnerability threshold checks
+
+Manual execution:
+
+```bash
+./scripts/security/validate-supply-chain.sh --severity-threshold CRITICAL
+```
+
+Strict example:
+
+```bash
+SUPPLY_CHAIN_STRICT=true \
+SUPPLY_CHAIN_FAIL_ON_LATEST=true \
+SUPPLY_CHAIN_SEVERITY_THRESHOLD=HIGH \
+./scripts/deploy.sh --validate
+```
+
+Reference: [SUPPLY-CHAIN-SECURITY.md](SUPPLY-CHAIN-SECURITY.md)
+
+## Scalability And Resilience Wave-1
+
+Wave-1 validation captures add-host vs scale-up decisions and non-functional baseline checks.
+
+```bash
+./scripts/scalability/run-wave1-validation.sh
+```
+
+Reference: [SCALABILITY-RESILIENCE-WAVE1.md](SCALABILITY-RESILIENCE-WAVE1.md)
+
 ## VPS Provider Requirements
 
 ### Minimum Specifications

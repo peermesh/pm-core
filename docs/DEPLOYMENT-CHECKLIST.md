@@ -268,6 +268,43 @@ If shellcheck finds issues in POSIX scripts, fix these common problems:
   # Expected: failures=0
   ```
 
+### Observability Profile Baseline
+
+- [ ] **Observability-lite profile validation passes**
+  ```bash
+  ./scripts/validate-observability-profile.sh
+  # Expected: Observability profile summary: failures=0
+  ```
+
+### Supply-Chain Baseline
+
+- [ ] **Image policy gate passes**
+  ```bash
+  ./scripts/security/validate-image-policy.sh
+  # Expected: FAILURES=0
+  ```
+
+- [ ] **SBOM artifacts are generated**
+  ```bash
+  ./scripts/security/generate-sbom.sh --output-dir /tmp/pmdl-sbom
+  ls -la /tmp/pmdl-sbom
+  # Expected: SBOM-INDEX.tsv and CycloneDX JSON files (for local images)
+  ```
+
+- [ ] **Vulnerability threshold gate passes at chosen severity**
+  ```bash
+  ./scripts/security/validate-supply-chain.sh --severity-threshold CRITICAL
+  # Expected: Supply-chain summary with FAILURES=0
+  ```
+
+### Scalability/Resilience Wave-1
+
+- [ ] **Wave-1 trigger matrix and non-functional checks are generated**
+  ```bash
+  ./scripts/scalability/run-wave1-validation.sh
+  # Expected: wave1-summary.env + trigger-matrix.tsv + nonfunctional-checks.tsv
+  ```
+
 ---
 
 ## Deployment Script Safety

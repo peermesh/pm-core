@@ -1,11 +1,7 @@
-# OpenTofu Modules (Pilot Scope)
+# OpenTofu Modules
 
-Purpose: reusable infra primitives for pilot scope.
+This directory contains provider-agnostic module contracts for pilot infrastructure scope.
 
-Pilot in-scope module classes:
+Current modules:
 
-- host/compute baseline
-- DNS prerequisites
-- host firewall/network baseline
-
-Runtime container orchestration modules are out of scope for this phase.
+- `pilot-contract`: captures the single-VPS host/DNS/firewall contract summary while enforcing runtime boundary invariants.

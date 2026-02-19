@@ -1,12 +1,12 @@
 # OpenTofu Infrastructure Scaffold (Pilot)
 
-This directory is the OpenTofu pilot scaffold for Docker Lab.
+This directory contains the executable OpenTofu pilot scaffold for Docker Lab.
 
 Boundary rules:
 
 1. OpenTofu provisions infrastructure prerequisites only.
 2. Docker Compose + webhook pull-deploy remain runtime source of truth.
-3. Multi-VPS extension is explicitly deferred until single-VPS validation is complete.
+3. Multi-VPS extension is blocked until single-VPS validation evidence exists.
 
 Authoritative planning/policy document:
 
@@ -20,13 +20,28 @@ infra/opentofu/
   .gitignore
   backend/
     README.md
+    backend.local.hcl.example
+    backend.s3.hcl.example
   env/
     README.md
+    pilot-single-vps.auto.tfvars.example
   modules/
     README.md
+    pilot-contract/
+      variables.tf
+      main.tf
+      outputs.tf
   stacks/
     pilot-single-vps/
       README.md
+      versions.tf
+      variables.tf
+      main.tf
+      outputs.tf
+  scripts/
+    tofu.sh
+    state-backup.sh
+    pilot-preflight.sh
   state-backups/
     README.md
 ```
@@ -36,3 +51,11 @@ Operational contract:
 1. Never commit state payloads or credentials.
 2. Mandatory state backup before any `tofu apply` or `tofu destroy`.
 3. Keep naming consistent with `pilot-single-vps` environment key.
+
+Quick start:
+
+```bash
+# From sub-repos/docker-lab
+./infra/opentofu/scripts/tofu.sh version
+./infra/opentofu/scripts/pilot-preflight.sh
+```

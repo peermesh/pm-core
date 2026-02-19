@@ -2,10 +2,18 @@
 
 Purpose: backend policy and profile examples for `pilot-single-vps`.
 
-Expected files in a follow-up implementation WO:
+Tracked examples:
 
 - `backend.local.hcl.example`
 - `backend.s3.hcl.example`
+
+Usage:
+
+```bash
+# Example local init
+./infra/opentofu/scripts/tofu.sh -chdir=infra/opentofu/stacks/pilot-single-vps init \
+  -backend-config=../../backend/backend.local.hcl.example
+```
 
 Policy source:
 

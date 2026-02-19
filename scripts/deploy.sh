@@ -60,6 +60,7 @@ POST_DEPLOY_GIT_SHA=""
 PROMOTION_GATE_STATUS="PENDING"
 APPLY_GATE_STATUS="PENDING"
 CONFIDENCE_GATE_STATUS="PENDING"
+SUPPLY_CHAIN_GATE_STATUS="PENDING"
 
 usage() {
     cat <<USAGE
@@ -405,6 +406,11 @@ check_prerequisites() {
         failed=1
     fi
 
+    if [[ ! -x "$SCRIPT_DIR/security/validate-supply-chain.sh" ]]; then
+        log_error "Missing executable: scripts/security/validate-supply-chain.sh"
+        failed=1
+    fi
+
     if [[ ! -x "$SCRIPT_DIR/init-volumes.sh" ]]; then
         log_warn "scripts/init-volumes.sh missing or not executable"
     fi
@@ -530,6 +536,49 @@ EOF
         log_ok "Compose config preflight passed"
     else
         log_error "Compose config preflight failed (see ${EVIDENCE_DIR}/preflight-compose-config.log)"
+        failed=1
+    fi
+
+    local supply_chain_args=()
+    local supply_chain_threshold
+    local supply_chain_strict
+    local supply_chain_fail_on_latest
+    local supply_chain_pull_missing
+    local idx=0
+    supply_chain_threshold="${SUPPLY_CHAIN_SEVERITY_THRESHOLD:-CRITICAL}"
+    supply_chain_strict="${SUPPLY_CHAIN_STRICT:-false}"
+    supply_chain_fail_on_latest="${SUPPLY_CHAIN_FAIL_ON_LATEST:-false}"
+    supply_chain_pull_missing="${SUPPLY_CHAIN_PULL_MISSING:-false}"
+
+    while [[ $idx -lt ${#COMPOSE_ARGS[@]} ]]; do
+        supply_chain_args+=(--compose-file "${COMPOSE_ARGS[$((idx + 1))]}")
+        idx=$((idx + 2))
+    done
+
+    supply_chain_args+=(--output-dir "$EVIDENCE_DIR/supply-chain")
+    supply_chain_args+=(--severity-threshold "$supply_chain_threshold")
+
+    if [[ "$supply_chain_strict" == true ]]; then
+        supply_chain_args+=(--strict)
+    fi
+    if [[ "$supply_chain_fail_on_latest" == true ]]; then
+        supply_chain_args+=(--fail-on-latest)
+    fi
+    if [[ "$supply_chain_pull_missing" == true ]]; then
+        supply_chain_args+=(--pull-missing)
+    fi
+
+    if run_and_capture "preflight-supply-chain" "$SCRIPT_DIR/security/validate-supply-chain.sh" "${supply_chain_args[@]}"; then
+        SUPPLY_CHAIN_GATE_STATUS="PASS"
+        append_manifest "SUPPLY_CHAIN_SUMMARY_FILE" "$EVIDENCE_DIR/supply-chain/supply-chain-summary.env"
+        append_manifest "SUPPLY_CHAIN_SEVERITY_THRESHOLD" "$supply_chain_threshold"
+        append_manifest "SUPPLY_CHAIN_STRICT" "$supply_chain_strict"
+        record_gate "supply-chain-baseline" "PASS" "image-policy sbom vulnerability-threshold"
+        log_ok "Supply-chain preflight passed"
+    else
+        SUPPLY_CHAIN_GATE_STATUS="FAIL"
+        record_gate "supply-chain-baseline" "FAIL" "see preflight-supply-chain.log"
+        log_error "Supply-chain preflight failed (see ${EVIDENCE_DIR}/preflight-supply-chain.log)"
         failed=1
     fi
 
@@ -806,6 +855,7 @@ write_release_evidence() {
     append_manifest "PROMOTION_GATE_STATUS" "$PROMOTION_GATE_STATUS"
     append_manifest "APPLY_GATE_STATUS" "$APPLY_GATE_STATUS"
     append_manifest "CONFIDENCE_GATE_STATUS" "$CONFIDENCE_GATE_STATUS"
+    append_manifest "SUPPLY_CHAIN_GATE_STATUS" "$SUPPLY_CHAIN_GATE_STATUS"
 
     cat >"$report" <<EOF
 # Release Evidence Bundle
@@ -826,6 +876,7 @@ Post-Deploy Commit: ${POST_DEPLOY_GIT_SHA:-n/a}
 - Promotion readiness: ${PROMOTION_GATE_STATUS}
 - Apply safety: ${APPLY_GATE_STATUS}
 - Post-apply confidence: ${CONFIDENCE_GATE_STATUS}
+- Supply-chain baseline: ${SUPPLY_CHAIN_GATE_STATUS}
 
 ## Evidence Artifacts
 - Manifest: ${EVIDENCE_MANIFEST}
@@ -833,6 +884,8 @@ Post-Deploy Commit: ${POST_DEPLOY_GIT_SHA:-n/a}
 - Preflight profile matrix: ${EVIDENCE_DIR}/preflight-profile-matrix.txt
 - Compose preflight output: ${EVIDENCE_DIR}/preflight-compose-config.log
 - Secrets preflight output: ${EVIDENCE_DIR}/preflight-secrets-validate.log
+- Supply-chain preflight output: ${EVIDENCE_DIR}/preflight-supply-chain.log
+- Supply-chain summary: ${EVIDENCE_DIR}/supply-chain/supply-chain-summary.env
 - Rollback pointer: ${ROLLBACK_POINTER_FILE:-not-captured}
 - Rollback plan: ${EVIDENCE_DIR}/rollback-plan.md
 - Health progress: ${EVIDENCE_DIR}/health-progress.log
@@ -862,6 +915,7 @@ main() {
         PROMOTION_GATE_STATUS="SKIPPED"
         APPLY_GATE_STATUS="SKIPPED"
         CONFIDENCE_GATE_STATUS="SKIPPED"
+        SUPPLY_CHAIN_GATE_STATUS="SKIPPED"
         record_gate "profiles" "PASS" "profile-inspection-only"
         write_release_evidence
         exit 0

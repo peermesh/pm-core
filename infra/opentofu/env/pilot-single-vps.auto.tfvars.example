@@ -1,0 +1,16 @@
+compute_provider        = "example-cloud"
+dns_provider            = "example-dns"
+pilot_domain            = "example.com"
+pilot_subdomain         = "dockerlab"
+pilot_region            = "us-central"
+pilot_instance_size     = "core-2vcpu-4gb"
+operator_ssh_public_key = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHOLDER replace@example"
+
+pilot_enable_ipv6         = false
+firewall_allow_ssh_cidrs  = ["203.0.113.0/24"]
+firewall_allow_http       = true
+firewall_allow_https      = true
+resource_tags = {
+  project = "peer-mesh-docker-lab"
+  env     = "pilot-single-vps"
+}

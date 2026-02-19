@@ -2,9 +2,16 @@
 
 Purpose: variable contract and environment-specific input examples for pilot execution.
 
-Expected follow-up files:
+Tracked example:
 
 - `pilot-single-vps.auto.tfvars.example`
+
+Usage:
+
+```bash
+./infra/opentofu/scripts/tofu.sh -chdir=infra/opentofu/stacks/pilot-single-vps plan \
+  -var-file=../../env/pilot-single-vps.auto.tfvars.example
+```
 
 Required variable names and defaults policy are defined in:
 

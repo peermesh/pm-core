@@ -2,6 +2,8 @@
 set -euo pipefail
 
 fail=0
+deploy_workflow_touched=0
+deploy_workflow_files=()
 
 # Files staged for commit.
 staged_files=$(git diff --cached --name-only --diff-filter=ACMR)
@@ -25,6 +27,14 @@ is_allowed_secret_path() {
 
 while IFS= read -r file; do
   [[ -z "$file" ]] && continue
+
+  # Guard deployment workflow edits unless explicitly authorized.
+  case "$file" in
+    .github/workflows/deploy.yml|.github/workflows/deploy.yml.DISABLED)
+      deploy_workflow_touched=1
+      deploy_workflow_files+=("$file")
+      ;;
+  esac
 
   # Block plaintext env files.
   case "$file" in
@@ -53,8 +63,23 @@ while IFS= read -r file; do
   fi
 done <<< "$staged_files"
 
+if [[ "$deploy_workflow_touched" -eq 1 ]]; then
+  if [[ "${ALLOW_DEPLOY_WORKFLOW_EDIT:-}" != "true" ]]; then
+    echo "[pre-commit] Blocked deploy workflow edit without explicit authorization."
+    echo "[pre-commit] Staged deploy workflow file(s):"
+    for file in "${deploy_workflow_files[@]}"; do
+      echo "  - $file"
+    done
+    echo "[pre-commit] To proceed intentionally, rerun commit with:"
+    echo "  ALLOW_DEPLOY_WORKFLOW_EDIT=true git commit ..."
+    fail=1
+  else
+    echo "[pre-commit] ALLOW_DEPLOY_WORKFLOW_EDIT=true acknowledged for deploy workflow edit."
+  fi
+fi
+
 if [[ $fail -ne 0 ]]; then
-  echo "[pre-commit] Commit rejected. Use encrypted secrets (*.enc.yaml) and secret files/variables patterns."
+  echo "[pre-commit] Commit rejected. Resolve staged secret/deploy-workflow guard violations and retry."
   exit 1
 fi
 

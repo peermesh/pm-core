@@ -223,6 +223,23 @@ For local development without valid domain:
 TRAEFIK_ACME_STAGING=true
 ```
 
+## CI/CD Security Controls
+
+Deployment security model:
+
+1. Production deployment is pull-based webhook execution from the VPS.
+2. Push-based GitHub Actions deployment (`deploy.yml`) remains disabled by default.
+3. Deploy workflow edits are guarded by pre-commit and require explicit override:
+
+```bash
+ALLOW_DEPLOY_WORKFLOW_EDIT=true git commit -m "..."
+```
+
+Guarded files:
+
+1. `.github/workflows/deploy.yml`
+2. `.github/workflows/deploy.yml.DISABLED`
+
 ## Hardening Checklist
 
 ### Before Deployment

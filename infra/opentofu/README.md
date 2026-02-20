@@ -58,4 +58,12 @@ Quick start:
 # From sub-repos/docker-lab
 ./infra/opentofu/scripts/tofu.sh version
 ./infra/opentofu/scripts/pilot-preflight.sh
+./infra/opentofu/scripts/pilot-apply-readiness.sh --help
 ```
+
+Apply-readiness gate (required before any mutating apply):
+
+1. `OPENTOFU_PILOT_APPLY_APPROVED=true` must be set.
+2. `OPENTOFU_PILOT_CHANGE_REF=<WO-or-change-id>` must be set.
+3. Provider credential env vars must be present (derived from `compute_provider`/`dns_provider`, or provided via `--require-env` / `OPENTOFU_REQUIRED_ENV`).
+4. Example var/backend files are rejected in strict mode unless `--allow-example-inputs` is explicitly provided for dry-run evidence.

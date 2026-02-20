@@ -16,6 +16,8 @@ help:
     @echo "  just tofu-version"
     @echo "  just tofu-preflight"
     @echo "  just tofu-state-backup [suffix]"
+    @echo "  just tofu-apply-readiness [var_file] [backend_config] [summary_file]"
+    @echo "  just tofu-apply-readiness-dryrun [summary_file]"
     @echo ""
     @echo "Examples:"
     @echo "  just validate ghost production"
@@ -33,6 +35,8 @@ help:
     @echo "  just tofu-version"
     @echo "  just tofu-preflight"
     @echo "  just tofu-state-backup preflight"
+    @echo "  OPENTOFU_PILOT_APPLY_APPROVED=true OPENTOFU_PILOT_CHANGE_REF=WO-123 just tofu-apply-readiness /path/to/pilot.auto.tfvars /path/to/backend.hcl /tmp/opentofu-readiness.env"
+    @echo "  just tofu-apply-readiness-dryrun /tmp/opentofu-readiness-dryrun.env"
 
 validate app env="production":
     ./scripts/validate-app-secrets.sh {{app}} {{env}}
@@ -89,3 +93,19 @@ tofu-preflight:
 
 tofu-state-backup suffix="manual":
     ./infra/opentofu/scripts/state-backup.sh --suffix {{suffix}} --allow-empty
+
+tofu-apply-readiness var_file="" backend_config="" summary_file="":
+    args=(); \
+    if [[ -n "{{var_file}}" ]]; then args+=(--var-file "{{var_file}}"); fi; \
+    if [[ -n "{{backend_config}}" ]]; then args+=(--backend-config "{{backend_config}}"); fi; \
+    if [[ -n "{{summary_file}}" ]]; then args+=(--summary-file "{{summary_file}}"); fi; \
+    ./infra/opentofu/scripts/pilot-apply-readiness.sh "$${args[@]}"
+
+tofu-apply-readiness-dryrun summary_file="/tmp/pmdl-opentofu-readiness-dryrun.env":
+    OPENTOFU_PILOT_APPLY_APPROVED=true \
+    OPENTOFU_PILOT_CHANGE_REF=dryrun \
+    OPENTOFU_REQUIRED_ENV=DRYRUN_PROVIDER_TOKEN \
+    DRYRUN_PROVIDER_TOKEN=dryrun-token \
+    ./infra/opentofu/scripts/pilot-apply-readiness.sh \
+        --allow-example-inputs \
+        --summary-file "{{summary_file}}"

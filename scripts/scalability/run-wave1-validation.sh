@@ -17,6 +17,7 @@ PROJECT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 OUTPUT_DIR=""
 RUN_NONFUNCTIONAL=true
+METRICS_SUMMARY_FILE=""
 
 CPU_24H_P95=""
 MEM_24H_P95=""
@@ -52,6 +53,7 @@ Usage: $0 [OPTIONS]
 
 Options:
   --output-dir DIR          Output directory for validation artifacts
+  --metrics-summary-file F  Wave-2 summary env file (loads latency/error/RTO/RPO when unset)
   --cpu-24h-p95 VALUE       CPU p95 percent over last 24h
   --mem-24h-p95 VALUE       Memory p95 percent over last 24h
   --disk-util-p95 VALUE     Disk utilization p95 percent
@@ -93,6 +95,40 @@ log_pass() {
 log_check_fail() {
     CHECK_FAILURES=$((CHECK_FAILURES + 1))
     echo "[FAIL] $1"
+}
+
+load_metrics_summary() {
+    local summary_file="$1"
+
+    if [[ ! -f "$summary_file" ]]; then
+        log_warn "metrics summary file not found: $summary_file"
+        return 1
+    fi
+
+    # shellcheck disable=SC1090
+    source "$summary_file"
+
+    if [[ -z "$LATENCY_P99_MS" && -n "${WAVE2_LATENCY_P99_MS:-}" ]]; then
+        LATENCY_P99_MS="$WAVE2_LATENCY_P99_MS"
+        log_info "latency_p99_ms loaded from wave-2 summary: ${LATENCY_P99_MS}"
+    fi
+
+    if [[ -z "$ERROR_RATE_PCT" && -n "${WAVE2_ERROR_RATE_P95_PCT:-}" ]]; then
+        ERROR_RATE_PCT="$WAVE2_ERROR_RATE_P95_PCT"
+        log_info "error_rate_pct loaded from wave-2 summary (p95): ${ERROR_RATE_PCT}"
+    fi
+
+    if [[ -z "$RTO_MIN" && -n "${WAVE2_RTO_MIN:-}" ]]; then
+        RTO_MIN="$WAVE2_RTO_MIN"
+        log_info "rto_min loaded from wave-2 summary: ${RTO_MIN}"
+    fi
+
+    if [[ -z "$RPO_HOURS" && -n "${WAVE2_RPO_HOURS:-}" ]]; then
+        RPO_HOURS="$WAVE2_RPO_HOURS"
+        log_info "rpo_hours loaded from wave-2 summary: ${RPO_HOURS}"
+    fi
+
+    return 0
 }
 
 derive_cpu_snapshot_pct() {
@@ -209,6 +245,14 @@ while [[ $# -gt 0 ]]; do
             fi
             shift 2
             ;;
+        --metrics-summary-file)
+            METRICS_SUMMARY_FILE="${2:-}"
+            if [[ -z "$METRICS_SUMMARY_FILE" ]]; then
+                echo "[ERROR] --metrics-summary-file requires a value"
+                exit 1
+            fi
+            shift 2
+            ;;
         --cpu-24h-p95)
             CPU_24H_P95="${2:-}"
             shift 2
@@ -274,6 +318,10 @@ NONFUNCTIONAL_TABLE="$OUTPUT_DIR/nonfunctional-checks.tsv"
 {
     echo -e "check\tstatus\texit_code\tlog"
 } >"$NONFUNCTIONAL_TABLE"
+
+if [[ -n "$METRICS_SUMMARY_FILE" ]]; then
+    load_metrics_summary "$METRICS_SUMMARY_FILE" || true
+fi
 
 if [[ -z "$CPU_24H_P95" ]]; then
     CPU_24H_P95="$(derive_cpu_snapshot_pct || true)"
@@ -392,6 +440,7 @@ WAVE1_OVERALL_DECISION=$overall_decision
 WAVE1_ADD_HOST_COUNT=$ADD_HOST_COUNT
 WAVE1_SCALE_UP_COUNT=$SCALE_UP_COUNT
 WAVE1_UNKNOWN_COUNT=$UNKNOWN_COUNT
+WAVE1_METRICS_SUMMARY_FILE=$METRICS_SUMMARY_FILE
 WAVE1_WARNINGS=$WARNINGS
 WAVE1_CHECK_PASSES=$CHECK_PASSES
 WAVE1_CHECK_FAILURES=$CHECK_FAILURES

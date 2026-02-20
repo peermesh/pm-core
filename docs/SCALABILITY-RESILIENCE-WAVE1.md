@@ -57,3 +57,40 @@ Required artifacts:
 - Else if any metric status is `SCALE_UP` => queue action `WO-NEXT-CAPACITY-TUNING`
 - Else => queue action `WO-NEXT-MONITORING-ONLY`
 - Unknown metric gaps => add `WO-NEXT-METRICS-INSTRUMENTATION`
+
+## Wave-2 Metrics Capture And Ingestion (24h)
+
+To eliminate `UNKNOWN` on latency/error/RTO/RPO dimensions, use the canonical wave-2 pipeline:
+
+1. Capture canonical raw streams:
+
+```bash
+./scripts/scalability/capture-wave2-metrics.sh \
+  --ssh-host root@37.27.208.228 \
+  --window-hours 24 \
+  --output-dir /tmp/pmdl-wo033
+```
+
+2. Ingest the aggregated summary into wave-1 validator:
+
+```bash
+./scripts/scalability/run-wave1-validation.sh \
+  --metrics-summary-file /tmp/pmdl-wo033/aggregated/wave2-metrics-summary.env
+```
+
+Canonical raw metric files:
+
+- `raw/latency-ms.tsv`
+- `raw/error-rate-pct.tsv`
+- `raw/rto-min.tsv`
+- `raw/rpo-hours.tsv`
+
+Queryable aggregation artifacts:
+
+- `aggregated/metrics-query.tsv`
+- `aggregated/wave2-metrics-summary.env`
+
+Contract:
+
+- latency and error are derived from Traefik access logs over the selected window.
+- RTO/RPO are drill-derived records and must be sourced from an auditable drill run.

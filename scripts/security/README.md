@@ -55,6 +55,14 @@ Runs the full supply-chain baseline gate: image policy + SBOM + vulnerability th
 
 # Stricter gate
 ./scripts/security/validate-supply-chain.sh --severity-threshold HIGH --fail-on-latest --strict
+
+# Authenticated non-interactive mode (recommended for CI/operators)
+./scripts/security/validate-supply-chain.sh \
+  --scout-username "$DOCKER_SCOUT_USERNAME" \
+  --scout-token-file /run/secrets/docker_scout_pat
+
+# Legacy degraded mode (explicit opt-in only)
+./scripts/security/validate-supply-chain.sh --allow-auth-degraded
 ```
 
 ## Documentation

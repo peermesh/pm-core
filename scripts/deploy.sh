@@ -544,11 +544,13 @@ EOF
     local supply_chain_strict
     local supply_chain_fail_on_latest
     local supply_chain_pull_missing
+    local supply_chain_allow_auth_degraded
     local idx=0
     supply_chain_threshold="${SUPPLY_CHAIN_SEVERITY_THRESHOLD:-CRITICAL}"
     supply_chain_strict="${SUPPLY_CHAIN_STRICT:-false}"
     supply_chain_fail_on_latest="${SUPPLY_CHAIN_FAIL_ON_LATEST:-false}"
     supply_chain_pull_missing="${SUPPLY_CHAIN_PULL_MISSING:-false}"
+    supply_chain_allow_auth_degraded="${SUPPLY_CHAIN_ALLOW_AUTH_DEGRADED:-false}"
 
     while [[ $idx -lt ${#COMPOSE_ARGS[@]} ]]; do
         supply_chain_args+=(--compose-file "${COMPOSE_ARGS[$((idx + 1))]}")
@@ -567,12 +569,16 @@ EOF
     if [[ "$supply_chain_pull_missing" == true ]]; then
         supply_chain_args+=(--pull-missing)
     fi
+    if [[ "$supply_chain_allow_auth_degraded" == true ]]; then
+        supply_chain_args+=(--allow-auth-degraded)
+    fi
 
     if run_and_capture "preflight-supply-chain" "$SCRIPT_DIR/security/validate-supply-chain.sh" "${supply_chain_args[@]}"; then
         SUPPLY_CHAIN_GATE_STATUS="PASS"
         append_manifest "SUPPLY_CHAIN_SUMMARY_FILE" "$EVIDENCE_DIR/supply-chain/supply-chain-summary.env"
         append_manifest "SUPPLY_CHAIN_SEVERITY_THRESHOLD" "$supply_chain_threshold"
         append_manifest "SUPPLY_CHAIN_STRICT" "$supply_chain_strict"
+        append_manifest "SUPPLY_CHAIN_ALLOW_AUTH_DEGRADED" "$supply_chain_allow_auth_degraded"
         record_gate "supply-chain-baseline" "PASS" "image-policy sbom vulnerability-threshold"
         log_ok "Supply-chain preflight passed"
     else

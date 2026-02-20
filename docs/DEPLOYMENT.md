@@ -44,6 +44,14 @@ Manual execution:
 ./scripts/security/validate-supply-chain.sh --severity-threshold CRITICAL
 ```
 
+Authenticated non-interactive execution (recommended for CI/operators):
+
+```bash
+DOCKER_SCOUT_USERNAME=your-user \
+DOCKER_SCOUT_TOKEN_FILE=/run/secrets/docker_scout_pat \
+./scripts/security/validate-supply-chain.sh --severity-threshold CRITICAL
+```
+
 Strict example:
 
 ```bash
@@ -51,6 +59,12 @@ SUPPLY_CHAIN_STRICT=true \
 SUPPLY_CHAIN_FAIL_ON_LATEST=true \
 SUPPLY_CHAIN_SEVERITY_THRESHOLD=HIGH \
 ./scripts/deploy.sh --validate
+```
+
+If you intentionally need legacy degraded behavior in local workflows:
+
+```bash
+SUPPLY_CHAIN_ALLOW_AUTH_DEGRADED=true ./scripts/deploy.sh --validate
 ```
 
 Reference: [SUPPLY-CHAIN-SECURITY.md](SUPPLY-CHAIN-SECURITY.md)
@@ -61,6 +75,17 @@ Wave-1 validation captures add-host vs scale-up decisions and non-functional bas
 
 ```bash
 ./scripts/scalability/run-wave1-validation.sh
+```
+
+Wave-2 capture and ingestion for 24h latency/error/RTO/RPO evidence:
+
+```bash
+./scripts/scalability/capture-wave2-metrics.sh \
+  --ssh-host root@37.27.208.228 \
+  --output-dir /tmp/pmdl-wave2
+
+./scripts/scalability/run-wave1-validation.sh \
+  --metrics-summary-file /tmp/pmdl-wave2/aggregated/wave2-metrics-summary.env
 ```
 
 Reference: [SCALABILITY-RESILIENCE-WAVE1.md](SCALABILITY-RESILIENCE-WAVE1.md)

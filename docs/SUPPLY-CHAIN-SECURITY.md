@@ -48,6 +48,23 @@ Stricter example:
 ./scripts/security/validate-supply-chain.sh --severity-threshold HIGH --fail-on-latest --strict
 ```
 
+Authenticated runtime contract (non-interactive CI/operator mode):
+
+```bash
+./scripts/security/validate-supply-chain.sh \
+  --scout-username "$DOCKER_SCOUT_USERNAME" \
+  --scout-token-file /run/secrets/docker_scout_pat \
+  --severity-threshold CRITICAL
+```
+
+Legacy degraded mode (explicit opt-in only):
+
+```bash
+./scripts/security/validate-supply-chain.sh \
+  --allow-auth-degraded \
+  --severity-threshold CRITICAL
+```
+
 ## Artifact Paths
 
 ### Default standalone paths
@@ -85,6 +102,10 @@ Optional environment controls:
 - `SUPPLY_CHAIN_STRICT` (`true|false`, default: `false`)
 - `SUPPLY_CHAIN_FAIL_ON_LATEST` (`true|false`, default: `false`)
 - `SUPPLY_CHAIN_PULL_MISSING` (`true|false`, default: `false`)
+- `SUPPLY_CHAIN_ALLOW_AUTH_DEGRADED` (`true|false`, default: `false`)
+- `DOCKER_SCOUT_USERNAME` (optional; required for non-interactive authenticated mode)
+- `DOCKER_SCOUT_TOKEN_FILE` (optional PAT file path; preferred for CI)
+- `DOCKER_SCOUT_TOKEN` (optional PAT value; fallback when token file is unavailable)
 
 ## Exit Semantics
 
@@ -95,3 +116,9 @@ Supply-chain commands return:
 - `2` when warnings exist and `--strict` is enabled
 
 This allows release workflows to fail fast while still supporting progressive hardening.
+
+## Authentication Failure Semantics
+
+- Default behavior: unauthenticated Docker Scout runs are treated as `scout-auth-required` failures.
+- This eliminates ambiguous `scout-scan-error` warning-only outcomes in hardened pipelines.
+- If degraded behavior is explicitly desired for local experimentation, pass `--allow-auth-degraded` (or set `SUPPLY_CHAIN_ALLOW_AUTH_DEGRADED=true`).

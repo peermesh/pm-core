@@ -293,8 +293,17 @@ If shellcheck finds issues in POSIX scripts, fix these common problems:
 
 - [ ] **Vulnerability threshold gate passes at chosen severity**
   ```bash
+  # Authenticated mode (recommended)
+  DOCKER_SCOUT_USERNAME=your-user \
+  DOCKER_SCOUT_TOKEN_FILE=/run/secrets/docker_scout_pat \
   ./scripts/security/validate-supply-chain.sh --severity-threshold CRITICAL
   # Expected: Supply-chain summary with FAILURES=0
+  ```
+
+- [ ] **Auth-degraded mode is disabled unless explicitly intentional**
+  ```bash
+  # Expected default: SUPPLY_CHAIN_ALLOW_AUTH_DEGRADED is false/unset
+  env | grep '^SUPPLY_CHAIN_ALLOW_AUTH_DEGRADED=' || true
   ```
 
 ### Scalability/Resilience Wave-1
@@ -303,6 +312,13 @@ If shellcheck finds issues in POSIX scripts, fix these common problems:
   ```bash
   ./scripts/scalability/run-wave1-validation.sh
   # Expected: wave1-summary.env + trigger-matrix.tsv + nonfunctional-checks.tsv
+  ```
+
+- [ ] **Wave-2 metrics capture removes UNKNOWN telemetry dimensions**
+  ```bash
+  ./scripts/scalability/capture-wave2-metrics.sh --ssh-host root@37.27.208.228 --output-dir /tmp/pmdl-wave2
+  ./scripts/scalability/run-wave1-validation.sh --metrics-summary-file /tmp/pmdl-wave2/aggregated/wave2-metrics-summary.env
+  # Expected: trigger-matrix has no UNKNOWN rows for latency_p99_ms, error_rate_pct, rto_min, rpo_hours
   ```
 
 ---

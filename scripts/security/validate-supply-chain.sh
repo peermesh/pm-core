@@ -25,6 +25,14 @@ SEVERITY_THRESHOLD="CRITICAL"
 OUTPUT_DIR=""
 COMPOSE_FILES=("docker-compose.yml")
 COMPOSE_FILES_CUSTOM=false
+ALLOW_AUTH_DEGRADED="${SUPPLY_CHAIN_ALLOW_AUTH_DEGRADED:-false}"
+SCOUT_USERNAME="${DOCKER_SCOUT_USERNAME:-}"
+SCOUT_TOKEN="${DOCKER_SCOUT_TOKEN:-}"
+SCOUT_TOKEN_FILE="${DOCKER_SCOUT_TOKEN_FILE:-}"
+SCOUT_LOGOUT="${DOCKER_SCOUT_LOGOUT:-false}"
+SCOUT_AUTHENTICATED=false
+SCOUT_AUTH_SOURCE="none"
+SCOUT_LOGIN_PERFORMED=false
 
 FAILURES=0
 WARNINGS=0
@@ -43,6 +51,11 @@ Options:
   --severity-threshold LEVEL Vulnerability threshold: LOW|MEDIUM|HIGH|CRITICAL
   --fail-on-latest           Treat latest tag as failure (default: warning)
   --pull-missing             Attempt docker pull for missing local images
+  --allow-auth-degraded      Allow unauthenticated scout mode (legacy warning behavior)
+  --scout-username USER      Docker Hub username for non-interactive scout login
+  --scout-token TOKEN        Docker Hub PAT value for non-interactive scout login
+  --scout-token-file FILE    Docker Hub PAT file for non-interactive scout login
+  --scout-logout             Logout after scan when non-interactive login is used
   --strict                   Fail if any warnings are present
   --help, -h                 Show help
 USAGE
@@ -128,6 +141,53 @@ ensure_local_image() {
     return 1
 }
 
+docker_username() {
+    docker info --format '{{.Username}}' 2>/dev/null || true
+}
+
+scout_auth_error() {
+    local report_file="$1"
+    rg -q "Log in with your Docker ID|docker login|Please login|Authentication required" "$report_file"
+}
+
+ensure_scout_auth() {
+    local existing_user token_value=""
+
+    existing_user="$(docker_username)"
+    if [[ -n "$existing_user" ]]; then
+        SCOUT_AUTHENTICATED=true
+        SCOUT_AUTH_SOURCE="existing-docker-login"
+        return 0
+    fi
+
+    if [[ -n "$SCOUT_TOKEN_FILE" ]]; then
+        if [[ ! -f "$SCOUT_TOKEN_FILE" ]]; then
+            echo "[ERROR] --scout-token-file not found: $SCOUT_TOKEN_FILE"
+            return 1
+        fi
+        token_value="$(cat "$SCOUT_TOKEN_FILE")"
+    fi
+
+    if [[ -n "$SCOUT_TOKEN" ]]; then
+        token_value="$SCOUT_TOKEN"
+    fi
+
+    if [[ -n "$SCOUT_USERNAME" && -n "$token_value" ]]; then
+        if printf '%s' "$token_value" | docker login --username "$SCOUT_USERNAME" --password-stdin >/dev/null 2>&1; then
+            SCOUT_AUTHENTICATED=true
+            SCOUT_AUTH_SOURCE="non-interactive-login"
+            SCOUT_LOGIN_PERFORMED=true
+            return 0
+        fi
+        echo "[ERROR] docker login failed for --scout-username"
+        return 1
+    fi
+
+    SCOUT_AUTHENTICATED=false
+    SCOUT_AUTH_SOURCE="none"
+    return 1
+}
+
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --compose-file)
@@ -164,6 +224,38 @@ while [[ $# -gt 0 ]]; do
             ;;
         --pull-missing)
             PULL_MISSING=true
+            shift
+            ;;
+        --allow-auth-degraded)
+            ALLOW_AUTH_DEGRADED=true
+            shift
+            ;;
+        --scout-username)
+            if [[ -z "${2:-}" ]]; then
+                echo "[ERROR] --scout-username requires a value"
+                exit 1
+            fi
+            SCOUT_USERNAME="$2"
+            shift 2
+            ;;
+        --scout-token)
+            if [[ -z "${2:-}" ]]; then
+                echo "[ERROR] --scout-token requires a value"
+                exit 1
+            fi
+            SCOUT_TOKEN="$2"
+            shift 2
+            ;;
+        --scout-token-file)
+            if [[ -z "${2:-}" ]]; then
+                echo "[ERROR] --scout-token-file requires a value"
+                exit 1
+            fi
+            SCOUT_TOKEN_FILE="$2"
+            shift 2
+            ;;
+        --scout-logout)
+            SCOUT_LOGOUT=true
             shift
             ;;
         --strict)
@@ -284,33 +376,60 @@ elif ! docker scout --help >/dev/null 2>&1; then
     log_warn "docker scout unavailable; vulnerability gate skipped"
 else
     severity_filter="$(severity_csv)"
-    while IFS= read -r image; do
-        [[ -z "$image" ]] && continue
-
-        if ! ensure_local_image "$image"; then
-            SCOUT_WARNINGS=$((SCOUT_WARNINGS + 1))
-            echo -e "${image}\tSKIPPED\t${SEVERITY_THRESHOLD}\timage-not-local\t" >>"$vuln_report"
-            continue
-        fi
-
-        report_file="$OUTPUT_DIR/vuln-$(safe_name "$image").log"
-
-        set +e
-        docker scout cves --only-severity "$severity_filter" --exit-code "local://${image}" >"$report_file" 2>&1
-        scout_rc=$?
-        set -e
-
-        if [[ "$scout_rc" -eq 0 ]]; then
-            SCOUT_PASSES=$((SCOUT_PASSES + 1))
-            echo -e "${image}\tPASS\t${SEVERITY_THRESHOLD}\tno-threshold-vulns\t${report_file}" >>"$vuln_report"
-        elif [[ "$scout_rc" -eq 2 ]]; then
-            SCOUT_FAILURES=$((SCOUT_FAILURES + 1))
-            echo -e "${image}\tFAIL\t${SEVERITY_THRESHOLD}\tthreshold-vulnerabilities-detected\t${report_file}" >>"$vuln_report"
+    if ensure_scout_auth; then
+        log_pass "Docker Scout authentication is ready (${SCOUT_AUTH_SOURCE})"
+    else
+        if [[ "$ALLOW_AUTH_DEGRADED" == true ]]; then
+            log_warn "Docker Scout authentication missing; continuing in degraded mode by request"
         else
-            SCOUT_WARNINGS=$((SCOUT_WARNINGS + 1))
-            echo -e "${image}\tWARN\t${SEVERITY_THRESHOLD}\tscout-scan-error\t${report_file}" >>"$vuln_report"
+            log_fail "Docker Scout authentication required. Run docker login or pass --scout-username with --scout-token-file/--scout-token."
+            while IFS= read -r image; do
+                [[ -z "$image" ]] && continue
+                report_file="$OUTPUT_DIR/vuln-$(safe_name "$image").log"
+                printf 'docker scout authentication required for image: %s\n' "$image" > "$report_file"
+                SCOUT_FAILURES=$((SCOUT_FAILURES + 1))
+                echo -e "${image}\tFAIL\t${SEVERITY_THRESHOLD}\tscout-auth-required\t${report_file}" >>"$vuln_report"
+            done <"$images_file"
         fi
-    done <"$images_file"
+    fi
+
+    if [[ "$ALLOW_AUTH_DEGRADED" == true || "$SCOUT_AUTHENTICATED" == true ]]; then
+        while IFS= read -r image; do
+            [[ -z "$image" ]] && continue
+
+            if ! ensure_local_image "$image"; then
+                SCOUT_WARNINGS=$((SCOUT_WARNINGS + 1))
+                echo -e "${image}\tSKIPPED\t${SEVERITY_THRESHOLD}\timage-not-local\t" >>"$vuln_report"
+                continue
+            fi
+
+            report_file="$OUTPUT_DIR/vuln-$(safe_name "$image").log"
+
+            set +e
+            docker scout cves --only-severity "$severity_filter" --exit-code "local://${image}" >"$report_file" 2>&1
+            scout_rc=$?
+            set -e
+
+            if [[ "$scout_rc" -eq 0 ]]; then
+                SCOUT_PASSES=$((SCOUT_PASSES + 1))
+                echo -e "${image}\tPASS\t${SEVERITY_THRESHOLD}\tno-threshold-vulns\t${report_file}" >>"$vuln_report"
+            elif [[ "$scout_rc" -eq 2 ]]; then
+                SCOUT_FAILURES=$((SCOUT_FAILURES + 1))
+                echo -e "${image}\tFAIL\t${SEVERITY_THRESHOLD}\tthreshold-vulnerabilities-detected\t${report_file}" >>"$vuln_report"
+            elif scout_auth_error "$report_file"; then
+                if [[ "$ALLOW_AUTH_DEGRADED" == true ]]; then
+                    SCOUT_WARNINGS=$((SCOUT_WARNINGS + 1))
+                    echo -e "${image}\tWARN\t${SEVERITY_THRESHOLD}\tscout-auth-required\t${report_file}" >>"$vuln_report"
+                else
+                    SCOUT_FAILURES=$((SCOUT_FAILURES + 1))
+                    echo -e "${image}\tFAIL\t${SEVERITY_THRESHOLD}\tscout-auth-required\t${report_file}" >>"$vuln_report"
+                fi
+            else
+                SCOUT_WARNINGS=$((SCOUT_WARNINGS + 1))
+                echo -e "${image}\tWARN\t${SEVERITY_THRESHOLD}\tscout-scan-error\t${report_file}" >>"$vuln_report"
+            fi
+        done <"$images_file"
+    fi
 
     if [[ "$SCOUT_FAILURES" -gt 0 ]]; then
         log_fail "Vulnerability threshold gate failed for ${SCOUT_FAILURES} image(s)"
@@ -323,6 +442,10 @@ else
     fi
 fi
 
+if [[ "$SCOUT_LOGOUT" == true && "$SCOUT_LOGIN_PERFORMED" == true ]]; then
+    docker logout >/dev/null 2>&1 || true
+fi
+
 cat >"$summary_file" <<SUMMARY
 SUPPLY_CHAIN_OUTPUT_DIR=$OUTPUT_DIR
 SUPPLY_CHAIN_IMAGES_FILE=$images_file
@@ -331,6 +454,9 @@ SUPPLY_CHAIN_SEVERITY_THRESHOLD=$SEVERITY_THRESHOLD
 SUPPLY_CHAIN_STRICT=$STRICT
 SUPPLY_CHAIN_FAIL_ON_LATEST=$FAIL_ON_LATEST
 SUPPLY_CHAIN_PULL_MISSING=$PULL_MISSING
+SUPPLY_CHAIN_ALLOW_AUTH_DEGRADED=$ALLOW_AUTH_DEGRADED
+SUPPLY_CHAIN_SCOUT_AUTHENTICATED=$SCOUT_AUTHENTICATED
+SUPPLY_CHAIN_SCOUT_AUTH_SOURCE=$SCOUT_AUTH_SOURCE
 SUPPLY_CHAIN_FAILURES=$FAILURES
 SUPPLY_CHAIN_WARNINGS=$WARNINGS
 SUPPLY_CHAIN_PASSES=$PASSES

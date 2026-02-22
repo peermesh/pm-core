@@ -106,7 +106,7 @@ Comprehensive security checklist based on CIS Docker Benchmark and OWASP Contain
 | mysql:8.0 | Yes | Yes | Manual |
 | mongo:6.0 | Yes | Yes | Manual |
 | redis:7-alpine | Yes | Yes | Manual |
-| minio/minio:latest | Yes | Yes | Manual |
+| minio/minio@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e | Yes | Yes | Manual |
 
 ---
 

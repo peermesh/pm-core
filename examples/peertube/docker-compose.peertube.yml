@@ -13,7 +13,7 @@ services:
   # PeerTube
   # =============================================================
   peertube:
-    image: chocobozzz/peertube:production-bookworm
+    image: chocobozzz/peertube@sha256:011b0ec43d921bd60a3aa01fc7995e42cf15275925f16bee6f17a6c896ca5060
     container_name: pmdl_peertube
     entrypoint: ["/usr/local/bin/pmdl-peertube-entrypoint.sh"]
 
@@ -99,7 +99,7 @@ services:
   # Redis for PeerTube
   # =============================================================
   peertube-redis:
-    image: redis:7-alpine
+    image: redis@sha256:02f2cc4882f8bf87c79a220ac958f58c700bdec0dfb9b9ea61b62fb0e8f1bfcf
     container_name: pmdl_peertube_redis
 
     profiles:

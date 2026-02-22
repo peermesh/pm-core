@@ -17,6 +17,8 @@ This document defines required secret keys per example app and how they are cons
 | Matrix | `synapse_db_password`, `synapse_signing_key`, `synapse_registration_shared_secret`, `postgres_password` |
 | PeerTube | `peertube_db_password`, `peertube_secret`, `postgres_password` |
 | Listmonk | `listmonk_db_password`, `postgres_password` |
+| WordPress | `mysql_app_password`, `mysql_root_password` (from MySQL profile) |
+| Python API (HTTPBin) | No Docker secret files required |
 | rss2bsky | Managed via encrypted env vars (no Docker secret file currently) |
 | Solid | No Docker secret files required for default file-based config |
 | Landing | No Docker secret files required |

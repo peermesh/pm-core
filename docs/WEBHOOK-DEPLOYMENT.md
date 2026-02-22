@@ -276,8 +276,11 @@ docker compose -f docker-compose.yml -f docker-compose.webhook.yml logs webhook 
 # Deployment execution logs
 ls -la /tmp/deploy-logs/
 
-# Most recent deployment
-ls -1t /tmp/deploy-logs/deploy-*.log | head -n 1 | xargs cat
+# Most recent deployment (bounded tail + evidence hint)
+./scripts/view-deploy-log.sh --tail 120
+
+# Same workflow via just
+just deploy-log
 ```
 
 ---
@@ -360,6 +363,8 @@ Additional hardening (optional):
 | `./scripts/deploy.sh --environment production --promotion-from staging ...` | Canonical operator deployment path |
 | `docker compose -f docker-compose.yml -f docker-compose.webhook.yml logs webhook --tail 100` | View webhook receiver logs |
 | `ls -la /tmp/deploy-logs/` | View webhook deployment logs and evidence root |
+| `./scripts/view-deploy-log.sh --tail 120` | View latest deployment log with evidence-bundle hint |
+| `just deploy-log` | Convenience wrapper for deployment log viewer |
 
 ---
 

@@ -101,7 +101,7 @@ x-mastodon-logging: &mastodon-logging
     max-file: "3"
 
 x-mastodon-common: &mastodon-common
-  image: ghcr.io/mastodon/mastodon:v4.2
+  image: ghcr.io/mastodon/mastodon@sha256:1b385b58aff828988fcf22d449f167da612f56558816bd5d08a1a3db4327cc02
   restart: unless-stopped
   networks:
     - db-internal
@@ -119,7 +119,7 @@ services:
   # Elasticsearch-compatible search for Mastodon
   # Used for: hashtag search, account search, post search
   opensearch:
-    image: opensearchproject/opensearch:2.11.1
+    image: opensearchproject/opensearch@sha256:cbca8e35fb333af938289ac0f370abdcbde46dbe7629acc1af0cd4219da85b62
     container_name: pmdl_mastodon_opensearch
     restart: unless-stopped
 

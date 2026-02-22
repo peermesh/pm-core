@@ -47,7 +47,7 @@ App reads secret directly from environment variable.
 ```yaml
 services:
   myapp:
-    image: myapp:latest
+    image: myapp:1.0.0
     environment:
       DATABASE_PASSWORD: ${DB_PASSWORD}
 ```

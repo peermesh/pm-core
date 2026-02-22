@@ -47,6 +47,9 @@ EVIDENCE_TAG=""
 AUTO_ROLLBACK=false
 SKIP_PULL=false
 LOCK_FILE="${DEPLOY_LOCK_FILE:-/tmp/pmdl-deploy.lock}"
+RESTART_SAFETY_POLICY_FILE="${RESTART_SAFETY_POLICY_FILE:-$PROJECT_DIR/configs/deploy/restart-safety.env}"
+RESTART_SAFETY_CRITICAL_SERVICES="${RESTART_SAFETY_CRITICAL_SERVICES:-traefik socket-proxy}"
+RESTART_SAFETY_STATEFUL_SERVICES="${RESTART_SAFETY_STATEFUL_SERVICES:-postgres mysql mongodb redis minio}"
 COMPOSE_ARGS=()
 ORIGINAL_ARGS=("$@")
 
@@ -79,6 +82,7 @@ Options:
   --evidence-tag TAG             Extra tag appended to evidence folder name
   --auto-rollback                Attempt automatic rollback on apply/smoke failure (webhook mode only)
   --skip-pull                    Skip docker compose pull
+  --restart-safety-policy FILE   Override restart safety policy file path
   -f FILE                        Include additional compose file (repeatable)
   --wait-seconds N               Health wait timeout (default: 180)
   --help, -h                     Show this help
@@ -222,6 +226,14 @@ while [[ $# -gt 0 ]]; do
             SKIP_PULL=true
             shift
             ;;
+        --restart-safety-policy)
+            RESTART_SAFETY_POLICY_FILE="${2:-}"
+            if [[ -z "$RESTART_SAFETY_POLICY_FILE" ]]; then
+                log_error "--restart-safety-policy requires a value"
+                exit 1
+            fi
+            shift 2
+            ;;
         -f)
             if [[ -z "${2:-}" ]]; then
                 log_error "-f requires a file"
@@ -309,6 +321,16 @@ load_env() {
 
     if [[ -n "$PROFILES_OVERRIDE" ]]; then
         export COMPOSE_PROFILES="$PROFILES_OVERRIDE"
+    fi
+}
+
+load_restart_safety_policy() {
+    if [[ -f "$RESTART_SAFETY_POLICY_FILE" ]]; then
+        # shellcheck disable=SC1090
+        source "$RESTART_SAFETY_POLICY_FILE"
+        log_info "Loaded restart safety policy: $RESTART_SAFETY_POLICY_FILE"
+    else
+        log_warn "Restart safety policy file not found, using defaults: $RESTART_SAFETY_POLICY_FILE"
     fi
 }
 
@@ -547,8 +569,8 @@ EOF
     local supply_chain_allow_auth_degraded
     local idx=0
     supply_chain_threshold="${SUPPLY_CHAIN_SEVERITY_THRESHOLD:-CRITICAL}"
-    supply_chain_strict="${SUPPLY_CHAIN_STRICT:-false}"
-    supply_chain_fail_on_latest="${SUPPLY_CHAIN_FAIL_ON_LATEST:-false}"
+    supply_chain_strict="${SUPPLY_CHAIN_STRICT:-true}"
+    supply_chain_fail_on_latest="${SUPPLY_CHAIN_FAIL_ON_LATEST:-true}"
     supply_chain_pull_missing="${SUPPLY_CHAIN_PULL_MISSING:-false}"
     supply_chain_allow_auth_degraded="${SUPPLY_CHAIN_ALLOW_AUTH_DEGRADED:-false}"
 
@@ -790,6 +812,75 @@ monitor_health() {
     return 1
 }
 
+evaluate_restart_safety() {
+    local policy_report="$EVIDENCE_DIR/restart-safety-policy.log"
+    local failed=0
+    local svc container_id state health key pre_image_id post_image_id changed
+
+    : >"$policy_report"
+    {
+        echo "timestamp=$(timestamp_utc)"
+        echo "policy_file=${RESTART_SAFETY_POLICY_FILE}"
+        echo "critical_services=${RESTART_SAFETY_CRITICAL_SERVICES}"
+        echo "stateful_services=${RESTART_SAFETY_STATEFUL_SERVICES}"
+        echo ""
+    } >>"$policy_report"
+
+    append_manifest "RESTART_SAFETY_POLICY_FILE" "$RESTART_SAFETY_POLICY_FILE"
+    append_manifest "RESTART_SAFETY_CRITICAL_SERVICES" "$RESTART_SAFETY_CRITICAL_SERVICES"
+    append_manifest "RESTART_SAFETY_STATEFUL_SERVICES" "$RESTART_SAFETY_STATEFUL_SERVICES"
+
+    for svc in $RESTART_SAFETY_CRITICAL_SERVICES; do
+        key="$(echo "$svc" | tr '[:lower:]-' '[:upper:]_')"
+        container_id="$(docker compose "${COMPOSE_ARGS[@]}" ps -q "$svc" 2>/dev/null || true)"
+
+        if [[ -z "$container_id" ]]; then
+            printf '%s class=critical service=%s state=missing health=missing\n' "$(timestamp_utc)" "$svc" >>"$policy_report"
+            failed=1
+            continue
+        fi
+
+        state="$(docker inspect --format '{{.State.Status}}' "$container_id" 2>/dev/null || echo unknown)"
+        health="$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$container_id" 2>/dev/null || echo unknown)"
+        pre_image_id="$(grep "^SERVICE_${key}_IMAGE_ID=" "$ROLLBACK_POINTER_FILE" 2>/dev/null | head -n 1 | cut -d= -f2- || true)"
+        post_image_id="$(docker inspect --format '{{.Image}}' "$container_id" 2>/dev/null || echo unknown)"
+
+        if [[ "$pre_image_id" != "$post_image_id" ]]; then
+            changed="yes"
+        else
+            changed="no"
+        fi
+
+        printf '%s class=critical service=%s state=%s health=%s image_changed=%s\n' \
+            "$(timestamp_utc)" "$svc" "$state" "$health" "$changed" >>"$policy_report"
+
+        if [[ "$state" != "running" || ( "$health" != "healthy" && "$health" != "none" ) ]]; then
+            failed=1
+        fi
+    done
+
+    for svc in $RESTART_SAFETY_STATEFUL_SERVICES; do
+        container_id="$(docker compose "${COMPOSE_ARGS[@]}" ps -q "$svc" 2>/dev/null || true)"
+        if [[ -z "$container_id" ]]; then
+            printf '%s class=stateful service=%s state=not-in-stack\n' "$(timestamp_utc)" "$svc" >>"$policy_report"
+            continue
+        fi
+        state="$(docker inspect --format '{{.State.Status}}' "$container_id" 2>/dev/null || echo unknown)"
+        health="$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$container_id" 2>/dev/null || echo unknown)"
+        printf '%s class=stateful service=%s state=%s health=%s\n' "$(timestamp_utc)" "$svc" "$state" "$health" >>"$policy_report"
+    done
+
+    if [[ "$failed" -ne 0 ]]; then
+        log_error "Restart safety policy check failed (see ${policy_report})"
+        record_gate "restart-safety-policy" "FAIL" "critical-service-state-check-failed"
+        return 1
+    fi
+
+    log_ok "Restart safety policy check passed"
+    record_gate "restart-safety-policy" "PASS" "critical-service-state-check-passed"
+    return 0
+}
+
 run_smoke_checks() {
     local running_count
     running_count="$(docker compose "${COMPOSE_ARGS[@]}" ps --services --status running 2>/dev/null | wc -l | tr -d ' ')"
@@ -895,6 +986,7 @@ Post-Deploy Commit: ${POST_DEPLOY_GIT_SHA:-n/a}
 - Rollback pointer: ${ROLLBACK_POINTER_FILE:-not-captured}
 - Rollback plan: ${EVIDENCE_DIR}/rollback-plan.md
 - Health progress: ${EVIDENCE_DIR}/health-progress.log
+- Restart safety policy: ${EVIDENCE_DIR}/restart-safety-policy.log
 - Post-apply compose state: ${EVIDENCE_DIR}/post-apply-compose-ps.log
 EOF
 
@@ -910,6 +1002,7 @@ main() {
 
     check_prerequisites || exit 1
     load_env || exit 1
+    load_restart_safety_policy
     init_evidence_bundle
     acquire_deploy_lock || exit 1
 
@@ -950,12 +1043,12 @@ main() {
     capture_rollback_pointer
     write_rollback_plan
 
-    if prepare_volumes && start_services && monitor_health; then
+    if prepare_volumes && start_services && monitor_health && evaluate_restart_safety; then
         APPLY_GATE_STATUS="PASS"
-        record_gate "apply-safety" "PASS" "idempotent-apply health-pass rollback-pointer-captured"
+        record_gate "apply-safety" "PASS" "idempotent-apply health-pass restart-safety-pass rollback-pointer-captured"
     else
         APPLY_GATE_STATUS="FAIL"
-        record_gate "apply-safety" "FAIL" "apply-or-health-failed"
+        record_gate "apply-safety" "FAIL" "apply-health-or-restart-safety-failed"
         attempt_auto_rollback || true
         write_release_evidence
         log_error "Apply safety gate failed"

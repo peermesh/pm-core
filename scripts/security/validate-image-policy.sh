@@ -4,10 +4,11 @@
 # ==============================================================
 # Enforces minimum image policy for compose-resolved image references:
 # - image must include a tag or digest
-# - latest tags are warnings by default (or failures with --fail-on-latest)
+# - latest tags are failures by default (can be relaxed with --allow-latest)
+# - external images require immutable digests by default
 #
 # Exit codes:
-#   0 = policy passed (warnings allowed unless --strict)
+#   0 = policy passed
 #   1 = policy failures detected
 #   2 = warnings detected in --strict mode
 # ==============================================================
@@ -18,7 +19,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 STRICT=false
-FAIL_ON_LATEST=false
+FAIL_ON_LATEST=true
+REQUIRE_EXTERNAL_DIGEST=true
 REPORT_FILE=""
 SUMMARY_FILE=""
 COMPOSE_FILES=("docker-compose.yml")
@@ -36,7 +38,9 @@ Options:
   --compose-file FILE     Compose file to include (repeatable)
   --report-file FILE      Output TSV report path
   --summary-file FILE     Output summary env path
-  --fail-on-latest        Treat latest tag as failure (default: warning)
+  --fail-on-latest        Treat latest tag as failure (default behavior)
+  --allow-latest          Treat latest tag as warning (legacy compatibility)
+  --allow-external-tags   Allow explicit external tags without digest (legacy compatibility)
   --strict                Fail if any warnings are present
   --help, -h              Show help
 USAGE
@@ -62,6 +66,25 @@ safe_mkdir_parent() {
     local parent
     parent="$(dirname "$target")"
     mkdir -p "$parent"
+}
+
+is_local_project_image() {
+    local image="$1"
+    local project_name="${COMPOSE_PROJECT_NAME:-pmdl}"
+
+    if [[ "$image" == "${project_name}/"* ]]; then
+        return 0
+    fi
+    if [[ "$image" == "${project_name}-"* ]]; then
+        return 0
+    fi
+    if [[ "$image" == "pmdl/"* ]]; then
+        return 0
+    fi
+    if [[ "$image" == "pmdl-"* ]]; then
+        return 0
+    fi
+    return 1
 }
 
 compose_images() {
@@ -114,6 +137,14 @@ while [[ $# -gt 0 ]]; do
             ;;
         --fail-on-latest)
             FAIL_ON_LATEST=true
+            shift
+            ;;
+        --allow-latest)
+            FAIL_ON_LATEST=false
+            shift
+            ;;
+        --allow-external-tags)
+            REQUIRE_EXTERNAL_DIGEST=false
             shift
             ;;
         --strict)
@@ -187,8 +218,14 @@ while IFS= read -r image; do
                     log_warn "$image uses latest tag"
                 fi
             else
-                reason="explicit-tag"
-                log_pass "$image uses explicit tag: $tag"
+                if [[ "$REQUIRE_EXTERNAL_DIGEST" == true ]] && ! is_local_project_image "$image"; then
+                    status="FAIL"
+                    reason="external-tag-without-digest"
+                    log_fail "$image uses tag '$tag' without immutable digest"
+                else
+                    reason="explicit-tag"
+                    log_pass "$image uses explicit tag: $tag"
+                fi
             fi
         fi
     fi
@@ -212,6 +249,7 @@ IMAGE_POLICY_FAILURES=$FAILURES
 IMAGE_POLICY_WARNINGS=$WARNINGS
 IMAGE_POLICY_PASSES=$PASSES
 IMAGE_POLICY_FAIL_ON_LATEST=$FAIL_ON_LATEST
+IMAGE_POLICY_REQUIRE_EXTERNAL_DIGEST=$REQUIRE_EXTERNAL_DIGEST
 IMAGE_POLICY_STRICT=$STRICT
 SUMMARY
 fi

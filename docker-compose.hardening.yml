@@ -1,0 +1,149 @@
+# ==============================================================
+# Peer Mesh Docker Lab - Security Hardening Overlay
+# ==============================================================
+#
+# PURPOSE:
+#   Applies additional security hardening to the base compose services.
+#   This overlay adds security_opt, cap_drop, cap_add, read_only, tmpfs,
+#   and user directives to services that do not have them in the root
+#   docker-compose.yml.
+#
+# USAGE:
+#   docker compose -f docker-compose.yml -f docker-compose.hardening.yml up -d
+#
+#   Or set in .env:
+#     COMPOSE_FILE=docker-compose.yml:docker-compose.hardening.yml
+#
+# DESIGN RATIONALE:
+#   - Override file avoids modifying the stable base compose.
+#   - Services that already have the secured-service anchor (traefik,
+#     dashboard, redis) receive only incremental additions here.
+#   - Database services (postgres, mysql, mongodb) need root for
+#     entrypoint init but get no-new-privileges and cap_drop after init.
+#   - Socket-proxy is the only container with a documented root exception.
+#
+# SAFETY:
+#   - Tested against live pilot startup. See WO-056 report for evidence.
+#   - read_only is applied only where runtime tmpfs covers writable needs.
+#   - Database containers are NOT set to read_only because their
+#     entrypoints create files in the root filesystem during init.
+#
+# ==============================================================
+
+services:
+
+  # ----------------------------------------------------------
+  # Socket Proxy - root exception, add security hardening
+  # ----------------------------------------------------------
+  # Note: read_only is NOT applied to socket-proxy because its
+  # entrypoint generates haproxy.cfg from a template at startup,
+  # and the template lives in the same directory. Mounting tmpfs
+  # on /usr/local/etc/haproxy/ wipes the baked-in template.
+  # cap_drop: ALL + no-new-privileges are the effective controls.
+  socket-proxy:
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+  # ----------------------------------------------------------
+  # Traefik - add NET_BIND_SERVICE, read_only with tmpfs
+  # ----------------------------------------------------------
+  # Note: user: "65534:65534" (nobody) is deferred until Traefik v3
+  # migration, because v2.11 writes to /acme internally and the
+  # image expects root-accessible paths in some configurations.
+  # The cap_drop: ALL + cap_add: NET_BIND_SERVICE is the safe
+  # incremental step.
+  traefik:
+    cap_add:
+      - NET_BIND_SERVICE
+    read_only: true
+    tmpfs:
+      - /tmp:size=32m,noexec,nosuid,nodev
+
+  # ----------------------------------------------------------
+  # Dashboard - already secured, add read_only
+  # ----------------------------------------------------------
+  dashboard:
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,noexec,nosuid,nodev
+
+  # ----------------------------------------------------------
+  # PostgreSQL - entrypoint starts as root, drops to postgres
+  # Add security_opt and cap_drop only.
+  # Do NOT set read_only (entrypoint creates files).
+  # Do NOT set user: (entrypoint must run as root to initdb).
+  # ----------------------------------------------------------
+  postgres:
+    profiles:
+      - postgresql
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+      - SETGID
+      - SETUID
+
+  # ----------------------------------------------------------
+  # MySQL - entrypoint starts as root, drops to mysql
+  # Same rationale as PostgreSQL.
+  # ----------------------------------------------------------
+  mysql:
+    profiles:
+      - mysql
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+      - SETGID
+      - SETUID
+
+  # ----------------------------------------------------------
+  # MongoDB - entrypoint starts as root, drops to mongodb
+  # Same rationale as PostgreSQL.
+  # ----------------------------------------------------------
+  mongodb:
+    profiles:
+      - mongodb
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+      - SETGID
+      - SETUID
+
+  # ----------------------------------------------------------
+  # Redis - already secured with user: 999, add read_only
+  # ----------------------------------------------------------
+  redis:
+    profiles:
+      - redis
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,noexec,nosuid,nodev
+
+  # ----------------------------------------------------------
+  # MinIO - add security hardening
+  # MinIO runs its own internal user, so we add security_opt
+  # and cap_drop but do NOT set read_only (writes to /data).
+  # ----------------------------------------------------------
+  minio:
+    profiles:
+      - minio
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL

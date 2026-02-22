@@ -90,7 +90,7 @@ services:
 
   # Docker Socket Proxy - Secure Docker API access for Traefik
   socket-proxy:
-    image: tecnativa/docker-socket-proxy:0.2
+    image: tecnativa/docker-socket-proxy@sha256:083bd0ed8783e366d745f332f0e4489816dd35d984bef8f16e6d89484a22c082
     container_name: pmdl_socket-proxy
     restart: unless-stopped
     # Exception: Must run as root to access Docker socket
@@ -137,13 +137,15 @@ services:
   # Error: "client version 1.24 is too old. Minimum supported API version is 1.44"
   # See: docs/decisions/0001-traefik-reverse-proxy.md
   traefik:
-    image: traefik:v2.11
+    image: traefik@sha256:05ff868caaf67ef937b3228d4fe734ef8a353eab2123ac54f2a7b622d1d4b270
     container_name: pmdl_traefik
     <<: *secured-service
     # user: "65534:65534"  # nobody user - disabled for initial testing
     depends_on:
       socket-proxy:
         condition: service_started
+    # Force direct binary entrypoint so image wrapper does not rewrite args.
+    entrypoint: ["traefik"]
     command:
       # Docker provider via socket-proxy
       - "--providers.docker=true"
@@ -221,7 +223,7 @@ services:
     build:
       context: ./services/dashboard
       dockerfile: Dockerfile
-    image: pmdl/dashboard:latest
+    image: pmdl/dashboard:${DASHBOARD_IMAGE_TAG:-0.1.0}
     container_name: pmdl_dashboard
     <<: *secured-service
     user: "1000:1000"
@@ -279,7 +281,7 @@ services:
 
   # PostgreSQL with pgvector
   postgres:
-    image: pgvector/pgvector:pg16
+    image: pgvector/pgvector@sha256:33198da2828a14c30348d2ccb4750833d5ed9a44c88d840a0e523d7417120337
     container_name: pmdl_postgres
     profiles:
       - postgresql
@@ -326,7 +328,7 @@ services:
 
   # MySQL 8.0
   mysql:
-    image: mysql:8.0
+    image: mysql@sha256:a3dff78d876222746a0bacc36dd7e4bf9e673c85fb7ee0d12ed25bd32c43c19b
     container_name: pmdl_mysql
     profiles:
       - mysql
@@ -356,7 +358,7 @@ services:
 
   # MongoDB 6.0
   mongodb:
-    image: mongo:6.0
+    image: mongo@sha256:03cda579c8caad6573cb98c2b3d5ff5ead452a6450561129b89595b4b9c18de2
     container_name: pmdl_mongodb
     profiles:
       - mongodb
@@ -385,7 +387,7 @@ services:
 
   # Redis 7
   redis:
-    image: redis:7-alpine
+    image: redis@sha256:02f2cc4882f8bf87c79a220ac958f58c700bdec0dfb9b9ea61b62fb0e8f1bfcf
     container_name: pmdl_redis
     profiles:
       - redis
@@ -417,7 +419,7 @@ services:
 
   # MinIO S3-compatible storage
   minio:
-    image: minio/minio:latest
+    image: minio/minio@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e
     container_name: pmdl_minio
     profiles:
       - minio

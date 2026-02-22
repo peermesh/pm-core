@@ -5,7 +5,7 @@
 #
 # Profile Version: 1.0
 # Documentation: profiles/minio/PROFILE-SPEC.md
-# Image: minio/minio:latest
+# Image: minio/minio@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e
 #
 # Usage:
 #   docker compose -f docker-compose.yml -f docker-compose.minio.yml up -d
@@ -47,7 +47,7 @@ services:
   # - Local S3-compatible development environment
   # =============================================================
   minio:
-    image: minio/minio:latest
+    image: minio/minio@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e
     container_name: pmdl_minio
 
     # ---------------------------------------------------------

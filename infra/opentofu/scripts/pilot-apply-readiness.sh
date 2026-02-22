@@ -10,8 +10,12 @@ VAR_FILE="$ROOT_DIR/env/pilot-single-vps.auto.tfvars.example"
 BACKEND_CONFIG=""
 SUMMARY_FILE=""
 PLAN_FILE="/tmp/pilot-single-vps-readiness-$(date -u +%Y%m%dT%H%M%SZ).tfplan"
+DEFAULT_ENV_FILE="${XDG_CONFIG_HOME:-$HOME/.config}/docker-lab/opentofu/pilot-single-vps.credentials.env"
+ENV_FILE="$DEFAULT_ENV_FILE"
 ALLOW_EXAMPLE_INPUTS=false
 SKIP_PLAN=false
+PROMPT_MISSING_ENV=false
+PERSIST_PROMPTED_ENV=false
 
 REQUIRED_ENV=()
 MISSING_ENV=()
@@ -24,11 +28,14 @@ Options:
   --stack-dir PATH          OpenTofu stack directory (default: stacks/pilot-single-vps)
   --var-file PATH           Variable file to use for readiness checks
   --backend-config PATH     Backend config profile for init (optional)
+  --env-file PATH           Credential env file (default: \$XDG_CONFIG_HOME/docker-lab/opentofu/pilot-single-vps.credentials.env)
   --require-env NAME        Required environment variable (repeatable)
   --summary-file PATH       Write key/value summary output (.env format)
   --plan-file PATH          Plan output path
   --allow-example-inputs    Allow *.example var/backend files (for dry-run evidence only)
   --skip-plan               Skip plan execution after init/validate
+  --prompt-missing-env      Prompt for missing required env vars (TTY only, hidden input)
+  --persist-prompted-env    Persist prompted env vars into --env-file (mode 600)
   -h, --help                Show this help
 
 Environment controls:
@@ -83,6 +90,152 @@ join_by_comma() {
     done
 }
 
+get_file_mode() {
+    local file="$1"
+    local mode=""
+
+    mode="$(stat -f "%Lp" "$file" 2>/dev/null || true)"
+    if [[ -z "$mode" ]]; then
+        mode="$(stat -c "%a" "$file" 2>/dev/null || true)"
+    fi
+    printf '%s' "$mode"
+}
+
+ensure_private_permissions() {
+    local file="$1"
+    local mode=""
+    local mode_decimal=0
+
+    if [[ ! -f "$file" ]]; then
+        return
+    fi
+
+    mode="$(get_file_mode "$file")"
+    if [[ -z "$mode" || ! "$mode" =~ ^[0-7]{3,4}$ ]]; then
+        echo "[ERROR] Unable to determine permissions for credential file: $file" >&2
+        exit 1
+    fi
+
+    mode_decimal=$((8#$mode))
+    if (( (mode_decimal & 077) != 0 )); then
+        echo "[ERROR] Credential file is too permissive (mode $mode): $file" >&2
+        echo "        Run: chmod 600 \"$file\"" >&2
+        exit 1
+    fi
+}
+
+read_env_file_value() {
+    local file="$1"
+    local target_key="$2"
+    local line=""
+    local line_key=""
+    local line_value=""
+
+    [[ -f "$file" ]] || return 0
+
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        if [[ "$line" =~ ^[[:space:]]*([A-Za-z_][A-Za-z0-9_]*)[[:space:]]*=(.*)$ ]]; then
+            line_key="$(trim "${BASH_REMATCH[1]}")"
+            line_value="$(trim "${BASH_REMATCH[2]}")"
+            if [[ "$line_key" == "$target_key" ]]; then
+                if [[ "$line_value" =~ ^\"(.*)\"$ ]]; then
+                    line_value="${BASH_REMATCH[1]}"
+                elif [[ "$line_value" =~ ^\'(.*)\'$ ]]; then
+                    line_value="${BASH_REMATCH[1]}"
+                fi
+                printf '%s' "$line_value"
+                return 0
+            fi
+        fi
+    done < "$file"
+}
+
+upsert_env_file_value() {
+    local file="$1"
+    local key="$2"
+    local value="$3"
+    local tmp_file=""
+    local line=""
+    local found=false
+
+    if [[ "$value" == *$'\n'* ]]; then
+        echo "[ERROR] Refusing to write multiline value for $key to credential file." >&2
+        exit 1
+    fi
+
+    mkdir -p "$(dirname "$file")"
+    if [[ ! -f "$file" ]]; then
+        touch "$file"
+        chmod 600 "$file"
+    fi
+    ensure_private_permissions "$file"
+
+    tmp_file="$(mktemp)"
+
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        if [[ "$line" =~ ^[[:space:]]*${key}[[:space:]]*= ]]; then
+            printf '%s=%s\n' "$key" "$value" >> "$tmp_file"
+            found=true
+        else
+            printf '%s\n' "$line" >> "$tmp_file"
+        fi
+    done < "$file"
+
+    if [[ "$found" == false ]]; then
+        printf '%s=%s\n' "$key" "$value" >> "$tmp_file"
+    fi
+
+    mv "$tmp_file" "$file"
+    chmod 600 "$file"
+}
+
+load_required_env_from_file() {
+    local env_name=""
+    local file_value=""
+
+    if [[ ! -f "$ENV_FILE" ]]; then
+        return
+    fi
+
+    ensure_private_permissions "$ENV_FILE"
+
+    for env_name in "${REQUIRED_ENV[@]}"; do
+        if [[ -n "${!env_name:-}" ]]; then
+            continue
+        fi
+        file_value="$(read_env_file_value "$ENV_FILE" "$env_name")"
+        if [[ -n "$file_value" ]]; then
+            export "$env_name=$file_value"
+        fi
+    done
+}
+
+prompt_for_missing_env() {
+    local env_name=""
+    local secret_value=""
+
+    if [[ ! -t 0 ]]; then
+        echo "[ERROR] Cannot prompt for missing env vars without an interactive TTY." >&2
+        exit 1
+    fi
+
+    for env_name in "$@"; do
+        if [[ -n "${!env_name:-}" ]]; then
+            continue
+        fi
+
+        while true; do
+            read -r -s -p "Enter value for $env_name: " secret_value
+            echo ""
+            if [[ -n "$secret_value" ]]; then
+                export "$env_name=$secret_value"
+                break
+            fi
+            echo "[WARN] Empty value rejected for $env_name. Try again." >&2
+        done
+    done
+}
+
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --stack-dir)
@@ -95,6 +248,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --backend-config)
             BACKEND_CONFIG="${2:-}"
+            shift 2
+            ;;
+        --env-file)
+            ENV_FILE="${2:-}"
             shift 2
             ;;
         --require-env)
@@ -115,6 +272,14 @@ while [[ $# -gt 0 ]]; do
             ;;
         --skip-plan)
             SKIP_PLAN=true
+            shift
+            ;;
+        --prompt-missing-env)
+            PROMPT_MISSING_ENV=true
+            shift
+            ;;
+        --persist-prompted-env)
+            PERSIST_PROMPTED_ENV=true
             shift
             ;;
         -h|--help)
@@ -141,6 +306,16 @@ fi
 
 if [[ -n "$BACKEND_CONFIG" && ! -f "$BACKEND_CONFIG" ]]; then
     echo "[ERROR] Backend config not found: $BACKEND_CONFIG" >&2
+    exit 1
+fi
+
+if [[ -z "$ENV_FILE" ]]; then
+    echo "[ERROR] --env-file cannot be empty." >&2
+    exit 1
+fi
+
+if [[ "$PERSIST_PROMPTED_ENV" == true && "$PROMPT_MISSING_ENV" != true ]]; then
+    echo "[ERROR] --persist-prompted-env requires --prompt-missing-env." >&2
     exit 1
 fi
 
@@ -213,17 +388,38 @@ if [[ ${#REQUIRED_ENV[@]} -eq 0 ]]; then
     exit 1
 fi
 
+load_required_env_from_file
+
 for env_name in "${REQUIRED_ENV[@]}"; do
     if [[ -z "${!env_name:-}" ]]; then
         MISSING_ENV+=("$env_name")
     fi
 done
 
+if [[ ${#MISSING_ENV[@]} -gt 0 && "$PROMPT_MISSING_ENV" == true ]]; then
+    prompt_for_missing_env "${MISSING_ENV[@]}"
+
+    if [[ "$PERSIST_PROMPTED_ENV" == true ]]; then
+        for env_name in "${MISSING_ENV[@]}"; do
+            upsert_env_file_value "$ENV_FILE" "$env_name" "${!env_name:-}"
+        done
+    fi
+
+    MISSING_ENV=()
+    for env_name in "${REQUIRED_ENV[@]}"; do
+        if [[ -z "${!env_name:-}" ]]; then
+            MISSING_ENV+=("$env_name")
+        fi
+    done
+fi
+
 if [[ ${#MISSING_ENV[@]} -gt 0 ]]; then
     echo "[ERROR] Missing required environment variables:" >&2
     for env_name in "${MISSING_ENV[@]}"; do
         echo "  - $env_name" >&2
     done
+    echo "        You can set them in shell, or run:" >&2
+    echo "        ./infra/opentofu/scripts/pilot-credentials.sh setup --var-file \"$VAR_FILE\" --env-file \"$ENV_FILE\"" >&2
     exit 1
 fi
 
@@ -246,6 +442,7 @@ if [[ -n "$SUMMARY_FILE" ]]; then
         echo "stack_dir=$STACK_DIR"
         echo "var_file=$VAR_FILE"
         echo "backend_config=${BACKEND_CONFIG:-none}"
+        echo "env_file=${ENV_FILE:-none}"
         echo "compute_provider=$COMPUTE_PROVIDER"
         echo "dns_provider=$DNS_PROVIDER"
         echo "required_env=$(join_by_comma "${REQUIRED_ENV[@]}")"
@@ -258,6 +455,7 @@ fi
 echo "[OK] OpenTofu apply readiness gate passed."
 echo "[INFO] Stack: $STACK_DIR"
 echo "[INFO] Var file: $VAR_FILE"
+echo "[INFO] Env file: $ENV_FILE"
 echo "[INFO] Required env: $(join_by_comma "${REQUIRED_ENV[@]}")"
 if [[ "$SKIP_PLAN" != true ]]; then
     echo "[INFO] Plan file: $PLAN_FILE"

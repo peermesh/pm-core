@@ -8,7 +8,7 @@
 # 3) Vulnerability threshold gate (docker scout)
 #
 # Exit codes:
-#   0 = no critical failures (warnings allowed unless --strict)
+#   0 = no critical failures
 #   1 = gate failures detected
 #   2 = warnings detected in --strict mode
 # ==============================================================
@@ -19,7 +19,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 STRICT=false
-FAIL_ON_LATEST=false
+FAIL_ON_LATEST=true
+ALLOW_EXTERNAL_TAGS=false
 PULL_MISSING=false
 SEVERITY_THRESHOLD="CRITICAL"
 OUTPUT_DIR=""
@@ -49,7 +50,9 @@ Options:
   --compose-file FILE        Compose file to include (repeatable)
   --output-dir DIR           Output directory for reports
   --severity-threshold LEVEL Vulnerability threshold: LOW|MEDIUM|HIGH|CRITICAL
-  --fail-on-latest           Treat latest tag as failure (default: warning)
+  --fail-on-latest           Treat latest tag as failure (default behavior)
+  --allow-latest             Treat latest tag as warning (legacy compatibility)
+  --allow-external-tags      Allow external image tags without digest (legacy compatibility)
   --pull-missing             Attempt docker pull for missing local images
   --allow-auth-degraded      Allow unauthenticated scout mode (legacy warning behavior)
   --scout-username USER      Docker Hub username for non-interactive scout login
@@ -222,6 +225,14 @@ while [[ $# -gt 0 ]]; do
             FAIL_ON_LATEST=true
             shift
             ;;
+        --allow-latest)
+            FAIL_ON_LATEST=false
+            shift
+            ;;
+        --allow-external-tags)
+            ALLOW_EXTERNAL_TAGS=true
+            shift
+            ;;
         --pull-missing)
             PULL_MISSING=true
             shift
@@ -317,6 +328,9 @@ done
 
 if [[ "$FAIL_ON_LATEST" == true ]]; then
     policy_args+=(--fail-on-latest)
+fi
+if [[ "$ALLOW_EXTERNAL_TAGS" == true ]]; then
+    policy_args+=(--allow-external-tags)
 fi
 
 if [[ "$STRICT" == true ]]; then
@@ -453,6 +467,7 @@ SUPPLY_CHAIN_IMAGE_COUNT=$image_count
 SUPPLY_CHAIN_SEVERITY_THRESHOLD=$SEVERITY_THRESHOLD
 SUPPLY_CHAIN_STRICT=$STRICT
 SUPPLY_CHAIN_FAIL_ON_LATEST=$FAIL_ON_LATEST
+SUPPLY_CHAIN_ALLOW_EXTERNAL_TAGS=$ALLOW_EXTERNAL_TAGS
 SUPPLY_CHAIN_PULL_MISSING=$PULL_MISSING
 SUPPLY_CHAIN_ALLOW_AUTH_DEGRADED=$ALLOW_AUTH_DEGRADED
 SUPPLY_CHAIN_SCOUT_AUTHENTICATED=$SCOUT_AUTHENTICATED

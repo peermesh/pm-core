@@ -10,7 +10,7 @@
 #       extends:
 #         file: ../../foundation/docker-compose.base.yml
 #         service: _module-defaults
-#       image: my-image:latest
+#       image: my-image:1.0.0
 #
 # IMPORTANT: YAML anchors (&anchor/*anchor) do NOT work across files.
 # Always use `extends` for cross-file inheritance.

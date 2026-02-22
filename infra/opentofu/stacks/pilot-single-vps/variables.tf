@@ -33,21 +33,28 @@ variable "manage_runtime_services" {
 
 variable "compute_provider" {
   type        = string
-  description = "Compute provider slug for pilot host contract."
+  description = "Compute provider slug for pilot host contract (Hetzner-first)."
 
   validation {
-    condition     = length(trimspace(var.compute_provider)) > 0
-    error_message = "compute_provider cannot be empty."
+    condition = contains(
+      ["hetzner", "hcloud", "hetzner-cloud"],
+      lower(trimspace(var.compute_provider)),
+    )
+    error_message = "compute_provider must be one of: hetzner, hcloud, hetzner-cloud."
   }
 }
 
 variable "dns_provider" {
   type        = string
   description = "DNS provider slug for pilot domain contract."
+  default     = "none"
 
   validation {
-    condition     = length(trimspace(var.dns_provider)) > 0
-    error_message = "dns_provider cannot be empty."
+    condition = contains(
+      ["none", "cloudflare", "cf"],
+      lower(trimspace(var.dns_provider)),
+    )
+    error_message = "dns_provider must be one of: none, cloudflare, cf."
   }
 }
 
@@ -73,7 +80,7 @@ variable "pilot_subdomain" {
 
 variable "pilot_region" {
   type        = string
-  description = "Pilot region/zone label."
+  description = "Hetzner location slug (for example: fsn1, nbg1, hel1, ash, hil)."
 
   validation {
     condition     = length(trimspace(var.pilot_region)) > 0
@@ -83,11 +90,22 @@ variable "pilot_region" {
 
 variable "pilot_instance_size" {
   type        = string
-  description = "Pilot compute size slug."
+  description = "Hetzner server type slug (for example: cpx11)."
 
   validation {
     condition     = length(trimspace(var.pilot_instance_size)) > 0
     error_message = "pilot_instance_size cannot be empty."
+  }
+}
+
+variable "hcloud_server_image" {
+  type        = string
+  description = "Hetzner server image slug."
+  default     = "ubuntu-24.04"
+
+  validation {
+    condition     = length(trimspace(var.hcloud_server_image)) > 0
+    error_message = "hcloud_server_image cannot be empty."
   }
 }
 
@@ -101,10 +119,65 @@ variable "operator_ssh_public_key" {
   }
 }
 
+variable "hcloud_ssh_key_name" {
+  type        = string
+  description = "Suffix used for managed Hetzner SSH key name."
+  default     = "operator"
+
+  validation {
+    condition     = length(trimspace(var.hcloud_ssh_key_name)) > 0
+    error_message = "hcloud_ssh_key_name cannot be empty."
+  }
+}
+
 variable "pilot_enable_ipv6" {
   type        = bool
   description = "Enable IPv6 for pilot host."
   default     = false
+}
+
+variable "hcloud_network_cidr" {
+  type        = string
+  description = "Private network CIDR for pilot network."
+  default     = "10.80.0.0/16"
+
+  validation {
+    condition     = can(cidrhost(var.hcloud_network_cidr, 0))
+    error_message = "hcloud_network_cidr must be a valid CIDR block."
+  }
+}
+
+variable "hcloud_subnet_cidr" {
+  type        = string
+  description = "Private subnet CIDR for pilot host attachment."
+  default     = "10.80.1.0/24"
+
+  validation {
+    condition     = can(cidrhost(var.hcloud_subnet_cidr, 0))
+    error_message = "hcloud_subnet_cidr must be a valid CIDR block."
+  }
+}
+
+variable "hcloud_network_zone" {
+  type        = string
+  description = "Hetzner network zone slug (for example: eu-central)."
+  default     = "eu-central"
+
+  validation {
+    condition     = length(trimspace(var.hcloud_network_zone)) > 0
+    error_message = "hcloud_network_zone cannot be empty."
+  }
+}
+
+variable "hcloud_private_ipv4" {
+  type        = string
+  description = "Static private IPv4 assignment for the pilot host within the subnet."
+  default     = "10.80.1.10"
+
+  validation {
+    condition     = can(cidrhost("10.80.0.0/8", 1)) && can(regex("^\\d+\\.\\d+\\.\\d+\\.\\d+$", var.hcloud_private_ipv4))
+    error_message = "hcloud_private_ipv4 must be a valid IPv4 address string."
+  }
 }
 
 variable "firewall_allow_ssh_cidrs" {
@@ -113,8 +186,10 @@ variable "firewall_allow_ssh_cidrs" {
   default     = []
 
   validation {
-    condition     = length(var.firewall_allow_ssh_cidrs) > 0
-    error_message = "firewall_allow_ssh_cidrs must include at least one CIDR."
+    condition = length(var.firewall_allow_ssh_cidrs) > 0 && alltrue([
+      for cidr in var.firewall_allow_ssh_cidrs : can(cidrhost(cidr, 0))
+    ])
+    error_message = "firewall_allow_ssh_cidrs must include at least one valid CIDR."
   }
 }
 
@@ -130,8 +205,39 @@ variable "firewall_allow_https" {
   default     = true
 }
 
+variable "cloudflare_zone_id" {
+  type        = string
+  description = "Cloudflare zone id used when dns_provider is cloudflare."
+  default     = ""
+
+  validation {
+    condition = (
+      !contains(["cloudflare", "cf"], lower(trimspace(var.dns_provider)))
+      || length(trimspace(var.cloudflare_zone_id)) > 0
+    )
+    error_message = "cloudflare_zone_id is required when dns_provider is cloudflare/cf."
+  }
+}
+
+variable "cloudflare_record_ttl" {
+  type        = number
+  description = "Cloudflare record TTL in seconds (use 1 for automatic TTL)."
+  default     = 1
+
+  validation {
+    condition     = var.cloudflare_record_ttl == 1 || (var.cloudflare_record_ttl >= 60 && var.cloudflare_record_ttl <= 86400)
+    error_message = "cloudflare_record_ttl must be 1 (auto) or between 60 and 86400."
+  }
+}
+
+variable "cloudflare_proxied" {
+  type        = bool
+  description = "Enable Cloudflare proxy for pilot A record."
+  default     = false
+}
+
 variable "resource_tags" {
   type        = map(string)
-  description = "Metadata tags for pilot contract."
+  description = "Metadata tags for pilot resources."
   default     = {}
 }

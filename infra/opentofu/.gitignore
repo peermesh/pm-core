@@ -11,6 +11,9 @@ crash.*.log
 *.auto.tfvars
 *.auto.tfvars.json
 backend/*.hcl
+env/*.credentials.env
+env/*.secrets.env
+env/*.local.env
 
 # Keep examples/docs tracked
 !**/*.example

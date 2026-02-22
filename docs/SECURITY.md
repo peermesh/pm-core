@@ -201,7 +201,7 @@ Traefik handles TLS termination with Let's Encrypt:
 services:
   traefik:
     command:
-      - "--certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL}"
+      - "--certificatesresolvers.letsencrypt.acme.email=${ADMIN_EMAIL}"
       - "--certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json"
       - "--certificatesresolvers.letsencrypt.acme.tlschallenge=true"
 ```
@@ -298,10 +298,10 @@ Scan images for vulnerabilities:
 
 ```bash
 # Using Docker Scout (Docker Desktop)
-docker scout cves traefik:latest
+docker scout cves traefik:v2.11
 
 # Using Trivy
-trivy image traefik:latest
+trivy image traefik:v2.11
 ```
 
 ## Incident Response

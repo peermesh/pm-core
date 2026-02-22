@@ -8,6 +8,7 @@ Canonical deployment runbook for operator and webhook paths.
 - Promotion order: `dev -> staging -> production`
 - Every deployment must produce an evidence bundle (preflight, gate status, rollback pointer)
 - Webhook deployment must call the same canonical entrypoint (no separate apply logic)
+- Restart safety policy is enforced after apply via `configs/deploy/restart-safety.env`
 
 ## Promotion Policy
 
@@ -36,6 +37,26 @@ This validates:
 - canonical keyset parity (`scripts/validate-secret-parity.sh`)
 - federation adapter boundary (`scripts/validate-federation-adapter-boundary.sh`)
 - resolved Compose configuration
+
+## Restart Safety Policy
+
+`scripts/deploy.sh` enforces a restart-safety gate after health checks:
+
+- critical services must be running and healthy (`traefik`, `socket-proxy` by default)
+- stateful services are recorded for audit context
+- policy output artifact: `restart-safety-policy.log`
+
+Default policy file:
+
+```bash
+configs/deploy/restart-safety.env
+```
+
+Override policy file for a run:
+
+```bash
+./scripts/deploy.sh --restart-safety-policy /path/to/custom-restart-safety.env -f docker-compose.yml
+```
 
 ## Operator Deploy Sequence
 
@@ -100,6 +121,7 @@ Each run generates:
 - `preflight-compose-config.log`
 - `rollback-pointer.env`
 - `rollback-plan.md`
+- `restart-safety-policy.log`
 - `RELEASE-EVIDENCE.md`
 
 ## Rollback

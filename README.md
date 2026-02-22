@@ -7,6 +7,7 @@ Production-ready Docker Compose boilerplate for self-hosted applications. Clone 
 **A production-grade Docker infrastructure foundation.** This repository provides:
 
 - Battle-tested Docker Compose configurations for common deployment patterns
+- A foundation runtime stack (not a single app container) that other module containers layer onto
 - Traefik reverse proxy with automatic TLS certificate management
 - Docker secrets-based credential management
 - Resource-based profiles (lite/core/full) for different deployment targets
@@ -15,6 +16,23 @@ Production-ready Docker Compose boilerplate for self-hosted applications. Clone 
 - Network isolation patterns for security
 
 This is infrastructure boilerplate - a starting point you clone and customize for your specific application needs.
+
+## Canonical Deployment Model
+
+Docker Lab uses a two-layer model:
+
+1. OpenTofu provisions infrastructure through provider APIs (for example, Hetzner VPS + DNS prerequisites).
+2. Docker Lab deploys and operates the runtime foundation and modules on that infrastructure.
+
+This means:
+
+1. OpenTofu is the infrastructure control plane.
+2. Docker Lab is the runtime/container control plane.
+3. Modules are layered onto the foundation after the base runtime is up.
+4. OpenTofu providers are API connectors used during plan/apply, not always-on autoscaling agents.
+
+See [OpenTofu Deployment Model](docs/OPENTOFU-DEPLOYMENT-MODEL.md) for the full walkthrough and options.
+See [Enterprise Version Immutability Standard](docs/ENTERPRISE-VERSION-IMMUTABILITY-STANDARD.md) for dependency pinning and upgrade controls.
 
 ## What This Repository Is NOT
 
@@ -122,6 +140,8 @@ Ready-to-deploy application configurations:
 | Ghost | Publishing platform | MySQL |
 | LibreChat | AI chat interface | MongoDB, PostgreSQL |
 | Matrix | Federated messaging | PostgreSQL |
+| WordPress | CMS/blog platform | MySQL |
+| Python API (HTTPBin) | API workload baseline | Foundation |
 
 See `examples/` for complete configurations.
 
@@ -134,6 +154,9 @@ See `examples/` for complete configurations.
 - [Security Guide](docs/SECURITY.md) - Security architecture and hardening
 - [Secrets Management](docs/SECRETS-MANAGEMENT.md) - Docker secrets patterns
 - [Deployment Guide](docs/DEPLOYMENT.md) - Production deployment guidance
+- [Enterprise Version Immutability Standard](docs/ENTERPRISE-VERSION-IMMUTABILITY-STANDARD.md) - Mandatory version pinning and digest policy
+- [Image Digest Baseline](docs/IMAGE-DIGEST-BASELINE.md) - Current locked image references
+- [OpenTofu Deployment Model](docs/OPENTOFU-DEPLOYMENT-MODEL.md) - Infra via API + runtime on-host model
 - [Troubleshooting](docs/TROUBLESHOOTING.md) - Common issues and solutions
 - [Gotchas](docs/GOTCHAS.md) - High-friction deployment pitfalls and fixes
 - [Secrets Per App](docs/SECRETS-PER-APP.md) - Required keys per example app

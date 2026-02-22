@@ -5,7 +5,7 @@
 
 services:
   federation-adapter:
-    image: traefik/whoami:v1.11
+    image: traefik/whoami@sha256:200689790a0a0ea48ca45992e0450bc26ccab5307375b41c84dfc4f2475937ab
     container_name: pmdl_federation_adapter
     profiles:
       - federation-adapter

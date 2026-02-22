@@ -157,6 +157,21 @@ sudo rm -rf /var/lib/docker/volumes/synapse_data/_data/homeserver.yaml
   # Expected: No errors (warnings acceptable)
   ```
 
+- [ ] **Baseline script/unit/smoke tests execute**
+  ```bash
+  # Script harness checks (usage/exit contracts for critical scripts)
+  just script-tests
+
+  # Dashboard unit tests
+  make dashboard-test
+
+  # Generic HTTP smoke check
+  just smoke-http http://127.0.0.1:8080 200
+
+  # Example app smoke contract (when app is deployed)
+  just smoke-example-app ghost https://ghost.example.com
+  ```
+
 ### Common Bash-isms To Avoid In POSIX Scripts
 
 If shellcheck finds issues in POSIX scripts, fix these common problems:
@@ -389,6 +404,10 @@ docker compose ps
 # 2. Logs for errors
 docker compose logs --tail=50 | grep -i -E "error|fail|warn"
 # Expected: No critical errors
+
+# 2b. Deployment execution log (webhook/operator evidence context)
+./scripts/view-deploy-log.sh --tail 120
+# Expected: Latest deployment log tail with evidence bundle hint
 
 # 3. External accessibility
 curl -I https://your-app.yourdomain.com

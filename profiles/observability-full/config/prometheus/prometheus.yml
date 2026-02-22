@@ -1,0 +1,31 @@
+# Prometheus Configuration - Peer Mesh Docker Lab
+# Minimal scrape config for single-node pilot
+global:
+  scrape_interval: 30s
+  evaluation_interval: 30s
+
+scrape_configs:
+  # Prometheus self-monitoring
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  # Docker container metrics via cAdvisor-style endpoint
+  # Note: requires Docker daemon metrics to be enabled
+  # or a cAdvisor sidecar. This is the baseline config.
+  - job_name: "docker"
+    static_configs:
+      - targets: ["host.docker.internal:9323"]
+    metrics_path: /metrics
+
+  # Traefik metrics (if enabled in traefik config)
+  - job_name: "traefik"
+    static_configs:
+      - targets: ["pmdl_traefik:8080"]
+    metrics_path: /metrics
+
+  # Loki metrics
+  - job_name: "loki"
+    static_configs:
+      - targets: ["pmdl_loki:3100"]
+    metrics_path: /metrics

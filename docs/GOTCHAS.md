@@ -111,6 +111,139 @@ Prevention:
 ./scripts/deploy.sh --validate -f docker-compose.dc.yml
 ```
 
+## 7) Traefik Entrypoints Not Binding (80 works, 443/8448/8080 missing)
+
+On some Traefik image builds, the image wrapper may rewrite command arguments and drop critical flags.
+Symptom pattern:
+- Host shows docker-proxy listening on `443`, but TLS requests hang or fail
+- Inside Traefik container, only `:80` is listening
+- Traefik dashboard/API on `127.0.0.1:8080` is unavailable
+
+Prevention:
+- Keep explicit Traefik service entrypoint in compose:
+
+```yaml
+entrypoint: ["traefik"]
+```
+
+Validation:
+```bash
+docker inspect pmdl_traefik --format '{{json .Config.Cmd}}'
+docker exec pmdl_traefik sh -lc 'netstat -tln'
+```
+
+Expected:
+- listeners include `:80`, `:443`, `:8448`, and `:8080`
+
+## 8) ACME Certificate Stuck On Traefik Default Cert
+
+Let's Encrypt can fail silently into fallback `TRAEFIK DEFAULT CERT` if ACME registration/order fails.
+
+Common causes:
+- `ADMIN_EMAIL` uses placeholder/test domain (`example.com`) rejected by ACME
+- Dynamic DNS domain family is rate-limited (for example `nip.io`)
+
+Validation:
+```bash
+echo | openssl s_client -connect your-domain:443 -servername your-domain 2>/dev/null | openssl x509 -noout -subject -issuer
+```
+
+Expected:
+- certificate issuer is a trusted public CA (not `TRAEFIK DEFAULT CERT`)
+
+## 9) Database Containers Fail With cap_drop ALL And no-new-privileges
+
+Database entrypoints (PostgreSQL, MySQL, MongoDB) require specific Linux capabilities
+to change file ownership during first-time initialization. Using `cap_drop: ALL` alone
+without adding back the required capabilities causes `chown: Operation not permitted`.
+
+Symptoms:
+- Database container exits immediately on first start
+- Logs show `chown: /var/lib/postgresql/data: Operation not permitted`
+- Subsequent starts may work if data volume was already initialized
+
+Required capabilities for database entrypoints:
+- `CHOWN` - change file owner
+- `DAC_OVERRIDE` - bypass file permission checks
+- `FOWNER` - bypass ownership checks
+- `SETGID` - set group ID
+- `SETUID` - set user ID
+
+Prevention:
+- Use `docker-compose.hardening.yml` which includes the correct `cap_add` set
+- Do NOT apply `cap_drop: ALL` to databases without also adding back these capabilities
+
+Fix:
+```bash
+# Apply the hardening overlay which includes correct cap_add
+docker compose -f docker-compose.yml -f docker-compose.hardening.yml up -d
+```
+
+## 10) read_only Breaks Database Container Init
+
+Setting `read_only: true` on database containers prevents their entrypoint scripts
+from creating temporary files, PID files, or socket files in the root filesystem.
+
+Symptoms:
+- Container exits with `Read-only file system` errors
+- PostgreSQL: `could not open PID file "/var/run/postgresql/postmaster.pid"`
+- MySQL: `Can't start server: can't create PID file`
+
+Prevention:
+- Do NOT set `read_only: true` on database containers
+- For non-database services, pair `read_only: true` with `tmpfs` mounts
+
+Fix:
+```bash
+# Remove read_only from the database service, or use the hardening overlay
+# which intentionally omits read_only for databases
+docker compose -f docker-compose.yml -f docker-compose.hardening.yml up -d
+```
+
+## 11) Traefik Non-Root Breaks ACME Certificate Storage
+
+Setting `user: "65534:65534"` (nobody) on Traefik v2.11 causes ACME certificate
+operations to fail because the certificate store volume is owned by root.
+
+Symptoms:
+- Traefik starts but cannot write to `/acme/acme.json`
+- TLS certificates are not obtained (falls back to TRAEFIK DEFAULT CERT)
+- Logs show permission errors on ACME storage
+
+Prevention:
+- Keep Traefik running as root until v3 migration
+- Use `cap_drop: ALL` + `cap_add: NET_BIND_SERVICE` for capability hardening
+- The `docker-compose.hardening.yml` overlay implements this safe configuration
+
+Fix:
+```bash
+# Remove user: directive from Traefik, rely on capability hardening instead
+# The hardening overlay does this correctly
+docker compose -f docker-compose.yml -f docker-compose.hardening.yml up -d
+```
+
+## 12) Socket Proxy read_only Breaks Entrypoint Config Generation
+
+The `tecnativa/docker-socket-proxy` image generates `haproxy.cfg` from a
+template (`haproxy.cfg.template`) at container startup via its entrypoint
+script. Both the template and the generated config live in
+`/usr/local/etc/haproxy/`.
+
+Setting `read_only: true` blocks the config write. Mounting tmpfs on
+`/usr/local/etc/haproxy/` wipes the baked-in template.
+
+Symptoms:
+
+- Container enters restart loop
+- Logs show `can't create /usr/local/etc/haproxy/haproxy.cfg: Read-only file system`
+- Or `sed: /usr/local/etc/haproxy/haproxy.cfg.template: No such file or directory`
+
+Prevention:
+
+- Do NOT apply `read_only: true` to socket-proxy
+- Use `cap_drop: ALL` + `no-new-privileges` instead (effective controls)
+- The `docker-compose.hardening.yml` overlay documents this exception
+
 ## Fast Recovery Checklist
 
 1. `./scripts/deploy.sh --validate`

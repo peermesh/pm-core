@@ -10,6 +10,11 @@ Baseline gates cover three controls:
 2. SBOM generation (CycloneDX)
 3. Vulnerability threshold gate (severity-based)
 
+Policy source:
+
+- [Enterprise Version Immutability Standard](ENTERPRISE-VERSION-IMMUTABILITY-STANDARD.md)
+- [Image Digest Baseline](IMAGE-DIGEST-BASELINE.md)
+
 ## Commands
 
 ### 1) Image policy gate
@@ -18,10 +23,10 @@ Baseline gates cover three controls:
 ./scripts/security/validate-image-policy.sh
 ```
 
-Strict mode example:
+Legacy compatibility example (allows `latest` warnings):
 
 ```bash
-./scripts/security/validate-image-policy.sh --fail-on-latest --strict
+./scripts/security/validate-image-policy.sh --allow-latest
 ```
 
 ### 2) SBOM generation
@@ -42,10 +47,10 @@ Explicit output path:
 ./scripts/security/validate-supply-chain.sh --severity-threshold CRITICAL
 ```
 
-Stricter example:
+Legacy compatibility example (allows `latest` warnings):
 
 ```bash
-./scripts/security/validate-supply-chain.sh --severity-threshold HIGH --fail-on-latest --strict
+./scripts/security/validate-supply-chain.sh --severity-threshold HIGH --allow-latest
 ```
 
 Authenticated runtime contract (non-interactive CI/operator mode):
@@ -88,8 +93,9 @@ When running `./scripts/deploy.sh`, supply-chain artifacts are captured inside t
 ## Policy Contract
 
 - Every image must declare an explicit tag or digest.
-- `latest` tags are warnings by default.
-- `latest` can be enforced as failure with `--fail-on-latest`.
+- External release images should be digest-pinned (`image@sha256:...`) for immutability.
+- `latest` tags fail by default.
+- `--allow-latest` and `--allow-external-tags` exist only for temporary local compatibility workflows.
 - Vulnerability threshold gate defaults to `CRITICAL` and is configurable to `LOW|MEDIUM|HIGH|CRITICAL`.
 
 ## Deploy-Time Controls
@@ -99,8 +105,8 @@ When running `./scripts/deploy.sh`, supply-chain artifacts are captured inside t
 Optional environment controls:
 
 - `SUPPLY_CHAIN_SEVERITY_THRESHOLD` (default: `CRITICAL`)
-- `SUPPLY_CHAIN_STRICT` (`true|false`, default: `false`)
-- `SUPPLY_CHAIN_FAIL_ON_LATEST` (`true|false`, default: `false`)
+- `SUPPLY_CHAIN_STRICT` (`true|false`, default: `true` in `deploy.sh`)
+- `SUPPLY_CHAIN_FAIL_ON_LATEST` (`true|false`, default: `true` in `deploy.sh`)
 - `SUPPLY_CHAIN_PULL_MISSING` (`true|false`, default: `false`)
 - `SUPPLY_CHAIN_ALLOW_AUTH_DEGRADED` (`true|false`, default: `false`)
 - `DOCKER_SCOUT_USERNAME` (optional; required for non-interactive authenticated mode)

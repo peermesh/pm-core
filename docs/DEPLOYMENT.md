@@ -2,6 +2,71 @@
 
 Deploy Peer Mesh Docker Lab to a commodity VPS ($20-50/month) running Ubuntu 22.04/24.04 LTS.
 
+## Deployment Paths
+
+Docker Lab supports two valid paths:
+
+1. OpenTofu-managed infrastructure (recommended):
+   - OpenTofu provisions VPS/network/firewall/DNS via provider API
+   - Docker Lab runtime is deployed on that provisioned host
+2. Manual VPS provisioning:
+   - operator provisions host manually
+   - Docker Lab runtime is deployed on that host
+
+Canonical project preference is path 1 (OpenTofu-managed infrastructure), with Hetzner as the primary provider target.
+
+Boundary rule:
+
+1. OpenTofu manages infrastructure lifecycle.
+2. Docker Lab manages runtime/container lifecycle.
+
+References:
+
+- [OpenTofu Deployment Model](OPENTOFU-DEPLOYMENT-MODEL.md)
+- [OpenTofu Scaffold README](../infra/opentofu/README.md)
+
+## OpenTofu-Driven Walkthrough (Hetzner-first)
+
+Use this path when you want API-driven provisioning instead of manual VPS setup.
+
+1. Prepare live OpenTofu input files (untracked):
+   - `infra/opentofu/env/pilot-single-vps.auto.tfvars`
+   - optional backend config in `infra/opentofu/backend/*.hcl`
+2. Set provider values in var file:
+   - `compute_provider = "hetzner"`
+   - `dns_provider = "cloudflare"` (or your DNS provider)
+3. Capture required provider credentials using the secure credential manager:
+   - `infra/opentofu/scripts/pilot-credentials.sh setup --var-file /path/to/pilot-single-vps.auto.tfvars`
+   - default credential file location: `${XDG_CONFIG_HOME:-$HOME/.config}/docker-lab/opentofu/pilot-single-vps.credentials.env`
+   - onboarding placeholder copy: `docs/examples/pilot-single-vps.credentials.env.example`
+   - bootstrap placeholder template:
+     ```bash
+     mkdir -p "${XDG_CONFIG_HOME:-$HOME/.config}/docker-lab/opentofu"
+     cp ./infra/opentofu/env/pilot-single-vps.credentials.env.example \
+       "${XDG_CONFIG_HOME:-$HOME/.config}/docker-lab/opentofu/pilot-single-vps.credentials.env"
+     chmod 600 "${XDG_CONFIG_HOME:-$HOME/.config}/docker-lab/opentofu/pilot-single-vps.credentials.env"
+     ```
+   - placeholder contract in that file:
+     ```env
+     HCLOUD_TOKEN=REPLACE_WITH_HETZNER_API_TOKEN
+     # CLOUDFLARE_API_TOKEN=REPLACE_WITH_CLOUDFLARE_API_TOKEN
+     ```
+4. Set approval controls in shell:
+   - `OPENTOFU_PILOT_APPLY_APPROVED=true`
+   - `OPENTOFU_PILOT_CHANGE_REF=<work-order>`
+5. Run readiness and plan:
+   - `infra/opentofu/scripts/pilot-apply-readiness.sh --var-file ... --env-file ...`
+6. Apply reviewed plan and run idempotency check.
+7. Deploy Docker Lab runtime on the provisioned host using the canonical deploy path.
+8. Add profiles/modules and validate runtime health.
+
+Important:
+
+1. OpenTofu and runtime deploy are complementary, not competing paths.
+2. OpenTofu handles infrastructure API operations.
+3. Docker Lab scripts handle runtime/container operations.
+4. "Provider" here means an API integration/plugin; it is not a background autoscaling service.
+
 ## Security Notice: Deployment Method
 
 **This project uses webhook-based (pull) deployment exclusively.**
@@ -38,6 +103,11 @@ Deployment preflight includes a supply-chain gate that runs:
 2. SBOM generation (CycloneDX)
 3. vulnerability threshold checks
 
+Version pinning policy:
+
+- See [Enterprise Version Immutability Standard](ENTERPRISE-VERSION-IMMUTABILITY-STANDARD.md)
+- See [Image Digest Baseline](IMAGE-DIGEST-BASELINE.md)
+
 Manual execution:
 
 ```bash
@@ -52,7 +122,12 @@ DOCKER_SCOUT_TOKEN_FILE=/run/secrets/docker_scout_pat \
 ./scripts/security/validate-supply-chain.sh --severity-threshold CRITICAL
 ```
 
-Strict example:
+Deploy default hardening:
+
+1. `SUPPLY_CHAIN_STRICT=true` (default in `scripts/deploy.sh`)
+2. `SUPPLY_CHAIN_FAIL_ON_LATEST=true` (default in `scripts/deploy.sh`)
+
+Override example (typically unnecessary):
 
 ```bash
 SUPPLY_CHAIN_STRICT=true \
@@ -450,6 +525,12 @@ COMPOSE_PROFILES=postgresql,redis
 RESOURCE_PROFILE=core
 ```
 
+Important:
+
+1. For real ACME issuance, `ADMIN_EMAIL` must be a valid non-placeholder email domain.
+2. Placeholder domains such as `example.com` can cause ACME account registration failure.
+3. Some free wildcard dynamic DNS domains may hit Let's Encrypt rate limits; if this happens, switch to a different domain family or an owned domain.
+
 ### Step 3: Generate Secrets
 
 ```bash
@@ -590,7 +671,7 @@ Always backup before major updates:
 ./scripts/backup.sh
 
 # Verify backup completed
-ls -la /var/backups/peermesh/
+ls -la /var/backups/pmdl/
 
 # Note the timestamp for potential rollback
 ```
@@ -660,7 +741,7 @@ docker compose down -v  # WARNING: Destroys volumes
 docker compose up -d
 
 # Restore data from backup
-./scripts/restore-all.sh /var/backups/peermesh/latest
+./scripts/restore-all.sh /var/backups/pmdl/latest
 ```
 
 ---

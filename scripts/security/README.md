@@ -23,14 +23,17 @@ sudo ./scripts/security/run-docker-bench.sh
 
 ### validate-image-policy.sh
 
-Validates compose image references against baseline policy (explicit tag or digest, latest handling).
+Validates compose image references against baseline policy (explicit tag or digest, hardened latest handling).
 
 ```bash
-# Default policy (latest tag = warning)
+# Default policy (latest tag = failure)
 ./scripts/security/validate-image-policy.sh
 
-# Strict policy (latest tag = failure)
-./scripts/security/validate-image-policy.sh --fail-on-latest --strict
+# Legacy compatibility mode (latest tag = warning)
+./scripts/security/validate-image-policy.sh --allow-latest
+
+# Legacy compatibility mode (allow external tags without digest)
+./scripts/security/validate-image-policy.sh --allow-external-tags
 ```
 
 ### generate-sbom.sh
@@ -53,8 +56,8 @@ Runs the full supply-chain baseline gate: image policy + SBOM + vulnerability th
 # Baseline threshold (CRITICAL)
 ./scripts/security/validate-supply-chain.sh --severity-threshold CRITICAL
 
-# Stricter gate
-./scripts/security/validate-supply-chain.sh --severity-threshold HIGH --fail-on-latest --strict
+# Hardened gate
+./scripts/security/validate-supply-chain.sh --severity-threshold HIGH --strict
 
 # Authenticated non-interactive mode (recommended for CI/operators)
 ./scripts/security/validate-supply-chain.sh \
@@ -63,7 +66,36 @@ Runs the full supply-chain baseline gate: image policy + SBOM + vulnerability th
 
 # Legacy degraded mode (explicit opt-in only)
 ./scripts/security/validate-supply-chain.sh --allow-auth-degraded
+
+# Legacy compatibility mode for floating latest tags (temporary only)
+./scripts/security/validate-supply-chain.sh --allow-latest
+
+# Legacy compatibility mode for external tags without digest (temporary only)
+./scripts/security/validate-supply-chain.sh --allow-external-tags
 ```
+
+### audit-ownership.sh
+
+Validates runtime container ownership, capabilities, and security settings against the documented hardening policy.
+
+```bash
+# Full audit (requires running containers)
+./scripts/security/audit-ownership.sh
+
+# Fix volume ownership mismatches
+./scripts/security/audit-ownership.sh --fix-volumes
+
+# JSON output for CI pipelines
+./scripts/security/audit-ownership.sh --json
+```
+
+**Checks**:
+- Container runtime UID matches ownership policy
+- `cap_drop: ALL` applied to required services
+- No unexpected capabilities added
+- `no-new-privileges` enabled
+- `read_only` root filesystem where expected
+- Volume ownership matches UID:GID policy
 
 ## Documentation
 
@@ -92,6 +124,9 @@ trivy image traefik:v2.11
 
 # Run supply-chain baseline gate
 ./scripts/security/validate-supply-chain.sh --severity-threshold CRITICAL
+
+# Run ownership and capability audit
+./scripts/security/audit-ownership.sh
 ```
 
 ## Adding New Security Scripts

@@ -142,7 +142,7 @@ exec /app/server --port "$APP_PORT"
 
 ```dockerfile
 # When you need additional tools in a minimal image
-FROM almir/webhook:latest
+FROM almir/webhook:2.8.2
 
 # Add commonly needed tools
 RUN apk add --no-cache \

@@ -30,7 +30,7 @@ Examples are **demonstrations, not core infrastructure**. They show how to use t
 | [Matrix](./matrix/) | Federated communication | PostgreSQL + TURN | Ready |
 | [WordPress](./wordpress/) | Classic CMS/blog platform | MySQL | Ready |
 | [Python API](./python-api/) | API-first workload baseline (HTTPBin) | Foundation only | Ready |
-| [_template](./\_template/) | Add your own application | Your choice | Template |
+| [_template](./_template/) | Add your own application | Your choice | Template |
 
 ---
 

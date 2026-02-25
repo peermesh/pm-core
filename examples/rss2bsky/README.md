@@ -158,5 +158,6 @@ docker exec pmdl_rss2bsky /app/sync.sh
 
 ## Related Examples
 
-- [GoToSocial](../gotosocial/) - Lightweight ActivityPub server (RSS source)
-- [WriteFreely](../writefreely/) - Minimalist blog platform (RSS source)
+<!-- TODO: Add these example applications -->
+<!-- - [GoToSocial](../gotosocial/) - Lightweight ActivityPub server (RSS source) -->
+<!-- - [WriteFreely](../writefreely/) - Minimalist blog platform (RSS source) -->

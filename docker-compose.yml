@@ -105,7 +105,7 @@ services:
       SERVICES: 0
       TASKS: 0
       SWARM: 0
-      VOLUMES: 0
+      VOLUMES: 1
       POST: 0
       BUILD: 0
       COMMIT: 0
@@ -113,12 +113,12 @@ services:
       DISTRIBUTION: 0
       EXEC: 0
       GRPC: 0
-      IMAGES: 0
+      IMAGES: 1
       NODES: 0
       PLUGINS: 0
       SECRETS: 0
       SESSION: 0
-      SYSTEM: 0
+      SYSTEM: 1
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     networks:

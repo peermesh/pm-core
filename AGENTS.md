@@ -24,9 +24,19 @@
 | ADR Index | `docs/decisions/INDEX.md` |
 | Foundation Module System | `foundation/README.md` |
 | Profiles | `profiles/README.md` |
-| AI Artifacts | `.dev/ai/` |
-| Recovery Snapshots | `.dev/ai/recovery/` |
-| Security Findings | `.dev/ai/security/SECURITY-FINDINGS.md` |
+| AI Artifacts (Parent) | `../../.dev/ai/` |
+| Recovery Snapshots (Parent) | `../../.dev/ai/recovery/` |
+| Security Findings (Parent) | `../../.dev/ai/security/SECURITY-FINDINGS.md` |
+
+---
+
+## Child `.dev` Policy
+
+`sub-repos/docker-lab/.dev/` is forbidden in this project.
+
+- Write all AI artifacts to the parent project `.dev/` tree.
+- Keep links pointing to `../../.dev/...` (or deeper relative paths as needed).
+- If a local `.dev/` is created accidentally, migrate contents to parent and delete it immediately.
 
 ---
 
@@ -119,4 +129,4 @@ All secrets are file-based, located in `secrets/` (gitignored). Generate with:
 
 ---
 
-*Last updated: 2026-02-04*
+*Last updated: 2026-02-18*

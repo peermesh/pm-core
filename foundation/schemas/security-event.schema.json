@@ -1,0 +1,150 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://peermesh.io/foundation/v1/security-event.schema.json",
+  "title": "PeerMesh Security Event Payloads",
+  "description": "Schema for security-specific event payloads",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/credentialIssuedPayload" },
+    { "$ref": "#/$defs/credentialRevokedPayload" },
+    { "$ref": "#/$defs/credentialRotatedPayload" },
+    { "$ref": "#/$defs/keyProvisionedPayload" },
+    { "$ref": "#/$defs/keyRevokedPayload" },
+    { "$ref": "#/$defs/keyRotatedPayload" },
+    { "$ref": "#/$defs/volumeProvisionedPayload" },
+    { "$ref": "#/$defs/volumeLockedPayload" },
+    { "$ref": "#/$defs/contractEvaluatedPayload" },
+    { "$ref": "#/$defs/contractViolationPayload" }
+  ],
+  "$defs": {
+    "credentialIssuedPayload": {
+      "type": "object",
+      "required": ["moduleId", "credentialId", "credentialType", "expiresAt", "trustDomain"],
+      "properties": {
+        "moduleId": { "type": "string" },
+        "credentialId": { "type": "string" },
+        "credentialType": {
+          "type": "string",
+          "enum": ["x509-svid", "jwt-svid", "bearer-token"]
+        },
+        "expiresAt": { "type": "integer" },
+        "trustDomain": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "credentialRevokedPayload": {
+      "type": "object",
+      "required": ["credentialId", "moduleId"],
+      "properties": {
+        "credentialId": { "type": "string" },
+        "moduleId": { "type": "string" },
+        "reason": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "credentialRotatedPayload": {
+      "type": "object",
+      "required": ["moduleId", "oldCredentialId", "newCredentialId", "newExpiresAt"],
+      "properties": {
+        "moduleId": { "type": "string" },
+        "oldCredentialId": { "type": "string" },
+        "newCredentialId": { "type": "string" },
+        "newExpiresAt": { "type": "integer" }
+      },
+      "additionalProperties": false
+    },
+    "keyProvisionedPayload": {
+      "type": "object",
+      "required": ["moduleId", "handleId", "keyPurpose", "keyType"],
+      "properties": {
+        "moduleId": { "type": "string" },
+        "handleId": { "type": "string" },
+        "keyPurpose": {
+          "type": "string",
+          "enum": ["encryption", "signing", "authentication", "derivation"]
+        },
+        "keyType": {
+          "type": "string",
+          "enum": ["symmetric-aes256", "ed25519", "p256", "x25519"]
+        },
+        "expiresAt": { "type": "integer" }
+      },
+      "additionalProperties": false
+    },
+    "keyRevokedPayload": {
+      "type": "object",
+      "required": ["moduleId", "handleId"],
+      "properties": {
+        "moduleId": { "type": "string" },
+        "handleId": { "type": "string" },
+        "reason": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "keyRotatedPayload": {
+      "type": "object",
+      "required": ["moduleId", "oldHandleId", "newHandleId", "keyPurpose"],
+      "properties": {
+        "moduleId": { "type": "string" },
+        "oldHandleId": { "type": "string" },
+        "newHandleId": { "type": "string" },
+        "keyPurpose": {
+          "type": "string",
+          "enum": ["encryption", "signing", "authentication", "derivation"]
+        }
+      },
+      "additionalProperties": false
+    },
+    "volumeProvisionedPayload": {
+      "type": "object",
+      "required": ["moduleId", "volumeId", "path", "encryptionMethod"],
+      "properties": {
+        "moduleId": { "type": "string" },
+        "volumeId": { "type": "string" },
+        "path": { "type": "string" },
+        "encryptionMethod": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "volumeLockedPayload": {
+      "type": "object",
+      "required": ["moduleId", "volumeId"],
+      "properties": {
+        "moduleId": { "type": "string" },
+        "volumeId": { "type": "string" },
+        "reason": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "contractEvaluatedPayload": {
+      "type": "object",
+      "required": ["moduleId", "contractId", "approved"],
+      "properties": {
+        "moduleId": { "type": "string" },
+        "contractId": { "type": "string" },
+        "approved": { "type": "boolean" },
+        "grantedCapabilities": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "deniedCapabilities": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "contractViolationPayload": {
+      "type": "object",
+      "required": ["contractId", "moduleId", "violationType", "description", "timestamp"],
+      "properties": {
+        "contractId": { "type": "string" },
+        "moduleId": { "type": "string" },
+        "violationType": { "type": "string" },
+        "description": { "type": "string" },
+        "timestamp": { "type": "integer" }
+      },
+      "additionalProperties": false
+    }
+  }
+}

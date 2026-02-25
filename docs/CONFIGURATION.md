@@ -17,7 +17,7 @@ These must be set before starting services:
 | Variable | Description | Example |
 |----------|-------------|---------|
 | `DOMAIN` | Base domain for all services | `example.com` |
-| `ACME_EMAIL` | Email for Let's Encrypt certificates | `admin@example.com` |
+| `ADMIN_EMAIL` | Email for Let's Encrypt certificates | `admin@example.com` |
 
 ## Core Settings
 
@@ -179,7 +179,7 @@ Verify your configuration:
 docker compose config
 
 # Validate environment variables are set
-docker compose config | grep -E "DOMAIN|ACME_EMAIL"
+docker compose config | grep -E "DOMAIN|ADMIN_EMAIL"
 
 # Check secret files exist
 ls -la secrets/

@@ -1,0 +1,95 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+fail=0
+deploy_workflow_touched=0
+deploy_workflow_files=()
+
+# Files staged for commit.
+staged_files=$(git diff --cached --name-only --diff-filter=ACMR)
+
+is_allowed_secret_path() {
+  case "$1" in
+    secrets/.gitkeep|secrets/README.md|secrets/justfile|secrets/.sops.yaml|secrets/.sops.yaml.example)
+      return 0
+      ;;
+    secrets/lib/*|secrets/keys/public/*)
+      return 0
+      ;;
+    secrets/*.enc.yaml|secrets/*.enc.yaml.example)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+while IFS= read -r file; do
+  [[ -z "$file" ]] && continue
+
+  # Guard deployment workflow edits unless explicitly authorized.
+  case "$file" in
+    .github/workflows/deploy.yml|.github/workflows/deploy.yml.DISABLED)
+      deploy_workflow_touched=1
+      deploy_workflow_files+=("$file")
+      ;;
+  esac
+
+  # Block plaintext env files.
+  case "$file" in
+    .env|*.env)
+      if [[ "$file" != *.env.example ]]; then
+        echo "[pre-commit] Blocked plaintext env file: $file"
+        fail=1
+      fi
+      ;;
+  esac
+
+  # Block plaintext secret files in secrets/ unless explicitly allowed.
+  if [[ "$file" == secrets/* ]]; then
+    if ! is_allowed_secret_path "$file"; then
+      echo "[pre-commit] Blocked plaintext secret artifact: $file"
+      fail=1
+    fi
+  fi
+
+  # Block obvious secret literals in non-encrypted files.
+  if [[ "$file" != secrets/*.enc.yaml ]]; then
+    if git diff --cached -- "$file" | grep -E '^\+.*(BEGIN (RSA|OPENSSH|EC) PRIVATE KEY|password[[:space:]]*[:=][[:space:]]*[^$]|secret[[:space:]]*[:=][[:space:]]*[^$])' >/dev/null; then
+      echo "[pre-commit] Possible plaintext secret in staged diff: $file"
+      fail=1
+    fi
+  fi
+done <<< "$staged_files"
+
+# Validate markdown links when docs/readme markdown is staged.
+if echo "$staged_files" | grep -Eq '(^|/)(docs|foundation/docs|README\.md|CONTRIBUTING\.md).*\.md$|(^|/)README\.md$|(^|/)CONTRIBUTING\.md$'; then
+  echo "[pre-commit] Running markdown link validation..."
+  if ! python3 ./scripts/check-links.py; then
+    echo "[pre-commit] Link validation failed. Fix broken links before committing."
+    fail=1
+  fi
+fi
+
+if [[ "$deploy_workflow_touched" -eq 1 ]]; then
+  if [[ "${ALLOW_DEPLOY_WORKFLOW_EDIT:-}" != "true" ]]; then
+    echo "[pre-commit] Blocked deploy workflow edit without explicit authorization."
+    echo "[pre-commit] Staged deploy workflow file(s):"
+    for file in "${deploy_workflow_files[@]}"; do
+      echo "  - $file"
+    done
+    echo "[pre-commit] To proceed intentionally, rerun commit with:"
+    echo "  ALLOW_DEPLOY_WORKFLOW_EDIT=true git commit ..."
+    fail=1
+  else
+    echo "[pre-commit] ALLOW_DEPLOY_WORKFLOW_EDIT=true acknowledged for deploy workflow edit."
+  fi
+fi
+
+if [[ $fail -ne 0 ]]; then
+  echo "[pre-commit] Commit rejected. Resolve staged secret/deploy-workflow guard violations and retry."
+  exit 1
+fi
+
+exit 0

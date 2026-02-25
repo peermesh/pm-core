@@ -2,8 +2,8 @@
 
 Comprehensive security architecture documentation for Peer Mesh Docker Lab.
 
-**Version**: 1.0.0
-**Last Updated**: 2026-01-21
+**Version**: 1.1.0
+**Last Updated**: 2026-02-21
 **Status**: Production-Ready
 
 ---
@@ -18,6 +18,9 @@ Peer Mesh Docker Lab implements defense-in-depth security with:
 - **API Protection**: Docker socket proxy with read-only filtering
 - **TLS Everywhere**: Automatic HTTPS via Let's Encrypt
 - **Webhook Deployment**: Pull-based deployment without SSH keys in CI
+- **Supply-Chain Gates**: Image policy + SBOM + vulnerability threshold validation
+- **Encrypted Secrets Workflow**: SOPS+age support for encrypted-at-rest secret bundles
+- **Provisioning Boundary**: OpenTofu handles infra provisioning, Docker Lab handles runtime operations
 
 ---
 
@@ -30,10 +33,12 @@ Peer Mesh Docker Lab implements defense-in-depth security with:
 5. [TLS Configuration](#tls-configuration)
 6. [Container Security](#container-security)
 7. [Docker Socket Protection](#docker-socket-protection)
-8. [Deployment Security](#deployment-security)
-9. [Monitoring & Logging](#monitoring--logging)
-10. [Incident Response](#incident-response)
-11. [Compliance Mapping](#compliance-mapping)
+8. [Provisioning Security Boundary](#provisioning-security-boundary)
+9. [Supply-Chain Security Controls](#supply-chain-security-controls)
+10. [Deployment Security](#deployment-security)
+11. [Monitoring & Logging](#monitoring--logging)
+12. [Incident Response](#incident-response)
+13. [Compliance Mapping](#compliance-mapping)
 
 ---
 
@@ -184,6 +189,10 @@ networks:
 ---
 
 ## Secrets Management
+
+**Canonical Source**: For complete secrets management procedures, team onboarding, rotation workflows, and recovery procedures, see [SECRETS-MANAGEMENT.md](SECRETS-MANAGEMENT.md).
+
+This section provides architecture overview. Operational procedures are maintained in the canonical source.
 
 ### Architecture
 
@@ -545,6 +554,49 @@ socket-proxy:
 
 ---
 
+## Provisioning Security Boundary
+
+Infrastructure provisioning and runtime operations are intentionally separated:
+
+1. OpenTofu controls infrastructure resources (VPS/network/firewall/DNS) through provider APIs.
+2. Docker Lab runtime controls container lifecycle (Compose/webhook deploy, promotion, backups, validation).
+
+Security implications:
+
+1. Infrastructure credentials (for example, `HCLOUD_TOKEN`, DNS API token) are used only in scoped plan/apply sessions.
+2. Runtime secrets remain in Docker Lab secrets flow and are not moved into OpenTofu state.
+3. No runtime container/module lifecycle ownership is delegated to OpenTofu in this cycle.
+
+References:
+
+- [OPENTOFU-DEPLOYMENT-MODEL.md](OPENTOFU-DEPLOYMENT-MODEL.md)
+- [DEPLOYMENT.md](DEPLOYMENT.md)
+
+---
+
+## Supply-Chain Security Controls
+
+Deployment preflight enforces supply-chain controls before promotion:
+
+1. Image policy validation (tag/digest policy contract).
+2. SBOM generation (CycloneDX artifacts).
+3. Vulnerability threshold gating with authenticated scanning path.
+
+Command entrypoint:
+
+```bash
+./scripts/security/validate-supply-chain.sh --severity-threshold CRITICAL
+```
+
+Primary policy references:
+
+- [SUPPLY-CHAIN-SECURITY.md](SUPPLY-CHAIN-SECURITY.md)
+- [ENTERPRISE-VERSION-IMMUTABILITY-STANDARD.md](ENTERPRISE-VERSION-IMMUTABILITY-STANDARD.md)
+- [IMAGE-DIGEST-BASELINE.md](IMAGE-DIGEST-BASELINE.md)
+- [DEPLOYMENT-PROMOTION-RUNBOOK.md](DEPLOYMENT-PROMOTION-RUNBOOK.md)
+
+---
+
 ## Deployment Security
 
 ### Pull-Based Deployment (Webhook)
@@ -674,7 +726,7 @@ just webhook-rotate-key
 
 ```bash
 # Pull fresh images
-docker compose pull
+docker compose pull --ignore-buildable
 
 # Recreate all containers
 docker compose up -d --force-recreate
@@ -723,10 +775,14 @@ docker compose up -d --force-recreate
 - [ADR-0200: Non-Root Containers](decisions/0200-non-root-containers.md)
 - [ADR-0201: Security Anchors](decisions/0201-security-anchors.md)
 - [WEBHOOK-DEPLOYMENT.md](WEBHOOK-DEPLOYMENT.md) - Pull-based deployment
+- [SUPPLY-CHAIN-SECURITY.md](SUPPLY-CHAIN-SECURITY.md) - Image policy, SBOM, vulnerability thresholds
+- [ENTERPRISE-VERSION-IMMUTABILITY-STANDARD.md](ENTERPRISE-VERSION-IMMUTABILITY-STANDARD.md) - Immutable version and digest requirements
+- [IMAGE-DIGEST-BASELINE.md](IMAGE-DIGEST-BASELINE.md) - Current external image lock set
+- [OPENTOFU-DEPLOYMENT-MODEL.md](OPENTOFU-DEPLOYMENT-MODEL.md) - Infra provisioning boundary model
 - [AUDIT-PREP.md](AUDIT-PREP.md) - Audit preparation package
 
 ---
 
-*Document version: 1.0.0*
+*Document version: 1.1.0*
 *CIS Docker Benchmark version: 1.6.0*
 *OWASP Container Security version: 2023*

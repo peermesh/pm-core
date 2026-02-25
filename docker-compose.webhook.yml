@@ -52,7 +52,7 @@ services:
     build:
       context: ./deploy/webhook
       dockerfile: Dockerfile
-    image: ${COMPOSE_PROJECT_NAME:-pmdl}-webhook:latest
+    image: ${COMPOSE_PROJECT_NAME:-pmdl}-webhook:${WEBHOOK_IMAGE_TAG:-0.1.0}
     container_name: ${COMPOSE_PROJECT_NAME:-pmdl}_webhook
 
     # ---------------------------------------------------------

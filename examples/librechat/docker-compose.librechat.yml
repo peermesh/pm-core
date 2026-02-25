@@ -30,7 +30,7 @@ x-librechat-healthcheck: &librechat-healthcheck
   interval: 30s
   timeout: 10s
   retries: 5
-  start_period: 60s
+  start_period: 120s
 
 x-librechat-logging: &librechat-logging
   driver: "json-file"
@@ -52,7 +52,7 @@ services:
   # - OIDC authentication via Authelia
   # =============================================================
   librechat:
-    image: ghcr.io/danny-avila/librechat-dev:latest
+    image: ghcr.io/danny-avila/librechat-dev@sha256:3db851096c0a7fbc3f2b3e41f7baed03203cd4a8c4cdde6e2c8ff0fa49efab9c
     container_name: pmdl_librechat
 
     # ---------------------------------------------------------

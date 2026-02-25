@@ -1,0 +1,188 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://peermesh.io/foundation/v1/contract-manifest.schema.json",
+  "title": "PeerMesh Contract Manifest",
+  "description": "Schema for capability contract declarations in module manifests",
+  "type": "object",
+  "properties": {
+    "network": {
+      "type": "object",
+      "description": "Network access contract",
+      "properties": {
+        "access": {
+          "type": "string",
+          "enum": ["none", "specific", "ports", "unrestricted"],
+          "default": "none",
+          "description": "Level of network access requested"
+        },
+        "allowedEndpoints": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9.-]+:[0-9]+$"
+          },
+          "description": "Allowed external endpoints (host:port format)"
+        },
+        "allowedPorts": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 65535
+          },
+          "description": "Allowed outbound ports"
+        }
+      },
+      "additionalProperties": false
+    },
+    "moduleCommunication": {
+      "type": "array",
+      "description": "Declared inter-module communication requirements",
+      "items": {
+        "type": "object",
+        "required": ["targetModule", "direction"],
+        "properties": {
+          "targetModule": {
+            "type": "string",
+            "description": "Module ID to communicate with"
+          },
+          "direction": {
+            "type": "string",
+            "enum": ["inbound", "outbound", "bidirectional"],
+            "description": "Direction of communication"
+          },
+          "dataTypes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "List of data type schema references"
+          },
+          "rateLimit": {
+            "type": "object",
+            "properties": {
+              "maxPerSecond": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "maxPerMinute": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "burst": {
+                "type": "integer",
+                "minimum": 1
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "hardwareAccess": {
+      "type": "array",
+      "description": "Hardware resources this module needs access to",
+      "items": {
+        "type": "object",
+        "required": ["deviceType"],
+        "properties": {
+          "deviceType": {
+            "type": "string",
+            "enum": ["tpm", "secure-enclave", "hsm", "gpu", "usb", "serial", "none"],
+            "description": "Type of hardware device"
+          },
+          "devicePath": {
+            "type": "string",
+            "description": "Specific device path (e.g., /dev/tpm0)"
+          },
+          "capabilities": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Specific capabilities required"
+          }
+        },
+        "additionalProperties": false
+      },
+      "default": [{ "deviceType": "none" }]
+    },
+    "filesystemAccess": {
+      "type": "object",
+      "description": "Filesystem access scope",
+      "properties": {
+        "accessLevel": {
+          "type": "string",
+          "enum": ["own-directory-only", "read-shared", "write-shared"],
+          "default": "own-directory-only",
+          "description": "Scope of filesystem access"
+        },
+        "additionalPaths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Additional paths outside module directory"
+        },
+        "readOnlyPaths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Paths that can only be read"
+        }
+      },
+      "additionalProperties": false
+    },
+    "dataGates": {
+      "type": "array",
+      "description": "Data validation gates for inter-module communication",
+      "items": {
+        "type": "object",
+        "required": ["gateId", "direction", "dataTypeSchema"],
+        "properties": {
+          "gateId": {
+            "type": "string",
+            "description": "Unique identifier for this data gate"
+          },
+          "direction": {
+            "type": "string",
+            "enum": ["inbound", "outbound", "bidirectional"],
+            "description": "Direction of data flow"
+          },
+          "dataTypeSchema": {
+            "type": "string",
+            "description": "Schema reference for validation (JSON Schema URI or protobuf descriptor)"
+          },
+          "rateLimit": {
+            "type": "object",
+            "properties": {
+              "maxPerSecond": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "maxPerMinute": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "burst": {
+                "type": "integer",
+                "minimum": 1
+              }
+            },
+            "additionalProperties": false
+          },
+          "validationMode": {
+            "type": "string",
+            "enum": ["strict", "permissive", "audit-only"],
+            "default": "strict",
+            "description": "How strictly to validate data"
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

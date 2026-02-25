@@ -1,0 +1,137 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://peermesh.io/foundation/v1/security.schema.json",
+  "title": "PeerMesh Security Configuration",
+  "description": "Schema for the security section of module manifests",
+  "type": "object",
+  "properties": {
+    "enforcementMode": {
+      "type": "string",
+      "enum": ["warn", "fail-closed"],
+      "default": "warn",
+      "description": "Security enforcement mode: 'warn' logs violations but allows operation (default), 'fail-closed' requires all security providers and fails if unavailable"
+    },
+    "identity": {
+      "type": "object",
+      "description": "Identity requirements for this module",
+      "properties": {
+        "required": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether this module requires an identity credential to operate"
+        },
+        "credentialType": {
+          "type": "string",
+          "enum": ["x509-svid", "jwt-svid", "bearer-token", "any"],
+          "default": "any",
+          "description": "Type of identity credential this module expects"
+        },
+        "trustDomain": {
+          "type": "string",
+          "description": "SPIFFE trust domain this module belongs to (optional)"
+        }
+      },
+      "additionalProperties": false
+    },
+    "encryption": {
+      "type": "object",
+      "description": "Encryption requirements for this module's data",
+      "properties": {
+        "dataAtRest": {
+          "type": "string",
+          "enum": ["required", "preferred", "none"],
+          "default": "preferred",
+          "description": "Whether module data directory must be encrypted"
+        },
+        "transitEncryption": {
+          "type": "string",
+          "enum": ["mtls", "tls", "none"],
+          "default": "tls",
+          "description": "Required transport encryption for inter-module communication"
+        },
+        "keyPurposes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["encryption", "signing", "authentication", "derivation"]
+          },
+          "description": "Types of cryptographic keys this module needs from the KMS"
+        }
+      },
+      "additionalProperties": false
+    },
+    "contract": {
+      "$ref": "contract-manifest.schema.json",
+      "description": "Capability contract for this module"
+    },
+    "attestation": {
+      "type": "object",
+      "description": "Attestation requirements",
+      "properties": {
+        "requirePlatformAttestation": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether this module requires platform attestation before starting"
+        },
+        "minimumTrustLevel": {
+          "type": "string",
+          "enum": ["hardware-rooted", "software-only", "any"],
+          "default": "any",
+          "description": "Minimum platform trust level required"
+        },
+        "imageVerification": {
+          "type": "string",
+          "enum": ["sigstore", "docker-content-trust", "none"],
+          "default": "none",
+          "description": "Container image verification method"
+        }
+      },
+      "additionalProperties": false
+    },
+    "session": {
+      "type": "object",
+      "description": "Session integration requirements",
+      "properties": {
+        "requiresActiveSession": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether this module requires an active user session"
+        },
+        "lockBehavior": {
+          "type": "string",
+          "enum": ["stop", "suspend", "continue", "lock-data"],
+          "default": "continue",
+          "description": "What happens to this module when session locks"
+        },
+        "gracePeriodMs": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 5000,
+          "description": "Grace period before session lock takes effect on this module (milliseconds)"
+        }
+      },
+      "additionalProperties": false
+    },
+    "hardware": {
+      "type": "object",
+      "description": "Hardware security requirements",
+      "properties": {
+        "requireHardwareBackedKeys": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether this module requires hardware-backed cryptographic keys"
+        },
+        "acceptedProviders": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["tpm", "secure-enclave", "hsm", "software-fallback"]
+          },
+          "description": "Acceptable hardware security providers"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

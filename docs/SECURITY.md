@@ -12,6 +12,12 @@ Peer Mesh Docker Lab implements defense-in-depth with multiple security layers:
 4. **Docker Socket Protection** - Proxy isolates Docker API access
 5. **Automatic HTTPS** - TLS termination at reverse proxy
 
+## OpenBao Fallback Policy
+
+For environments without TPM/vTPM support, OpenBao unseal handling must follow a fail-closed fallback policy. This project-level strategy is documented in:
+
+- `docs/security/OPENBAO-NO-TPM-FALLBACK-STRATEGY.md`
+
 ## Network Isolation
 
 ### Three-Tier Network Architecture
@@ -201,7 +207,7 @@ Traefik handles TLS termination with Let's Encrypt:
 services:
   traefik:
     command:
-      - "--certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL}"
+      - "--certificatesresolvers.letsencrypt.acme.email=${ADMIN_EMAIL}"
       - "--certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json"
       - "--certificatesresolvers.letsencrypt.acme.tlschallenge=true"
 ```
@@ -222,6 +228,23 @@ For local development without valid domain:
 ```env
 TRAEFIK_ACME_STAGING=true
 ```
+
+## CI/CD Security Controls
+
+Deployment security model:
+
+1. Production deployment is pull-based webhook execution from the VPS.
+2. Push-based GitHub Actions deployment (`deploy.yml`) remains disabled by default.
+3. Deploy workflow edits are guarded by pre-commit and require explicit override:
+
+```bash
+ALLOW_DEPLOY_WORKFLOW_EDIT=true git commit -m "..."
+```
+
+Guarded files:
+
+1. `.github/workflows/deploy.yml`
+2. `.github/workflows/deploy.yml.DISABLED`
 
 ## Hardening Checklist
 
@@ -269,7 +292,7 @@ Check for updates regularly:
 
 ```bash
 # Pull latest images
-docker compose pull
+docker compose pull --ignore-buildable
 
 # Recreate containers with new images
 docker compose up -d
@@ -281,10 +304,10 @@ Scan images for vulnerabilities:
 
 ```bash
 # Using Docker Scout (Docker Desktop)
-docker scout cves traefik:latest
+docker scout cves traefik:v2.11
 
 # Using Trivy
-trivy image traefik:latest
+trivy image traefik:v2.11
 ```
 
 ## Incident Response
@@ -308,7 +331,7 @@ trivy image traefik:latest
 
 4. **Rebuild** - Pull fresh images
    ```bash
-   docker compose pull
+   docker compose pull --ignore-buildable
    docker compose up -d --force-recreate
    ```
 

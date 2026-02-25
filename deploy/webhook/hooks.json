@@ -1,7 +1,7 @@
 [
   {
     "id": "deploy",
-    "execute-command": "/deploy/webhook/deploy.sh",
+    "execute-command": "/scripts/deploy.sh",
     "command-working-directory": "/app",
     "pass-arguments-to-command": [
       {

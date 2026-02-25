@@ -60,6 +60,21 @@ The original push-based deployment workflow has been disabled. It remains in the
 2. Configure GitHub Secrets (SSH_PRIVATE_KEY, VPS_HOST, VPS_USER)
 3. Understand the security tradeoffs before proceeding
 
+### Guardrail For Deploy Workflow Edits
+
+The repo pre-commit hook blocks staged changes to:
+
+- `.github/workflows/deploy.yml`
+- `.github/workflows/deploy.yml.DISABLED`
+
+Default behavior is fail-closed. Intentional edits require explicit operator acknowledgment:
+
+```bash
+ALLOW_DEPLOY_WORKFLOW_EDIT=true git commit -m "..."
+```
+
+Use this override only when the workflow edit has been reviewed against the webhook pull-deploy security model.
+
 ## Adding New Workflows
 
 When adding new workflows:

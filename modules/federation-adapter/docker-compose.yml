@@ -1,0 +1,42 @@
+# Optional Federation Adapter Module
+#
+# This module is intentionally not wired into root docker-compose.yml.
+# It is only activated when explicitly included and profile-enabled.
+
+services:
+  federation-adapter:
+    image: traefik/whoami@sha256:200689790a0a0ea48ca45992e0450bc26ccab5307375b41c84dfc4f2475937ab
+    container_name: pmdl_federation_adapter
+    profiles:
+      - federation-adapter
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    environment:
+      FEDERATION_ADAPTER_ENABLED: ${FEDERATION_ADAPTER_ENABLED:-false}
+      FEDERATION_ADAPTER_MODE: ${FEDERATION_ADAPTER_MODE:-activitypub}
+      FEDERATION_ADAPTER_AUTH_STRATEGY: ${FEDERATION_ADAPTER_AUTH_STRATEGY:-token}
+      FEDERATION_ADAPTER_QUEUE_BACKEND: ${FEDERATION_ADAPTER_QUEUE_BACKEND:-none}
+    networks:
+      - app-internal
+      - proxy-external
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:80" ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+        reservations:
+          memory: 32M
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.federation-adapter.rule=Host(`federation.${DOMAIN}`)"
+      - "traefik.http.routers.federation-adapter.entrypoints=websecure"
+      - "traefik.http.routers.federation-adapter.tls.certresolver=letsencrypt"
+      - "traefik.http.services.federation-adapter.loadbalancer.server.port=80"

@@ -230,6 +230,17 @@ Declare dependencies on other modules.
 | `minVersion` | string | - | Minimum version required |
 | `optional` | boolean | `false` | Whether module can work without this dependency |
 
+Dependency resolver behavior:
+
+1. Module enable/install now resolves `requires.modules[]` transitively.
+2. Resolver executes in dependency-first order (topological sort).
+3. Missing required dependencies fail closed with actionable errors.
+4. Version constraints (`minVersion`) are enforced for required dependencies.
+5. Circular dependency graphs fail closed with cycle output.
+6. Dry-run planning is available:
+   - `./launch_peermesh.sh module enable <module-id> --dry-run`
+   - `./foundation/lib/dependency-resolve.sh <module-id> --dry-run`
+
 ## Capabilities: `provides`
 
 ### `provides.connections`

@@ -265,7 +265,7 @@ docker exec pmdl_your-app curl http://identity-provider:3000/.well-known/solid
 - [Community Solid Server Documentation](https://communitysolidserver.github.io/CommunitySolidServer/)
 - [Solid Specification](https://solidproject.org/TR/protocol)
 - [WebID Specification](https://www.w3.org/2005/Incubator/webid/spec/identity/)
-- [Proposal: PROP-2026-01-15-identity-provider-support.md](../../.dev/ai/proposals/PROP-2026-01-15-identity-provider-support.md)
+- [Proposal: PROP-2026-01-15-identity-provider-support.md](../../../../.dev/ai/proposals/PROP-2026-01-15-identity-provider-support.md)
 
 ---
 

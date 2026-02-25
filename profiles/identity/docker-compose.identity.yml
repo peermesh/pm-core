@@ -52,7 +52,7 @@ services:
   # - Internal: http://identity-provider:3000 (via app-internal network)
   # =============================================================
   identity-provider:
-    image: solidproject/community-server:7.0
+    image: solidproject/community-server@sha256:bffc8d4a9fdf122ae4c1b1a0558598216bb78d1fc75cb054dc5daaab10bcbd8a
     container_name: pmdl_identity
 
     # ---------------------------------------------------------

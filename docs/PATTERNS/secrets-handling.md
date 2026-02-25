@@ -47,7 +47,7 @@ App reads secret directly from environment variable.
 ```yaml
 services:
   myapp:
-    image: myapp:latest
+    image: myapp:1.0.0
     environment:
       DATABASE_PASSWORD: ${DB_PASSWORD}
 ```
@@ -274,7 +274,15 @@ secrets/
 
 ### 3. Use Encrypted Secrets in Git
 
-For team environments, use SOPS + age:
+For team environments, use SOPS + age.
+
+**Complete team management procedures**: See [SECRETS-MANAGEMENT.md](../SECRETS-MANAGEMENT.md) for:
+- Team member onboarding and offboarding
+- Key rotation procedures
+- Emergency credential compromise response
+- Rotation and recovery drills
+
+Quick reference for encryption:
 
 ```bash
 # Encrypt secrets file
@@ -283,8 +291,6 @@ sops -e secrets.yaml > secrets.enc.yaml
 # Decrypt at deploy time
 sops -d secrets.enc.yaml > secrets.yaml
 ```
-
-See: `docs/SECRETS-MANAGEMENT.md` for full runbook.
 
 ### 4. Document App-Specific Requirements
 
@@ -348,6 +354,6 @@ When upgrading an app to use file-based secrets:
 
 ## References
 
-- Universal Patterns Research: `.dev/ai/research/2026-01-03-universal-patterns-from-app-testing.md`
+- Universal Patterns Research: `../../.dev/ai/research/2026-01-03-universal-patterns-from-app-testing.md`
 - Secrets Management Runbook: `docs/SECRETS-MANAGEMENT.md`
 - Docker Secrets Documentation: https://docs.docker.com/compose/compose-file/09-secrets/

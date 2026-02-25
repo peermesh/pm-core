@@ -24,7 +24,7 @@ docker compose exec postgres psql -U postgres -c "GRANT ALL PRIVILEGES ON DATABA
 
 # 3. Start Listmonk
 docker compose -f docker-compose.yml \
-               -f .dev/examples/listmonk/docker-compose.listmonk.yml \
+               -f examples/listmonk/docker-compose.listmonk.yml \
                --profile postgresql --profile listmonk up -d
 
 # 4. Run initial setup (first time only)
@@ -86,7 +86,7 @@ Configure SMTP in the Listmonk admin UI after first login:
 
 ## PostgreSQL Init Script (Optional)
 
-If you want automatic database creation, add to `.dev/profiles/postgresql/init-scripts/`:
+If you want automatic database creation, add to `profiles/postgresql/init-scripts/`:
 
 ```bash
 #!/bin/bash

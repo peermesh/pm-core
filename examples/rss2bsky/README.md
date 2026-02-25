@@ -34,7 +34,7 @@ RSS2BSKY_APP_PASSWORD=xxxx-xxxx-xxxx-xxxx
 
 # Required: RSS feed URL
 # GoToSocial example:
-RSS2BSKY_FEED_URL=https://social.dockerlab.peermesh.org/@admin.rss
+RSS2BSKY_FEED_URL=https://social.example.com/@admin.rss
 
 # Optional: Only crosspost items after this date (RFC format)
 # Useful for first-time setup to avoid flooding Bluesky
@@ -49,7 +49,7 @@ RSS2BSKY_CRON="*/15 * * * *"
 ```bash
 # Start rss2bsky
 docker compose -f docker-compose.yml \
-               -f .dev/examples/rss2bsky/docker-compose.rss2bsky.yml \
+               -f examples/rss2bsky/docker-compose.rss2bsky.yml \
                --profile rss2bsky up -d
 
 # View logs
@@ -158,5 +158,6 @@ docker exec pmdl_rss2bsky /app/sync.sh
 
 ## Related Examples
 
-- [GoToSocial](../gotosocial/) - Lightweight ActivityPub server (RSS source)
-- [WriteFreely](../writefreely/) - Minimalist blog platform (RSS source)
+<!-- TODO: Add these example applications -->
+<!-- - [GoToSocial](../gotosocial/) - Lightweight ActivityPub server (RSS source) -->
+<!-- - [WriteFreely](../writefreely/) - Minimalist blog platform (RSS source) -->

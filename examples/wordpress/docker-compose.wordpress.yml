@@ -1,0 +1,97 @@
+# ==============================================================
+# WordPress CMS - Docker Compose Fragment
+# ==============================================================
+# Classic CMS/blog platform for content-heavy workloads.
+#
+# Usage:
+#   docker compose -f docker-compose.yml \
+#                  -f profiles/mysql/docker-compose.mysql.yml \
+#                  -f examples/wordpress/docker-compose.wordpress.yml \
+#                  --profile wordpress up -d
+# ==============================================================
+
+x-wordpress-healthcheck: &wordpress-healthcheck
+  interval: 30s
+  timeout: 10s
+  retries: 8
+  start_period: 120s
+
+x-wordpress-logging: &wordpress-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  wordpress:
+    image: wordpress@sha256:1e6215749283955d5c9ffea6c297651ed23cdfdbb91677ad7abd705b2682f2cf
+    container_name: pmdl_wordpress
+
+    profiles:
+      - wordpress
+      - full
+
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+    secrets:
+      - mysql_app_password
+
+    environment:
+      WORDPRESS_DB_HOST: mysql:3306
+      WORDPRESS_DB_USER: ${WORDPRESS_DB_USER:-ghost}
+      WORDPRESS_DB_PASSWORD_FILE: /run/secrets/mysql_app_password
+      WORDPRESS_DB_NAME: ${WORDPRESS_DB_NAME:-ghost}
+      WORDPRESS_TABLE_PREFIX: ${WORDPRESS_TABLE_PREFIX:-wp_}
+      WORDPRESS_CONFIG_EXTRA: |
+        define('DISALLOW_FILE_EDIT', true);
+        define('AUTOMATIC_UPDATER_DISABLED', true);
+
+    volumes:
+      - pmdl_wordpress_data:/var/www/html
+
+    networks:
+      - proxy-external
+      - db-internal
+
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+
+    healthcheck:
+      <<: *wordpress-healthcheck
+      test: ["CMD-SHELL", "wget -q --spider http://localhost/wp-login.php || exit 1"]
+
+    restart: unless-stopped
+
+    logging:
+      <<: *wordpress-logging
+
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.wordpress.rule=Host(`wordpress.${DOMAIN}`)"
+      - "traefik.http.routers.wordpress.entrypoints=websecure"
+      - "traefik.http.routers.wordpress.tls=true"
+      - "traefik.http.routers.wordpress.tls.certresolver=letsencrypt"
+      - "traefik.http.services.wordpress.loadbalancer.server.port=80"
+      - "com.centurylinklabs.watchtower.enable=false"
+
+secrets:
+  mysql_app_password:
+    file: ./secrets/mysql_app_password
+
+volumes:
+  pmdl_wordpress_data:
+    driver: local
+
+networks:
+  proxy-external:
+    external: true
+    name: pmdl_proxy-external
+  db-internal:
+    external: true
+    name: pmdl_db-internal

@@ -15,14 +15,21 @@
 #   - Must be run as root or with sudo for full host checks
 #
 # Output:
-#   - Report saved to .dev/ai/security/docker-bench-<timestamp>.log
+#   - Nested workspace mode: ../../.dev/ai/security/docker-bench-<timestamp>.log
+#   - Standalone mode: reports/security/docker-bench-<timestamp>.log
 # ==============================================================
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
-REPORTS_DIR="$PROJECT_DIR/.dev/ai/security"
+if [ -d "$PROJECT_DIR/../../.dev/ai" ]; then
+    # Running inside parent workspace that owns the canonical AI artifact tree.
+    REPORTS_DIR="$PROJECT_DIR/../../.dev/ai/security"
+else
+    # Standalone public repo fallback.
+    REPORTS_DIR="$PROJECT_DIR/reports/security"
+fi
 TIMESTAMP=$(date +%Y-%m-%d-%H%M%S)
 REPORT_FILE="$REPORTS_DIR/docker-bench-$TIMESTAMP.log"
 

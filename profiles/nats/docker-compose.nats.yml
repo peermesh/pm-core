@@ -1,0 +1,221 @@
+# ==============================================================
+# NATS + JetStream - Docker Compose Fragment
+# ==============================================================
+# Copy this file or merge into your main docker-compose.yml
+#
+# Profile Version: 1.0
+# Documentation: profiles/nats/PROFILE-SPEC.md
+# Image: nats:2-alpine (Official NATS Docker image)
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f profiles/nats/docker-compose.nats.yml up -d
+#
+# Prerequisites:
+#   1. Generate secrets: ./scripts/generate-secrets.sh
+#   2. Create network: docker network create pmdl_app-internal --internal
+#   3. Ensure healthcheck script is in place
+# ==============================================================
+
+# ==============================================================
+# Extension Fields (YAML Anchors for reuse)
+# ==============================================================
+
+x-nats-healthcheck: &nats-healthcheck
+  interval: 10s
+  timeout: 5s
+  retries: 5
+  start_period: 30s
+
+x-nats-logging: &nats-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+# ==============================================================
+# Services
+# ==============================================================
+
+services:
+  # =============================================================
+  # NATS + JetStream
+  # =============================================================
+  # Lightweight event bus for module coordination
+  # Features:
+  #   - Pub/sub messaging
+  #   - JetStream persistence
+  #   - Request/reply patterns
+  #   - Single-node deployment (clustering out of scope)
+  # =============================================================
+  nats:
+    image: nats:2-alpine
+    container_name: pmdl_nats
+
+    # ---------------------------------------------------------
+    # Security: Non-root execution
+    # ---------------------------------------------------------
+    # Do not force UID/GID here; the official image entrypoint handles runtime user context.
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+    # ---------------------------------------------------------
+    # Command: JetStream Configuration
+    # ---------------------------------------------------------
+    # Enable JetStream with file-based persistence.
+    # Note: NATS CLI flags do not support max_memory_store/max_file_store;
+    # resource ceilings are enforced by container memory limits and volume capacity.
+    command:
+      - /bin/sh
+      - -ec
+      - |
+          TOKEN="$(cat /run/secrets/nats_auth_token)"
+          exec nats-server \
+            --jetstream \
+            --store_dir=/data/jetstream \
+            --http_port=8222 \
+            --auth="$${TOKEN}" \
+            --server_name=pmdl-nats \
+            --logtime
+
+    # ---------------------------------------------------------
+    # Secrets Configuration
+    # ---------------------------------------------------------
+    # Authentication token mounted as secret
+    secrets:
+      - nats_auth_token
+
+    # ---------------------------------------------------------
+    # Environment
+    # ---------------------------------------------------------
+    environment:
+      # Server name (informational, used in monitoring)
+      NATS_SERVER_NAME: pmdl-nats
+
+    # ---------------------------------------------------------
+    # Volumes
+    # ---------------------------------------------------------
+    volumes:
+      # JetStream data volume (persistent)
+      - pmdl_nats_data:/data
+      # Healthcheck script (secrets-aware)
+      - ./profiles/nats/healthcheck-scripts/healthcheck-nats.sh:/healthcheck.sh:ro
+
+    # ---------------------------------------------------------
+    # Health Check
+    # ---------------------------------------------------------
+    # Uses NATS monitoring endpoint /healthz
+    # No authentication required for health endpoint
+    healthcheck:
+      <<: *nats-healthcheck
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8222/healthz"]
+
+    # ---------------------------------------------------------
+    # Network Isolation
+    # ---------------------------------------------------------
+    # NATS is app-to-app only (backend network)
+    # Not exposed to frontend or database networks
+    networks:
+      - app-internal
+
+    # ---------------------------------------------------------
+    # Resource Constraints
+    # ---------------------------------------------------------
+    # Small profile allocation (adjust for other profiles)
+    # Small:  memory: 512M, reservation: 128M
+    # Medium: memory: 1G, reservation: 256M
+    # Large:  memory: 2G, reservation: 512M
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 128M
+
+    # ---------------------------------------------------------
+    # Restart Policy
+    # ---------------------------------------------------------
+    restart: unless-stopped
+
+    # ---------------------------------------------------------
+    # Logging
+    # ---------------------------------------------------------
+    logging:
+      <<: *nats-logging
+
+# ==============================================================
+# Medium Profile Override (1GB container)
+# ==============================================================
+# Uncomment this section for medium-scale deployments
+#
+#   nats:
+#     command:
+#       - /bin/sh
+#       - -ec
+#       - |
+#           TOKEN="$(cat /run/secrets/nats_auth_token)"
+#           exec nats-server --jetstream --store_dir=/data/jetstream --http_port=8222 \
+#             --auth="$${TOKEN}" --server_name=pmdl-nats --logtime
+#     deploy:
+#       resources:
+#         limits:
+#           memory: 1G
+#         reservations:
+#           memory: 256M
+
+# ==============================================================
+# Large Profile Override (2GB container)
+# ==============================================================
+# Uncomment this section for large-scale deployments
+#
+#   nats:
+#     command:
+#       - /bin/sh
+#       - -ec
+#       - |
+#           TOKEN="$(cat /run/secrets/nats_auth_token)"
+#           exec nats-server --jetstream --store_dir=/data/jetstream --http_port=8222 \
+#             --auth="$${TOKEN}" --server_name=pmdl-nats --logtime
+#     deploy:
+#       resources:
+#         limits:
+#           memory: 2G
+#         reservations:
+#           memory: 512M
+
+# ==============================================================
+# Secrets
+# ==============================================================
+
+secrets:
+  # NATS authentication token
+  # Generate with: openssl rand -hex 32 > ./secrets/nats_auth_token
+  nats_auth_token:
+    file: ./secrets/nats_auth_token
+
+# ==============================================================
+# Volumes
+# ==============================================================
+
+volumes:
+  # NATS JetStream data volume
+  # Contains: stream data, consumer state, cluster metadata (if clustered)
+  pmdl_nats_data:
+    driver: local
+    # For attached block storage, use:
+    # driver_opts:
+    #   type: none
+    #   device: /mnt/block-storage/nats
+    #   o: bind
+
+# ==============================================================
+# Networks
+# ==============================================================
+
+networks:
+  # Internal application network (app-to-app communication)
+  # Per ADR-0002 four-network topology
+  app-internal:
+    internal: true
+    name: pmdl_app-internal

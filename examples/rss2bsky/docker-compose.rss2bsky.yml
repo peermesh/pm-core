@@ -9,7 +9,7 @@
 #
 # Usage:
 #   docker compose -f docker-compose.yml \
-#                  -f .dev/examples/rss2bsky/docker-compose.rss2bsky.yml \
+#                  -f examples/rss2bsky/docker-compose.rss2bsky.yml \
 #                  --profile rss2bsky up -d
 #
 # Prerequisites:
@@ -47,7 +47,7 @@ services:
   # =============================================================
   rss2bsky:
     build:
-      context: .dev/examples/rss2bsky
+      context: examples/rss2bsky
       dockerfile: Dockerfile
     container_name: pmdl_rss2bsky
 

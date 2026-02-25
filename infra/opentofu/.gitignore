@@ -1,0 +1,20 @@
+# OpenTofu local state and transient artifacts
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+crash.*.log
+
+# Local backend and var files that may carry sensitive values
+*.auto.tfvars
+*.auto.tfvars.json
+backend/*.hcl
+env/*.credentials.env
+env/*.secrets.env
+env/*.local.env
+
+# Keep examples/docs tracked
+!**/*.example
+!**/README.md

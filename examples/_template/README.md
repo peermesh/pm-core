@@ -54,7 +54,7 @@ Edit `docker-compose.myapp.yml`:
 services:
   myapp:
     # Use official image
-    image: organization/myapp:latest
+    image: organization/myapp:1.0.0
 
     # Or use specific version (recommended for production)
     image: organization/myapp:1.2.3

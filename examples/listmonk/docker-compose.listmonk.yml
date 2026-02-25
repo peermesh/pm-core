@@ -9,7 +9,7 @@
 #
 # Usage:
 #   docker compose -f docker-compose.yml \
-#                  -f .dev/examples/listmonk/docker-compose.listmonk.yml \
+#                  -f examples/listmonk/docker-compose.listmonk.yml \
 #                  --profile postgresql --profile listmonk up -d
 #
 # Prerequisites:
@@ -27,7 +27,7 @@ x-listmonk-healthcheck: &listmonk-healthcheck
   interval: 30s
   timeout: 10s
   retries: 5
-  start_period: 60s
+  start_period: 90s
 
 x-listmonk-logging: &listmonk-logging
   driver: "json-file"
@@ -50,7 +50,7 @@ services:
   # - REST API for integrations
   # =============================================================
   listmonk:
-    image: listmonk/listmonk:latest
+    image: listmonk/listmonk@sha256:bf3903d54a468ba0544629b474a9c78714b1419ba9f89e186590264fa40d4ea1
     container_name: pmdl_listmonk
 
     profiles:

@@ -6,17 +6,17 @@
 #
 # Usage:
 #   docker compose -f docker-compose.yml \
-#                  -f .dev/examples/landing/docker-compose.landing.yml \
+#                  -f examples/landing/docker-compose.landing.yml \
 #                  up -d
 # ==============================================================
 
 services:
   landing:
-    image: nginx:alpine
+    image: nginx@sha256:1d13701a5f9f3fb01aaa88cef2344d65b6b5bf6b7d9fa4cf0dca557a8d7702ba
     container_name: pmdl_landing
 
     volumes:
-      - ./.dev/examples/landing/html:/usr/share/nginx/html:ro
+      - ./examples/landing/html:/usr/share/nginx/html:ro
 
     networks:
       - proxy-external
@@ -33,7 +33,7 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
-      start_period: 5s
+      start_period: 30s
 
     restart: unless-stopped
 

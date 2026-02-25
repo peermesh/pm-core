@@ -2,6 +2,11 @@
 
 Get Peer Mesh Docker Lab running in 5 minutes.
 
+Note:
+
+1. This quick start is the fastest runtime-first path.
+2. If you want API-driven VPS provisioning first (recommended for production reproducibility), start with [OpenTofu Deployment Model](OPENTOFU-DEPLOYMENT-MODEL.md) and then return here for runtime deployment.
+
 ## Prerequisites
 
 Before you begin, ensure you have:
@@ -42,7 +47,7 @@ Edit `.env` with your settings:
 DOMAIN=localhost
 
 # Required: Admin email for Let's Encrypt certificates
-ACME_EMAIL=admin@example.com
+ADMIN_EMAIL=admin@example.com
 
 # Optional: Environment (development/staging/production)
 ENVIRONMENT=development
@@ -74,7 +79,7 @@ For development with PostgreSQL:
 
 ```bash
 docker compose -f docker-compose.yml \
-               -f profiles/postgresql/docker-compose.postgresql.yml \
+               -f .dev/profiles/postgresql/docker-compose.postgresql.yml \
                up -d
 ```
 
@@ -91,8 +96,6 @@ Expected output shows services as "healthy":
 ```
 NAME                STATUS              PORTS
 traefik             running (healthy)   80/tcp, 443/tcp
-authelia            running (healthy)   9091/tcp
-redis-auth          running (healthy)   6379/tcp
 ```
 
 Access the Traefik dashboard (development only):
@@ -108,12 +111,12 @@ http://localhost:8080
 ```bash
 # PostgreSQL
 docker compose -f docker-compose.yml \
-               -f profiles/postgresql/docker-compose.postgresql.yml \
+               -f .dev/profiles/postgresql/docker-compose.postgresql.yml \
                up -d
 
 # MySQL
 docker compose -f docker-compose.yml \
-               -f profiles/mysql/docker-compose.mysql.yml \
+               -f .dev/profiles/mysql/docker-compose.mysql.yml \
                up -d
 ```
 
@@ -122,8 +125,8 @@ docker compose -f docker-compose.yml \
 ```bash
 # Ghost blogging platform
 docker compose -f docker-compose.yml \
-               -f profiles/mysql/docker-compose.mysql.yml \
-               -f examples/ghost/docker-compose.ghost.yml \
+               -f .dev/profiles/mysql/docker-compose.mysql.yml \
+               -f .dev/examples/ghost/docker-compose.ghost.yml \
                up -d
 ```
 

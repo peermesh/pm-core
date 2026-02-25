@@ -95,8 +95,14 @@ func EventsHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
-	w.Header().Set("Connection", "keep-alive")
 	w.Header().Set("X-Accel-Buffering", "no")
+
+	// Clear write deadline for SSE to prevent timeout on long-lived connections
+	rc := http.NewResponseController(w)
+	if err := rc.SetWriteDeadline(time.Time{}); err != nil {
+		http.Error(w, "Failed to configure SSE", http.StatusInternalServerError)
+		return
+	}
 
 	ctx := r.Context()
 

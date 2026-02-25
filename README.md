@@ -148,10 +148,12 @@ See `examples/` for complete configurations.
 ## Documentation
 
 - [Quick Start Guide](docs/QUICKSTART.md) - Get running in 5 minutes
+- [Public Quick Start Tutorial](docs/community/QUICK-START-TUTORIAL.md) - Public onboarding walkthrough
 - [System Architecture](docs/ARCHITECTURE.md) - Four-tier modular architecture overview
 - [Configuration Reference](docs/CONFIGURATION.md) - Environment variables and options
 - [Profiles Guide](docs/PROFILES.md) - Choosing and customizing profiles
 - [Security Guide](docs/SECURITY.md) - Security architecture and hardening
+- [OpenBao No-TPM Fallback Strategy](docs/security/OPENBAO-NO-TPM-FALLBACK-STRATEGY.md) - Fail-closed fallback tiers for unseal workflows
 - [Secrets Management](docs/SECRETS-MANAGEMENT.md) - Docker secrets patterns
 - [Deployment Guide](docs/DEPLOYMENT.md) - Production deployment guidance
 - [Enterprise Version Immutability Standard](docs/ENTERPRISE-VERSION-IMMUTABILITY-STANDARD.md) - Mandatory version pinning and digest policy
@@ -164,6 +166,10 @@ See `examples/` for complete configurations.
 - [Public Repo Manifest](docs/PUBLIC-REPO-MANIFEST.md) - Public/private file boundaries
 - [Architecture Decisions](docs/decisions/) - ADR documentation
 - [Foundation Reference](foundation/README.md) - Module system documentation
+- [Launch Strategy](docs/community/LAUNCH-STRATEGY.md) - Public launch sequencing and channels
+- [Community Engagement Plan](docs/community/COMMUNITY-ENGAGEMENT-PLAN.md) - SLA and triage model
+- [Good First Issues Backlog](docs/community/GOOD-FIRST-ISSUES.md) - New-contributor task queue
+- [Demo Materials](docs/community/DEMO-MATERIALS.md) - Screenshot + onboarding walkthrough set
 
 ## Requirements
 

@@ -198,7 +198,7 @@ echo "Step 3: Initializing volumes..."
 
 # Step 4: Pull images
 echo "Step 4: Pulling images..."
-docker compose pull
+docker compose pull --ignore-buildable
 
 # Step 5: Start services
 echo "Step 5: Starting services..."

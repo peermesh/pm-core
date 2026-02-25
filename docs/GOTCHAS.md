@@ -179,24 +179,29 @@ Fix:
 docker compose -f docker-compose.yml -f docker-compose.hardening.yml up -d
 ```
 
-## 10) read_only Breaks Database Container Init
+## 10) read_only Database Init Requires Wrapper + tmpfs Runtime Paths
 
-Setting `read_only: true` on database containers prevents their entrypoint scripts
-from creating temporary files, PID files, or socket files in the root filesystem.
+`read_only: true` on database containers works only if runtime write paths
+(PID/socket/tmp) are explicitly mapped to tmpfs and the service entrypoint
+prepares those paths before handing off to the upstream image entrypoint.
 
-Symptoms:
-- Container exits with `Read-only file system` errors
-- PostgreSQL: `could not open PID file "/var/run/postgresql/postmaster.pid"`
-- MySQL: `Can't start server: can't create PID file`
+Without this, startup fails with `Read-only file system` errors.
 
-Prevention:
-- Do NOT set `read_only: true` on database containers
-- For non-database services, pair `read_only: true` with `tmpfs` mounts
+Current resolution (WO-071):
+- PostgreSQL wrapper: `profiles/postgresql/init-scripts/00-readonly-wrapper.sh`
+- MySQL wrapper: `profiles/mysql/init-scripts/00-readonly-wrapper.sh`
+- MongoDB wrapper: `profiles/mongodb/init-scripts/00-readonly-wrapper.sh`
+- Hardening overlay applies:
+  - `read_only: true`
+  - tmpfs runtime paths (`/tmp`, `/var/run/postgresql`, `/var/run/mysqld`, `/var/run/mongodb`)
+  - wrapper entrypoint injection via `/docker-entrypoint-initdb.d/00-readonly-wrapper.sh`
 
-Fix:
+Operational note:
+- Keep database data directories on persistent volumes (`/var/lib/mysql`, `/var/lib/postgresql/data`, `/data/db`).
+- Wrapper maintenance is required if upstream image entrypoint paths change.
+
+Fix/usage:
 ```bash
-# Remove read_only from the database service, or use the hardening overlay
-# which intentionally omits read_only for databases
 docker compose -f docker-compose.yml -f docker-compose.hardening.yml up -d
 ```
 
@@ -243,6 +248,31 @@ Prevention:
 - Do NOT apply `read_only: true` to socket-proxy
 - Use `cap_drop: ALL` + `no-new-privileges` instead (effective controls)
 - The `docker-compose.hardening.yml` overlay documents this exception
+
+## 13) MinIO Explicit user Override Breaks /data Writes
+
+Forcing MinIO to run with `user: "1000:1000"` can break object store writes when
+the mounted `/data` path is owned by root and not pre-chowned to that UID/GID.
+This was validated in WO-070 A/B testing.
+
+Symptoms:
+
+- `touch: cannot touch '/data/...': Permission denied`
+- `id` inside container shows UID/GID `1000:1000` with no matching user name
+- MinIO may start but fail write operations
+
+Prevention:
+
+- Keep MinIO without explicit `user:` override unless you also implement and validate
+  volume ownership initialization for the selected UID/GID.
+- Retain `no-new-privileges` + `cap_drop: ALL` hardening as baseline controls.
+
+Fix:
+
+```bash
+# Remove MinIO user override and restart
+docker compose -f docker-compose.yml -f docker-compose.hardening.yml up -d minio
+```
 
 ## Fast Recovery Checklist
 

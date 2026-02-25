@@ -1,0 +1,29 @@
+name: Module Request
+description: Request a new reusable module/profile integration.
+title: "[Module]: "
+labels: [module-request, triage]
+body:
+  - type: textarea
+    id: module_name
+    attributes:
+      label: Module / OSS Name
+      placeholder: e.g., Keycloak, Plausible, etc.
+    validations:
+      required: true
+  - type: textarea
+    id: use_case
+    attributes:
+      label: Use Case
+      placeholder: Who needs this and why?
+    validations:
+      required: true
+  - type: textarea
+    id: requirements
+    attributes:
+      label: Required Integrations
+      placeholder: DB, object storage, auth, reverse proxy, backups, etc.
+  - type: textarea
+    id: constraints
+    attributes:
+      label: Constraints
+      placeholder: Security, licensing, hardware limits, expected profile tier.

@@ -12,6 +12,12 @@ Peer Mesh Docker Lab implements defense-in-depth with multiple security layers:
 4. **Docker Socket Protection** - Proxy isolates Docker API access
 5. **Automatic HTTPS** - TLS termination at reverse proxy
 
+## OpenBao Fallback Policy
+
+For environments without TPM/vTPM support, OpenBao unseal handling must follow a fail-closed fallback policy. This project-level strategy is documented in:
+
+- `docs/security/OPENBAO-NO-TPM-FALLBACK-STRATEGY.md`
+
 ## Network Isolation
 
 ### Three-Tier Network Architecture
@@ -286,7 +292,7 @@ Check for updates regularly:
 
 ```bash
 # Pull latest images
-docker compose pull
+docker compose pull --ignore-buildable
 
 # Recreate containers with new images
 docker compose up -d
@@ -325,7 +331,7 @@ trivy image traefik:v2.11
 
 4. **Rebuild** - Pull fresh images
    ```bash
-   docker compose pull
+   docker compose pull --ignore-buildable
    docker compose up -d --force-recreate
    ```
 

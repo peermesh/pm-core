@@ -190,6 +190,10 @@ networks:
 
 ## Secrets Management
 
+**Canonical Source**: For complete secrets management procedures, team onboarding, rotation workflows, and recovery procedures, see [SECRETS-MANAGEMENT.md](SECRETS-MANAGEMENT.md).
+
+This section provides architecture overview. Operational procedures are maintained in the canonical source.
+
 ### Architecture
 
 ```
@@ -722,7 +726,7 @@ just webhook-rotate-key
 
 ```bash
 # Pull fresh images
-docker compose pull
+docker compose pull --ignore-buildable
 
 # Recreate all containers
 docker compose up -d --force-recreate

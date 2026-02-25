@@ -97,6 +97,22 @@
           "items": {
             "$ref": "#/$defs/moduleRequirement"
           }
+        },
+        "securityServices": {
+          "type": "array",
+          "description": "Security services this module depends on",
+          "items": {
+            "type": "string",
+            "enum": [
+              "identity-provider",
+              "key-management",
+              "storage-encryption",
+              "contract-evaluation",
+              "attestation",
+              "hardware-abstraction",
+              "session-management"
+            ]
+          }
         }
       },
       "additionalProperties": false
@@ -119,6 +135,24 @@
             "type": "string",
             "pattern": "^[a-z0-9-]+\\.[a-z0-9-]+\\.[a-z0-9-]+$",
             "description": "Event type in format: module-id.entity.action"
+          }
+        },
+        "securityServices": {
+          "type": "array",
+          "description": "Security services this module provides to the system",
+          "items": {
+            "type": "string",
+            "enum": [
+              "identity-provider",
+              "key-management",
+              "storage-encryption",
+              "contract-evaluation",
+              "contract-enforcement",
+              "attestation",
+              "hardware-abstraction",
+              "session-management",
+              "authentication-ux"
+            ]
           }
         }
       },
@@ -153,6 +187,10 @@
         }
       },
       "additionalProperties": false
+    },
+    "security": {
+      "$ref": "security.schema.json",
+      "description": "Security requirements and declarations for this module (optional)"
     },
     "lifecycle": {
       "$ref": "lifecycle.schema.json",

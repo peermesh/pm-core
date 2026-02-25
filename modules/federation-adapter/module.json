@@ -34,9 +34,9 @@
     "events": [
       "federation.adapter.started",
       "federation.adapter.stopped",
-      "federation.adapter.sync.completed",
-      "federation.adapter.sync.failed",
-      "federation.adapter.auth.denied"
+      "federation.adapter-sync.completed",
+      "federation.adapter-sync.failed",
+      "federation.adapter-auth.denied"
     ]
   },
   "lifecycle": {

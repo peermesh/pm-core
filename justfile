@@ -7,12 +7,20 @@ help:
     @echo "  just validate-adapter-boundary"
     @echo "  just validate-observability-profile"
     @echo "  just validate-image-policy"
+    @echo "  just module-plan <module>"
+    @echo "  just module-enable <module>"
     @echo "  just generate-sbom [output_dir]"
     @echo "  just validate-supply-chain [severity]"
     @echo "  just validate-scalability-wave1"
     @echo "  just capture-wave2-metrics <ssh_host> [output_dir]"
     @echo "  just validate-scalability-wave2 <ssh_host> [output_dir]"
     @echo "  just observability-scorecard <wave1_summary> [wave1_summary_prev] [wave2_summary] [incident_count] [output_dir]"
+    @echo "  just check-links [format]"
+    @echo "  just test [suite]"
+    @echo "  just test-unit"
+    @echo "  just test-integration"
+    @echo "  just test-smoke"
+    @echo "  just test-e2e"
     @echo "  just script-tests"
     @echo "  just smoke-example-app <app> <base_url>"
     @echo "  just deploy-log [file] [tail_lines] [log_dir]"
@@ -34,6 +42,8 @@ help:
     @echo "  just validate-adapter-boundary"
     @echo "  just validate-observability-profile"
     @echo "  just validate-image-policy"
+    @echo "  just module-plan test-module"
+    @echo "  just module-enable test-module"
     @echo "  just generate-sbom /tmp/pmdl-sbom"
     @echo "  just validate-supply-chain HIGH"
     @echo "  just validate-scalability-wave1"
@@ -41,6 +51,11 @@ help:
     @echo "  just validate-scalability-wave2 root@37.27.208.228 /tmp/pmdl-wo033"
     @echo "  just observability-scorecard /path/to/wave1-summary.env"
     @echo "  just observability-scorecard /path/to/wave1-summary.env /path/to/prev-summary.env /path/to/wave2-summary.env 2"
+    @echo "  just test"
+    @echo "  just test-unit"
+    @echo "  just test-integration"
+    @echo "  just test-smoke"
+    @echo "  just test-e2e"
     @echo "  just script-tests"
     @echo "  just smoke-example-app ghost https://ghost.example.com"
     @echo "  just deploy-log"
@@ -74,6 +89,19 @@ validate-observability-profile:
 
 validate-image-policy:
     ./scripts/security/validate-image-policy.sh
+
+module-plan module:
+    ./launch_peermesh.sh module enable {{module}} --dry-run
+
+module-enable module:
+    ./launch_peermesh.sh module enable {{module}}
+
+check-links format="text":
+    if [[ "{{format}}" == "json" ]]; then \
+        python3 ./scripts/check-links.py --json; \
+    else \
+        python3 ./scripts/check-links.py; \
+    fi
 
 generate-sbom output_dir="":
     if [[ -n "{{output_dir}}" ]]; then \
@@ -168,6 +196,22 @@ dashboard-test:
 
 script-tests:
     ./scripts/testing/run-script-tests.sh
+
+# Test commands (bats-core based testing framework)
+test suite="all":
+    ./tests/run-tests.sh {{suite}}
+
+test-unit:
+    ./tests/run-tests.sh unit
+
+test-integration:
+    ./tests/run-tests.sh integration
+
+test-smoke:
+    ./tests/run-tests.sh smoke
+
+test-e2e:
+    ./tests/run-tests.sh e2e
 
 smoke-http url expected_status="200" contains="":
     if [[ -n "{{contains}}" ]]; then \

@@ -51,7 +51,7 @@ BIND_FILE_SPECS=(
 )
 
 ensure_bind_files() {
-    local changed=0
+    local issues=0
     local spec path seed dir
 
     log_info "Ensuring bind-mounted config files exist..."
@@ -66,7 +66,7 @@ ensure_bind_files() {
         if [[ ! -f "$path" ]]; then
             if [[ "$CHECK_ONLY" == true ]]; then
                 log_warn "[NEEDS FILE] $path"
-                changed=1
+                issues=1
                 continue
             fi
 
@@ -76,13 +76,12 @@ ensure_bind_files() {
                 : > "$path"
             fi
             log_ok "[CREATED] $path"
-            changed=1
         else
             log_ok "[OK] $path"
         fi
     done
 
-    return $changed
+    return $issues
 }
 
 current_owner() {

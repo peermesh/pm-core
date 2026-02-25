@@ -58,12 +58,23 @@ EVIDENCE_DIR=""
 EVIDENCE_MANIFEST=""
 GATES_FILE=""
 ROLLBACK_POINTER_FILE=""
-PRE_DEPLOY_GIT_SHA=""
-POST_DEPLOY_GIT_SHA=""
+PRE_DEPLOY_SOURCE_REF="${DEPLOY_SOURCE_REF:-}"
+POST_DEPLOY_SOURCE_REF=""
 PROMOTION_GATE_STATUS="PENDING"
 APPLY_GATE_STATUS="PENDING"
 CONFIDENCE_GATE_STATUS="PENDING"
 SUPPLY_CHAIN_GATE_STATUS="PENDING"
+BACKUP_GATE_STATUS="PENDING"
+
+log_phase() {
+    local phase="$1"
+    echo ""
+    echo "=========================================="
+    echo "  PHASE: $phase"
+    echo "  $(timestamp_utc)"
+    echo "=========================================="
+    echo ""
+}
 
 usage() {
     cat <<USAGE
@@ -409,10 +420,6 @@ check_prerequisites() {
         log_ok "Docker Compose v2 available"
     fi
 
-    if ! command -v git >/dev/null 2>&1; then
-        log_warn "git is not installed; rollback commit pointer will be unavailable"
-    fi
-
     if [[ ! -x "$SCRIPT_DIR/generate-secrets.sh" ]]; then
         log_error "Missing executable: scripts/generate-secrets.sh"
         failed=1
@@ -431,6 +438,10 @@ check_prerequisites() {
     if [[ ! -x "$SCRIPT_DIR/security/validate-supply-chain.sh" ]]; then
         log_error "Missing executable: scripts/security/validate-supply-chain.sh"
         failed=1
+    fi
+
+    if [[ ! -x "$SCRIPT_DIR/backup-predeploy.sh" ]]; then
+        log_warn "scripts/backup-predeploy.sh missing or not executable (pre-deploy backup will be skipped)"
     fi
 
     if [[ ! -x "$SCRIPT_DIR/init-volumes.sh" ]]; then
@@ -617,12 +628,7 @@ capture_rollback_pointer() {
     local svc
     ROLLBACK_POINTER_FILE="$EVIDENCE_DIR/rollback-pointer.env"
     : >"$ROLLBACK_POINTER_FILE"
-
-    if command -v git >/dev/null 2>&1 && git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-        PRE_DEPLOY_GIT_SHA="$(git rev-parse HEAD 2>/dev/null || true)"
-        append_manifest "PRE_DEPLOY_GIT_SHA" "$PRE_DEPLOY_GIT_SHA"
-        run_and_capture "pre-deploy-git-status" git status --short || true
-    fi
+    append_manifest "PRE_DEPLOY_SOURCE_REF" "$PRE_DEPLOY_SOURCE_REF"
 
     {
         echo "ROLLBACK_CAPTURED_AT=$(timestamp_utc)"
@@ -632,7 +638,7 @@ capture_rollback_pointer() {
         echo "DEPLOY_MODE=${DEPLOY_MODE}"
         echo "COMPOSE_ARGS=$(compose_args_string)"
         echo "COMPOSE_PROFILES=${COMPOSE_PROFILES:-}"
-        echo "PRE_DEPLOY_GIT_SHA=${PRE_DEPLOY_GIT_SHA}"
+        echo "PRE_DEPLOY_SOURCE_REF=${PRE_DEPLOY_SOURCE_REF}"
     } >>"$ROLLBACK_POINTER_FILE"
 
     run_and_capture "pre-deploy-compose-ps" docker compose "${COMPOSE_ARGS[@]}" ps || true
@@ -673,6 +679,29 @@ capture_rollback_pointer() {
     append_manifest "ROLLBACK_POINTER_FILE" "$ROLLBACK_POINTER_FILE"
 }
 
+trigger_predeploy_backup() {
+    log_info "Triggering pre-deploy backup snapshot..."
+
+    if [[ ! -x "$SCRIPT_DIR/backup-predeploy.sh" ]]; then
+        log_warn "backup-predeploy.sh not found or not executable; skipping pre-deploy backup"
+        BACKUP_GATE_STATUS="SKIPPED"
+        record_gate "pre-deploy-backup" "SKIPPED" "backup-predeploy.sh-not-available"
+        return 0
+    fi
+
+    if run_and_capture "pre-deploy-backup" "$SCRIPT_DIR/backup-predeploy.sh" all; then
+        BACKUP_GATE_STATUS="PASS"
+        record_gate "pre-deploy-backup" "PASS" "snapshot-captured"
+        log_ok "Pre-deploy backup completed"
+        return 0
+    else
+        BACKUP_GATE_STATUS="FAIL"
+        record_gate "pre-deploy-backup" "FAIL" "backup-failed"
+        log_error "Pre-deploy backup failed (see ${EVIDENCE_DIR}/pre-deploy-backup.log)"
+        return 1
+    fi
+}
+
 write_rollback_plan() {
     local rollback_file="$EVIDENCE_DIR/rollback-plan.md"
     local compose_flags
@@ -692,18 +721,18 @@ Rollback Pointer: ${ROLLBACK_POINTER_FILE}
 cat "${ROLLBACK_POINTER_FILE}"
 \`\`\`
 
-## Step 2: (Webhook/Git Mode) Restore Previous Commit
+## Step 2: Restore Source Revision (External Orchestrator)
 EOF
 
-    if [[ -n "$PRE_DEPLOY_GIT_SHA" ]]; then
+    if [[ -n "$PRE_DEPLOY_SOURCE_REF" ]]; then
         cat >>"$rollback_file" <<EOF
-\`\`\`bash
-git reset --hard ${PRE_DEPLOY_GIT_SHA}
-\`\`\`
+Use your source orchestrator to restore this recorded source reference:
+
+${PRE_DEPLOY_SOURCE_REF}
 EOF
     else
         cat >>"$rollback_file" <<'EOF'
-No pre-deploy git commit was captured. Skip this step.
+No pre-deploy source reference was captured. Skip this step.
 EOF
     fi
 
@@ -738,7 +767,16 @@ prepare_volumes() {
 start_services() {
     if [[ "$SKIP_PULL" == false ]]; then
         log_info "Pulling latest images..."
-        if ! run_and_capture "apply-compose-pull" docker compose "${COMPOSE_ARGS[@]}" pull; then
+        local pull_args=(pull)
+        if docker compose pull --help 2>/dev/null | grep -q -- '--ignore-buildable'; then
+            pull_args+=(--ignore-buildable)
+            append_manifest "COMPOSE_PULL_IGNORE_BUILDABLE" "true"
+        else
+            append_manifest "COMPOSE_PULL_IGNORE_BUILDABLE" "false"
+            log_warn "docker compose pull does not support --ignore-buildable; local build images may require manual build"
+        fi
+
+        if ! run_and_capture "apply-compose-pull" docker compose "${COMPOSE_ARGS[@]}" "${pull_args[@]}"; then
             log_error "Image pull failed"
             return 1
         fi
@@ -918,19 +956,7 @@ attempt_auto_rollback() {
         return 0
     fi
 
-    if [[ -z "$PRE_DEPLOY_GIT_SHA" ]]; then
-        log_warn "No pre-deploy git SHA captured; skipping auto-rollback"
-        append_manifest "AUTO_ROLLBACK_RESULT" "skipped-no-commit-pointer"
-        return 0
-    fi
-
-    if ! run_and_capture "rollback-git-reset" git reset --hard "$PRE_DEPLOY_GIT_SHA"; then
-        log_error "Auto-rollback failed during git reset"
-        append_manifest "AUTO_ROLLBACK_RESULT" "failed-git-reset"
-        return 1
-    fi
-
-    if ! run_and_capture "rollback-compose-up" docker compose "${COMPOSE_ARGS[@]}" up -d; then
+    if ! run_and_capture "rollback-compose-up" docker compose "${COMPOSE_ARGS[@]}" up -d --no-build; then
         log_error "Auto-rollback failed during docker compose up"
         append_manifest "AUTO_ROLLBACK_RESULT" "failed-compose-up"
         return 1
@@ -944,12 +970,10 @@ attempt_auto_rollback() {
 
 write_release_evidence() {
     local report="$EVIDENCE_DIR/RELEASE-EVIDENCE.md"
-
-    if command -v git >/dev/null 2>&1 && git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-        POST_DEPLOY_GIT_SHA="$(git rev-parse HEAD 2>/dev/null || true)"
-    fi
-    append_manifest "POST_DEPLOY_GIT_SHA" "$POST_DEPLOY_GIT_SHA"
+    POST_DEPLOY_SOURCE_REF="${DEPLOY_SOURCE_REF:-$PRE_DEPLOY_SOURCE_REF}"
+    append_manifest "POST_DEPLOY_SOURCE_REF" "$POST_DEPLOY_SOURCE_REF"
     append_manifest "PROMOTION_GATE_STATUS" "$PROMOTION_GATE_STATUS"
+    append_manifest "BACKUP_GATE_STATUS" "$BACKUP_GATE_STATUS"
     append_manifest "APPLY_GATE_STATUS" "$APPLY_GATE_STATUS"
     append_manifest "CONFIDENCE_GATE_STATUS" "$CONFIDENCE_GATE_STATUS"
     append_manifest "SUPPLY_CHAIN_GATE_STATUS" "$SUPPLY_CHAIN_GATE_STATUS"
@@ -966,14 +990,15 @@ Promotion Bypass: ${ALLOW_PROMOTION_BYPASS}
 Compose Profiles: ${COMPOSE_PROFILES:-none (foundation-only)}
 Compose Args: $(compose_args_string)
 Rollback Pointer: ${ROLLBACK_POINTER_FILE:-not-captured}
-Pre-Deploy Commit: ${PRE_DEPLOY_GIT_SHA:-n/a}
-Post-Deploy Commit: ${POST_DEPLOY_GIT_SHA:-n/a}
+Pre-Deploy Source Ref: ${PRE_DEPLOY_SOURCE_REF:-n/a}
+Post-Deploy Source Ref: ${POST_DEPLOY_SOURCE_REF:-n/a}
 
 ## Gate Status
 - Promotion readiness: ${PROMOTION_GATE_STATUS}
+- Supply-chain baseline: ${SUPPLY_CHAIN_GATE_STATUS}
+- Pre-deploy backup: ${BACKUP_GATE_STATUS}
 - Apply safety: ${APPLY_GATE_STATUS}
 - Post-apply confidence: ${CONFIDENCE_GATE_STATUS}
-- Supply-chain baseline: ${SUPPLY_CHAIN_GATE_STATUS}
 
 ## Evidence Artifacts
 - Manifest: ${EVIDENCE_MANIFEST}
@@ -997,9 +1022,11 @@ main() {
     echo ""
     echo "=========================================="
     echo "  Peer Mesh Docker Lab - Deployment"
+    echo "  Blueprint: B-FLOW-001"
     echo "=========================================="
     echo ""
 
+    log_phase "INITIALIZATION"
     check_prerequisites || exit 1
     load_env || exit 1
     load_restart_safety_policy
@@ -1012,6 +1039,7 @@ main() {
     if [[ "$SHOW_PROFILES_ONLY" == true ]]; then
         echo "Active profiles: $(show_active_profiles)"
         PROMOTION_GATE_STATUS="SKIPPED"
+        BACKUP_GATE_STATUS="SKIPPED"
         APPLY_GATE_STATUS="SKIPPED"
         CONFIDENCE_GATE_STATUS="SKIPPED"
         SUPPLY_CHAIN_GATE_STATUS="SKIPPED"
@@ -1020,6 +1048,7 @@ main() {
         exit 0
     fi
 
+    log_phase "PREFLIGHT VALIDATION"
     if validate_configuration; then
         PROMOTION_GATE_STATUS="PASS"
         record_gate "promotion-readiness" "PASS" "config-resolve profile-matrix secrets-validation"
@@ -1032,6 +1061,7 @@ main() {
     fi
 
     if [[ "$VALIDATE_ONLY" == true ]]; then
+        BACKUP_GATE_STATUS="SKIPPED"
         APPLY_GATE_STATUS="SKIPPED"
         CONFIDENCE_GATE_STATUS="SKIPPED"
         write_release_evidence
@@ -1040,15 +1070,23 @@ main() {
         exit 0
     fi
 
+    log_phase "PRE-DEPLOY BACKUP"
+    if ! trigger_predeploy_backup; then
+        log_warn "Pre-deploy backup failed but continuing (non-blocking in current policy)"
+    fi
+
+    log_phase "ROLLBACK PREPARATION"
     capture_rollback_pointer
     write_rollback_plan
 
+    log_phase "DEPLOYMENT APPLICATION"
     if prepare_volumes && start_services && monitor_health && evaluate_restart_safety; then
         APPLY_GATE_STATUS="PASS"
         record_gate "apply-safety" "PASS" "idempotent-apply health-pass restart-safety-pass rollback-pointer-captured"
     else
         APPLY_GATE_STATUS="FAIL"
         record_gate "apply-safety" "FAIL" "apply-health-or-restart-safety-failed"
+        log_phase "AUTOMATIC ROLLBACK"
         attempt_auto_rollback || true
         write_release_evidence
         log_error "Apply safety gate failed"
@@ -1056,12 +1094,14 @@ main() {
         exit 1
     fi
 
+    log_phase "POST-DEPLOY CONFIDENCE CHECKS"
     if run_smoke_checks; then
         CONFIDENCE_GATE_STATUS="PASS"
         record_gate "post-apply-confidence" "PASS" "smoke-checks and release evidence generated"
     else
         CONFIDENCE_GATE_STATUS="FAIL"
         record_gate "post-apply-confidence" "FAIL" "smoke-checks-failed"
+        log_phase "AUTOMATIC ROLLBACK"
         attempt_auto_rollback || true
         write_release_evidence
         log_error "Post-apply confidence gate failed"
@@ -1069,11 +1109,13 @@ main() {
         exit 1
     fi
 
+    log_phase "EVIDENCE CAPTURE"
     write_release_evidence
 
     echo ""
     echo "=========================================="
     echo "  Deployment Complete"
+    echo "  $(timestamp_utc)"
     echo "=========================================="
     echo ""
 

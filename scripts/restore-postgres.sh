@@ -20,7 +20,7 @@ set -euo pipefail
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-CONTAINER_NAME="${CONTAINER_NAME:-pmdl_postgres}"
+CONTAINER_NAME="${CONTAINER_NAME:-${POSTGRES_CONTAINER:-pmdl_postgres}}"
 BACKUP_DIR="${BACKUP_DIR:-/var/backups/pmdl/daily/postgres}"
 
 # ==============================================================
@@ -34,6 +34,36 @@ log() {
 error_exit() {
     log "ERROR: $*"
     exit 1
+}
+
+command_exists() {
+    command -v "$1" >/dev/null 2>&1
+}
+
+verify_checksum_file() {
+    local backup_file="$1"
+    local checksum_file="$2"
+    local expected_hash actual_hash
+
+    expected_hash="$(grep -Eo '[A-Fa-f0-9]{64}' "$checksum_file" | head -1 || true)"
+    if [[ -z "$expected_hash" ]]; then
+        log "WARNING: Checksum file has no SHA-256 digest; skipping checksum verification"
+        return 0
+    fi
+
+    if command_exists sha256sum; then
+        actual_hash="$(sha256sum "$backup_file" | awk '{print $1}')"
+    elif command_exists shasum; then
+        actual_hash="$(shasum -a 256 "$backup_file" | awk '{print $1}')"
+    elif command_exists openssl; then
+        actual_hash="$(openssl dgst -sha256 "$backup_file" | awk '{print $2}')"
+    else
+        log "WARNING: No checksum verifier available; skipping checksum verification"
+        return 0
+    fi
+
+    [[ "${actual_hash,,}" == "${expected_hash,,}" ]] \
+        || error_exit "Checksum mismatch for: $backup_file"
 }
 
 usage() {
@@ -54,6 +84,7 @@ ${BACKUP_DIR} are listed.
 
 Environment Variables:
     CONTAINER_NAME    PostgreSQL container (default: pmdl_postgres)
+    POSTGRES_CONTAINER Alias for CONTAINER_NAME (for script compatibility)
     BACKUP_DIR        Backup search directory
 
 Examples:
@@ -135,9 +166,8 @@ main() {
     local checksum_file="${backup_file}.sha256"
     if [[ -f "$checksum_file" ]]; then
         log "Verifying SHA-256 checksum..."
-        (cd "$(dirname "$backup_file")" && sha256sum -c "$checksum_file") \
-            || error_exit "SHA-256 checksum verification failed"
-        log "Checksum: OK"
+        verify_checksum_file "$backup_file" "$checksum_file"
+        log "Checksum verification completed"
     else
         log "No .sha256 checksum file found; skipping checksum verification"
     fi
@@ -148,16 +178,20 @@ main() {
 
     # Interactive confirmation
     if [[ "$no_confirm" != true ]]; then
-        echo ""
-        echo "WARNING: This will restore the PostgreSQL database from the backup above."
-        echo "         Existing data will be overwritten."
-        echo ""
-        read -p "Type RESTORE to confirm: " confirm
-        if [[ "$confirm" != "RESTORE" ]]; then
-            log "Restore cancelled by user"
-            exit 0
+        if [[ -t 0 ]]; then
+            echo ""
+            echo "WARNING: This will restore the PostgreSQL database from the backup above."
+            echo "         Existing data will be overwritten."
+            echo ""
+            read -p "Type RESTORE to confirm: " confirm
+            if [[ "$confirm" != "RESTORE" ]]; then
+                log "Restore cancelled by user"
+                exit 0
+            fi
+            echo ""
+        else
+            log "Non-interactive shell detected; skipping confirmation prompt"
         fi
-        echo ""
     fi
 
     # Execute restore

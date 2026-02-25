@@ -931,12 +931,32 @@ cmd_module() {
             ;;
 
         enable|install)
-            local module="$1"
+            local module="${1:-}"
+            local dry_run=false
+            local resolver=""
+            local resolver_modules_dir=""
+            local module_order=()
+            local dep_module=""
             if [[ -z "$module" ]]; then
                 log_error "Module name required"
-                echo "Usage: $SCRIPT_NAME module enable <name>"
+                echo "Usage: $SCRIPT_NAME module enable <name> [--dry-run]"
                 return 1
             fi
+            shift || true
+
+            while [[ $# -gt 0 ]]; do
+                case "$1" in
+                    --dry-run)
+                        dry_run=true
+                        ;;
+                    *)
+                        log_error "Unknown option for module enable: $1"
+                        echo "Usage: $SCRIPT_NAME module enable <name> [--dry-run]"
+                        return 1
+                        ;;
+                esac
+                shift
+            done
 
             local module_dir="$project_dir/modules/$module"
             if [[ ! -d "$module_dir" ]]; then
@@ -944,15 +964,42 @@ cmd_module() {
                 return 1
             fi
 
-            log_info "Enabling module: $module"
+            resolver="$project_dir/foundation/lib/dependency-resolve.sh"
+            resolver_modules_dir="$project_dir/modules"
 
-            if [[ -f "$module_dir/docker-compose.yml" ]]; then
-                docker compose -f "$module_dir/docker-compose.yml" up -d
-                log_success "Module $module enabled"
-            else
-                log_error "No docker-compose.yml found in module"
+            if [[ ! -x "$resolver" ]]; then
+                log_error "Dependency resolver missing or not executable: $resolver"
                 return 1
             fi
+
+            if [[ "$dry_run" == true ]]; then
+                log_info "Dependency dry-run for module: $module"
+                "$resolver" "$module" --modules-dir "$resolver_modules_dir" --dry-run
+                return $?
+            fi
+
+            if ! mapfile -t module_order < <("$resolver" "$module" --modules-dir "$resolver_modules_dir" --order-only); then
+                log_error "Dependency resolution failed for module: $module"
+                return 1
+            fi
+
+            if [[ ${#module_order[@]} -eq 0 ]]; then
+                log_error "Dependency resolver returned empty module order for: $module"
+                return 1
+            fi
+
+            for dep_module in "${module_order[@]}"; do
+                local dep_module_dir="$project_dir/modules/$dep_module"
+                if [[ ! -f "$dep_module_dir/docker-compose.yml" ]]; then
+                    log_error "No docker-compose.yml found in module: $dep_module"
+                    return 1
+                fi
+
+                log_info "Enabling module: $dep_module"
+                docker compose -f "$dep_module_dir/docker-compose.yml" up -d
+            done
+
+            log_success "Module $module enabled with dependency order"
             ;;
 
         disable|uninstall)

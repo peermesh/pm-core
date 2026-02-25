@@ -16,14 +16,36 @@
   },
   "requires": {
     "connections": [],
-    "modules": []
+    "modules": [],
+    "securityServices": []
   },
   "provides": {
     "connections": [],
     "events": [
       "my-module.example.created",
       "my-module.example.deleted"
-    ]
+    ],
+    "securityServices": []
+  },
+  "security": {
+    "enforcementMode": "warn",
+    "identity": {
+      "required": false,
+      "credentialType": "any"
+    },
+    "encryption": {
+      "dataAtRest": "preferred",
+      "transitEncryption": "tls",
+      "keyPurposes": []
+    },
+    "contract": {
+      "network": {
+        "access": "none"
+      },
+      "filesystemAccess": {
+        "accessLevel": "own-directory-only"
+      }
+    }
   },
   "dashboard": {
     "displayName": "My Module",

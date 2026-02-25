@@ -274,7 +274,15 @@ secrets/
 
 ### 3. Use Encrypted Secrets in Git
 
-For team environments, use SOPS + age:
+For team environments, use SOPS + age.
+
+**Complete team management procedures**: See [SECRETS-MANAGEMENT.md](../SECRETS-MANAGEMENT.md) for:
+- Team member onboarding and offboarding
+- Key rotation procedures
+- Emergency credential compromise response
+- Rotation and recovery drills
+
+Quick reference for encryption:
 
 ```bash
 # Encrypt secrets file
@@ -283,8 +291,6 @@ sops -e secrets.yaml > secrets.enc.yaml
 # Decrypt at deploy time
 sops -d secrets.enc.yaml > secrets.yaml
 ```
-
-See: `docs/SECRETS-MANAGEMENT.md` for full runbook.
 
 ### 4. Document App-Specific Requirements
 

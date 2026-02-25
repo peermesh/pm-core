@@ -341,3 +341,18 @@ secrets/
 | "No matching private key" | Key not at expected path | Check `~/.config/sops/age/keys.txt` exists |
 | "sops: command not found" | Not installed | `brew install sops` |
 | Can't decrypt after key added | Files not re-encrypted | Admin runs `sops updatekeys file.enc.yaml` |
+
+---
+
+## Related Documentation
+
+**Pattern Guides**:
+- [docs/PATTERNS/secrets-handling.md](PATTERNS/secrets-handling.md) - Choosing between `_FILE` suffix vs direct env vars
+
+**Application Requirements**:
+- [docs/SECRETS-PER-APP.md](SECRETS-PER-APP.md) - Per-application secret requirements matrix
+
+**Architecture**:
+- [docs/SECURITY-ARCHITECTURE.md](SECURITY-ARCHITECTURE.md) - Complete security architecture context
+- [docs/decisions/0003-file-based-secrets.md](decisions/0003-file-based-secrets.md) - ADR: File-based secrets pattern
+- [docs/decisions/0202-sops-age-secrets-encryption.md](decisions/0202-sops-age-secrets-encryption.md) - ADR: SOPS+age encryption

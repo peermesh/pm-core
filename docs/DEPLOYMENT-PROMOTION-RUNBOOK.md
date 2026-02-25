@@ -100,14 +100,14 @@ Override policy file for a run:
 Webhook hook (`deploy/webhook/hooks.json`) executes `/scripts/deploy.sh` in the webhook container.
 That wrapper script:
 
-1. fetches and resets to `origin/main`
+1. synchronizes source to the approved release revision
 2. verifies sensitive-file constraints
 3. calls canonical `./scripts/deploy.sh` with:
    - `--deploy-mode webhook`
    - `--environment production`
    - `--promotion-from staging`
-   - `--promotion-id webhook-<commit>-<timestamp>`
-4. if apply fails, attempts rollback to the previous commit and re-applies with `--skip-pull`
+   - `--promotion-id webhook-<release-ref>-<timestamp>`
+4. if apply fails, re-applies runtime state with `--skip-pull` and records rollback evidence
 
 ## Evidence Bundle
 
@@ -135,10 +135,13 @@ cat /tmp/pmdl-deploy-evidence/<run-id>/rollback-plan.md
 Typical manual rollback steps:
 
 ```bash
-# 1) Reset to the pre-deploy commit captured in rollback-pointer.env
-git reset --hard <pre_deploy_commit>
+# 1) Inspect source reference captured in rollback-pointer.env
+grep '^PRE_DEPLOY_SOURCE_REF=' /tmp/pmdl-deploy-evidence/<run-id>/rollback-pointer.env || true
 
-# 2) Re-apply known-good runtime
+# 2) Restore source revision via your source orchestrator (outside deploy.sh)
+# deploy.sh intentionally avoids source-control operations.
+
+# 3) Re-apply known-good runtime
 ./scripts/deploy.sh --environment production --deploy-mode manual --skip-pull -f docker-compose.yml
 ```
 

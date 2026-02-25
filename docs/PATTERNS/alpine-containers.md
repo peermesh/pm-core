@@ -240,7 +240,7 @@ When converting an existing deployment to work with Alpine:
 
 ## Related Patterns
 
-- [Healthcheck Patterns](../HEALTHCHECK-PATTERNS.md) - General healthcheck guidelines
+- [Health Check Strategy](../decisions/0300-health-check-strategy.md) - General healthcheck guidelines
 - [Secrets Management](../SECRETS-MANAGEMENT.md) - Secrets handling in containers
 - [Troubleshooting](../TROUBLESHOOTING.md) - Debug failing containers
 

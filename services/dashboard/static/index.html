@@ -515,7 +515,7 @@
                     </div>
                     <div class="bg-gray-700/50 rounded-lg p-4">
                         <div class="text-sm text-gray-400 mb-1">Docker Version</div>
-                        <div class="text-lg font-medium text-gray-200">${data.docker_version || 'pending'}</div>
+                        <div class="text-lg font-medium text-gray-200">${data.docker_version || 'N/A'}</div>
                     </div>
                     <div class="bg-gray-700/50 rounded-lg p-4">
                         <div class="text-sm text-gray-400 mb-1">Uptime</div>
@@ -636,7 +636,8 @@
                 eventSource.addEventListener('containers', function(e) {
                     try {
                         const data = JSON.parse(e.data);
-                        processContainersData(data.containers);
+                        // Use window.processContainersData to ensure resource chart hooks are called
+                        (window.processContainersData || processContainersData)(data.containers);
                     } catch (err) {
                         console.error('Failed to parse containers event:', err);
                     }
@@ -673,7 +674,10 @@
             // Initial load via REST API (before SSE connection)
             fetch('/api/containers')
                 .then(r => r.json())
-                .then(data => processContainersData(data.containers))
+                .then(data => {
+                    // Use window.processContainersData to ensure resource chart hooks are called
+                    (window.processContainersData || processContainersData)(data.containers);
+                })
                 .catch(e => console.error('Failed to load containers:', e));
 
             // Connect to SSE after page loads and templates are ready

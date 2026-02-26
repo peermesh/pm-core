@@ -64,6 +64,16 @@ Project organization and compose file structure decisions.
 
 ---
 
+## Modules and Extensions (0500-0599)
+
+Decisions about module architecture, templates, and extension patterns.
+
+| ADR | Title | Status | Date |
+|-----|-------|--------|------|
+| [0500](./0500-module-architecture.md) | Module Architecture -- Layer Definitions and Naming | pending (analysis complete) | 2026-02-26 |
+
+---
+
 ## Legend
 
 | Status | Meaning |
@@ -78,8 +88,8 @@ Project organization and compose file structure decisions.
 
 ## Statistics
 
-- **Total Decisions**: 13 accepted
-- **Last Updated**: 2026-01-21
+- **Total Decisions**: 13 accepted, 1 pending
+- **Last Updated**: 2026-02-26
 
 ---
 
@@ -120,6 +130,10 @@ Project organization and compose file structure decisions.
 ### How do I add my application?
 - [ADR-0401](./0401-example-application-pattern.md) describes the example application pattern.
 
+### How are modules structured?
+- [ADR-0500](./0500-module-architecture.md) (pending) defines module architecture and layer terminology. Analysis is complete; awaiting owner decision.
+- [MODULE-ARCHITECTURE.md](../MODULE-ARCHITECTURE.md) provides the comprehensive architecture document based on the analysis findings.
+
 ---
 
 ## Contributing
@@ -140,3 +154,4 @@ When adding a new decision:
 | 0200-0299 | Security |
 | 0300-0399 | Operations |
 | 0400-0499 | Structure / Organization |
+| 0500-0599 | Modules and Extensions |

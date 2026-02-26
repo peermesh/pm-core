@@ -247,7 +247,7 @@ Manage backups.
 
 ### module
 
-Manage modules.
+Manage modules. For the full module architecture (what modules are, how they integrate with the foundation, manifest specification, lifecycle hooks), see [MODULE-ARCHITECTURE.md](MODULE-ARCHITECTURE.md).
 
 ```bash
 # List modules

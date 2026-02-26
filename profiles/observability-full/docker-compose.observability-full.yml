@@ -1,0 +1,157 @@
+# ==============================================================
+# Enterprise Observability Profile - Prometheus + Grafana + Loki
+# ==============================================================
+# Purpose:
+#   Full-stack observability overlay for deployments that have
+#   outgrown observability-lite (Netdata + Uptime Kuma).
+#   Deploy only when the observability scorecard recommends
+#   PROMOTE_FULL_STACK.
+#
+# Activate with:
+#   docker compose -f docker-compose.yml \
+#     -f profiles/observability-full/docker-compose.observability-full.yml up -d
+#
+# Rollback to observability-lite:
+#   docker compose -f docker-compose.yml \
+#     -f profiles/observability-full/docker-compose.observability-full.yml down
+#   docker compose -f docker-compose.yml \
+#     -f profiles/observability-lite/docker-compose.observability-lite.yml up -d
+#
+# Resource Budget (single-node baseline):
+#   Prometheus: ~512MB steady-state, 1GB limit
+#   Grafana:    ~128MB steady-state, 512MB limit
+#   Loki:       ~256MB steady-state, 512MB limit
+#   Total:      ~900MB steady, ~2GB limit envelope
+# ==============================================================
+
+services:
+  prometheus:
+    image: prom/prometheus:v2.51.2
+    container_name: pmdl_prometheus
+    restart: unless-stopped
+    user: "65534:65534"
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=7d"
+      - "--storage.tsdb.retention.size=1GB"
+      - "--web.enable-lifecycle"
+    volumes:
+      - ./profiles/observability-full/config/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - pmdl_prometheus_data:/prometheus
+    networks:
+      - monitoring
+      - proxy-external
+    deploy:
+      resources:
+        limits:
+          memory: 1024M
+        reservations:
+          memory: 512M
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp:size=32m,noexec,nosuid,nodev
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.prometheus.rule=Host(`prometheus.${DOMAIN}`)"
+      - "traefik.http.routers.prometheus.entrypoints=websecure"
+      - "traefik.http.routers.prometheus.tls.certresolver=letsencrypt"
+      - "traefik.http.services.prometheus.loadbalancer.server.port=9090"
+
+  grafana:
+    image: grafana/grafana:10.4.2
+    container_name: pmdl_grafana
+    restart: unless-stopped
+    user: "472:472"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SERVER_ROOT_URL=https://grafana.${DOMAIN}
+      - GF_AUTH_ANONYMOUS_ENABLED=false
+    volumes:
+      - pmdl_grafana_data:/var/lib/grafana
+      - ./profiles/observability-full/config/grafana/provisioning:/etc/grafana/provisioning:ro
+    networks:
+      - monitoring
+      - proxy-external
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 128M
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.grafana.rule=Host(`grafana.${DOMAIN}`)"
+      - "traefik.http.routers.grafana.entrypoints=websecure"
+      - "traefik.http.routers.grafana.tls.certresolver=letsencrypt"
+      - "traefik.http.services.grafana.loadbalancer.server.port=3000"
+
+  loki:
+    image: grafana/loki:2.9.6
+    container_name: pmdl_loki
+    restart: unless-stopped
+    user: "10001:10001"
+    command: -config.file=/etc/loki/loki-config.yml
+    volumes:
+      - ./profiles/observability-full/config/loki/loki-config.yml:/etc/loki/loki-config.yml:ro
+      - pmdl_loki_data:/loki
+    networks:
+      - monitoring
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3100/ready"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,noexec,nosuid,nodev
+
+volumes:
+  pmdl_prometheus_data:
+    driver: local
+    name: pmdl_prometheus_data
+  pmdl_grafana_data:
+    driver: local
+    name: pmdl_grafana_data
+  pmdl_loki_data:
+    driver: local
+    name: pmdl_loki_data
+
+networks:
+  proxy-external:
+    external: true
+    name: pmdl_proxy-external
+  monitoring:
+    name: pmdl_monitoring

@@ -306,8 +306,8 @@ restic restore latest:/configs --target /opt/pmdl/
 
 ### External Discussions
 
-- [FIND-002: Backup excludes volumes](../.dev/ai/findings/FIND-002-backup-excludes-volumes.md) - Original finding
-- [FIND-005: No volume backup automation](../.dev/ai/findings/FIND-005-no-volume-backup-automation.md) - Related finding
+- [FIND-002: Backup excludes volumes](../../../../.dev/ai/findings/FIND-002-backup-excludes-volumes.md) - Original finding
+- [FIND-005: No volume backup automation](../../../../.dev/ai/findings/FIND-005-no-volume-backup-automation.md) - Related finding
 
 ---
 

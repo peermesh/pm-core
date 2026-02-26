@@ -910,7 +910,7 @@ Copy this entire block to your `docker-compose.yml`:
 # MongoDB 7.0 - Supporting Tech Profile
 # ==============================================================
 # Profile Version: 1.0
-# Documentation: .dev/profiles/mongodb/PROFILE-SPEC.md
+# Documentation: profiles/mongodb/PROFILE-SPEC.md
 # ==============================================================
 
 services:

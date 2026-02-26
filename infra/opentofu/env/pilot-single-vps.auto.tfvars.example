@@ -1,0 +1,28 @@
+compute_provider        = "hetzner"
+dns_provider            = "cloudflare"
+pilot_domain            = "example.com"
+pilot_subdomain         = "dockerlab"
+pilot_region            = "fsn1"
+pilot_instance_size     = "cpx11"
+hcloud_server_image     = "ubuntu-24.04"
+operator_ssh_public_key = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHOLDER replace@example"
+
+hcloud_ssh_key_name  = "operator"
+hcloud_network_cidr  = "10.80.0.0/16"
+hcloud_subnet_cidr   = "10.80.1.0/24"
+hcloud_network_zone  = "eu-central"
+hcloud_private_ipv4  = "10.80.1.10"
+pilot_enable_ipv6    = false
+
+firewall_allow_ssh_cidrs = ["203.0.113.0/24"]
+firewall_allow_http      = true
+firewall_allow_https     = true
+
+cloudflare_zone_id    = "replace-with-cloudflare-zone-id"
+cloudflare_record_ttl = 1
+cloudflare_proxied    = false
+
+resource_tags = {
+  project = "peer-mesh-docker-lab"
+  env     = "pilot-single-vps"
+}

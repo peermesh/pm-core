@@ -5,6 +5,7 @@
 # P2P video delivery via WebTorrent/HLS
 #
 # Profile Dependency: PostgreSQL profile required
+# Secrets are loaded from Docker secrets via entrypoint wrapper.
 # ==============================================================
 
 services:
@@ -12,8 +13,9 @@ services:
   # PeerTube
   # =============================================================
   peertube:
-    image: chocobozzz/peertube:production-bookworm
+    image: chocobozzz/peertube@sha256:011b0ec43d921bd60a3aa01fc7995e42cf15275925f16bee6f17a6c896ca5060
     container_name: pmdl_peertube
+    entrypoint: ["/usr/local/bin/pmdl-peertube-entrypoint.sh"]
 
     profiles:
       - peertube
@@ -28,7 +30,6 @@ services:
     environment:
       # Database
       PEERTUBE_DB_USERNAME: peertube
-      PEERTUBE_DB_PASSWORD: ${PEERTUBE_DB_PASSWORD:-peertube_secret_password}
       PEERTUBE_DB_HOSTNAME: postgres
       PEERTUBE_DB_NAME: peertube
 
@@ -46,15 +47,17 @@ services:
       # Admin
       PEERTUBE_ADMIN_EMAIL: admin@${DOMAIN}
 
-      # Secrets
-      PEERTUBE_SECRET: ${PEERTUBE_SECRET:-change_this_to_a_random_string_of_at_least_32_chars}
-
       # Disable telemetry
       PEERTUBE_INSTANCE_NO_TELEMETRY: "true"
+
+    secrets:
+      - peertube_db_password
+      - peertube_secret
 
     volumes:
       - pmdl_peertube_data:/data
       - pmdl_peertube_config:/config
+      - ./examples/peertube/pmdl-peertube-entrypoint.sh:/usr/local/bin/pmdl-peertube-entrypoint.sh:ro
 
     networks:
       - proxy-external
@@ -73,7 +76,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 120s
+      start_period: 150s
 
     restart: unless-stopped
 
@@ -96,7 +99,7 @@ services:
   # Redis for PeerTube
   # =============================================================
   peertube-redis:
-    image: redis:7-alpine
+    image: redis@sha256:02f2cc4882f8bf87c79a220ac958f58c700bdec0dfb9b9ea61b62fb0e8f1bfcf
     container_name: pmdl_peertube_redis
 
     profiles:
@@ -118,10 +121,10 @@ services:
 
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
+      interval: 30s
       timeout: 5s
       retries: 5
-      start_period: 10s
+      start_period: 30s
 
     restart: unless-stopped
 
@@ -130,6 +133,16 @@ services:
       options:
         max-size: "5m"
         max-file: "3"
+
+# ==============================================================
+# Secrets
+# ==============================================================
+
+secrets:
+  peertube_db_password:
+    file: ./secrets/peertube_db_password
+  peertube_secret:
+    file: ./secrets/peertube_secret
 
 # ==============================================================
 # Volumes

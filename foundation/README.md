@@ -269,7 +269,10 @@ foundation/
 │   ├── connection.schema.json   # Connection abstraction schema
 │   ├── dashboard.schema.json    # Dashboard registration schema
 │   ├── config.schema.json       # Configuration schema
-│   └── version.schema.json      # Version compatibility schema
+│   ├── version.schema.json      # Version compatibility schema
+│   ├── security.schema.json     # Security policy schema
+│   ├── security-event.schema.json # Security event schema
+│   └── contract-manifest.schema.json # Capability contract schema
 ├── lib/
 │   ├── version-check.sh         # Version compatibility checker
 │   ├── connection-resolve.sh    # Connection resolution script
@@ -282,7 +285,13 @@ foundation/
 │   ├── connection.ts            # Connection TypeScript interface
 │   ├── connection.py            # Connection Python interface
 │   ├── dashboard.ts             # Dashboard TypeScript interface
-│   └── dashboard.py             # Dashboard Python interface
+│   ├── dashboard.py             # Dashboard Python interface
+│   ├── contract.ts              # Contract TypeScript interface
+│   ├── contract.py              # Contract Python interface
+│   ├── identity.ts              # Identity TypeScript interface
+│   ├── identity.py              # Identity Python interface
+│   ├── encryption.ts            # Encryption TypeScript interface
+│   └── encryption.py            # Encryption Python interface
 ├── docs/
 │   ├── decisions/               # Foundation ADR symlinks
 │   │   └── README.md            # Decision mapping guide

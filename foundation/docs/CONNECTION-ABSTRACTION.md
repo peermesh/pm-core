@@ -260,4 +260,5 @@ When multiple providers can satisfy a requirement:
 - [Module Manifest](./MODULE-MANIFEST.md) - Full module.json schema
 - [Event Bus Interface](./EVENT-BUS-INTERFACE.md) - Inter-module communication
 - [Connection Schema](../schemas/connection.schema.json) - JSON Schema
-- [Creating Modules](./CREATING-MODULES.md) - Module development guide
+<!-- TODO: Add module development guide -->
+<!-- - [Creating Modules](./CREATING-MODULES.md) - Module development guide -->

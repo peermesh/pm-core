@@ -24,7 +24,7 @@ services:
   # MySQL 8.0 - Primary Consumer: Ghost CMS
   # =============================================================
   mysql:
-    image: mysql:8.0
+    image: mysql@sha256:a3dff78d876222746a0bacc36dd7e4bf9e673c85fb7ee0d12ed25bd32c43c19b
     container_name: pmdl_mysql
 
     # ─────────────────────────────────────────────────────────

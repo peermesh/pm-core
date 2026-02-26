@@ -367,7 +367,7 @@ LibreChat releases frequently. For controlled upgrades:
 image: ghcr.io/danny-avila/librechat-dev:v0.7.5
 
 # Or use latest (auto-update with Watchtower)
-image: ghcr.io/danny-avila/librechat-dev:latest
+image: ghcr.io/danny-avila/librechat-dev@sha256:3db851096c0a7fbc3f2b3e41f7baed03203cd4a8c4cdde6e2c8ff0fa49efab9c
 ```
 
 Upgrade procedure:

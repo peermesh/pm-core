@@ -1,0 +1,4 @@
+image	status	reason
+pmdl/dashboard:0.1.0	PASS	explicit-tag
+tecnativa/docker-socket-proxy@sha256:083bd0ed8783e366d745f332f0e4489816dd35d984bef8f16e6d89484a22c082	PASS	digest-pinned
+traefik@sha256:05ff868caaf67ef937b3228d4fe734ef8a353eab2123ac54f2a7b622d1d4b270	PASS	digest-pinned

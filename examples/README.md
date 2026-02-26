@@ -28,7 +28,9 @@ Examples are **demonstrations, not core infrastructure**. They show how to use t
 | [Ghost](./ghost/) | Modern publishing platform | MySQL | Ready |
 | [LibreChat](./librechat/) | AI assistant interface | MongoDB + PostgreSQL | Ready |
 | [Matrix](./matrix/) | Federated communication | PostgreSQL + TURN | Ready |
-| [_template](./\_template/) | Add your own application | Your choice | Template |
+| [WordPress](./wordpress/) | Classic CMS/blog platform | MySQL | Ready |
+| [Python API](./python-api/) | API-first workload baseline (HTTPBin) | Foundation only | Ready |
+| [_template](./_template/) | Add your own application | Your choice | Template |
 
 ---
 
@@ -62,6 +64,17 @@ docker compose -f docker-compose.yml \
                -f profiles/postgresql/docker-compose.postgresql.yml \
                -f examples/librechat/docker-compose.librechat.yml \
                up -d
+
+# WordPress needs MySQL
+docker compose -f docker-compose.yml \
+               -f profiles/mysql/docker-compose.mysql.yml \
+               -f examples/wordpress/docker-compose.wordpress.yml \
+               --profile wordpress up -d
+
+# Python API (HTTPBin) needs foundation only
+docker compose -f docker-compose.yml \
+               -f examples/python-api/docker-compose.python-api.yml \
+               --profile python-api up -d
 ```
 
 ### 3. Generate Required Secrets
@@ -235,7 +248,9 @@ Supporting Tech Profiles (activated per-need)
 Example Applications (optional demonstrations)
     ├── Ghost (uses MySQL profile)
     ├── LibreChat (uses MongoDB + PostgreSQL profiles)
-    └── Matrix (uses PostgreSQL profile)
+    ├── Matrix (uses PostgreSQL profile)
+    ├── WordPress (uses MySQL profile)
+    └── Python API / HTTPBin (foundation-only API profile)
 
 Future (planned)
     ├── Authelia (SSO/authentication)

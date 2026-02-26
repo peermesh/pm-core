@@ -2,6 +2,71 @@
 
 Deploy Peer Mesh Docker Lab to a commodity VPS ($20-50/month) running Ubuntu 22.04/24.04 LTS.
 
+## Deployment Paths
+
+Docker Lab supports two valid paths:
+
+1. OpenTofu-managed infrastructure (recommended):
+   - OpenTofu provisions VPS/network/firewall/DNS via provider API
+   - Docker Lab runtime is deployed on that provisioned host
+2. Manual VPS provisioning:
+   - operator provisions host manually
+   - Docker Lab runtime is deployed on that host
+
+Canonical project preference is path 1 (OpenTofu-managed infrastructure), with Hetzner as the primary provider target.
+
+Boundary rule:
+
+1. OpenTofu manages infrastructure lifecycle.
+2. Docker Lab manages runtime/container lifecycle.
+
+References:
+
+- [OpenTofu Deployment Model](OPENTOFU-DEPLOYMENT-MODEL.md)
+- [OpenTofu Scaffold README](../infra/opentofu/README.md)
+
+## OpenTofu-Driven Walkthrough (Hetzner-first)
+
+Use this path when you want API-driven provisioning instead of manual VPS setup.
+
+1. Prepare live OpenTofu input files (untracked):
+   - `infra/opentofu/env/pilot-single-vps.auto.tfvars`
+   - optional backend config in `infra/opentofu/backend/*.hcl`
+2. Set provider values in var file:
+   - `compute_provider = "hetzner"`
+   - `dns_provider = "cloudflare"` (or your DNS provider)
+3. Capture required provider credentials using the secure credential manager:
+   - `infra/opentofu/scripts/pilot-credentials.sh setup --var-file /path/to/pilot-single-vps.auto.tfvars`
+   - default credential file location: `${XDG_CONFIG_HOME:-$HOME/.config}/docker-lab/opentofu/pilot-single-vps.credentials.env`
+   - onboarding placeholder copy: `docs/examples/pilot-single-vps.credentials.env.example`
+   - bootstrap placeholder template:
+     ```bash
+     mkdir -p "${XDG_CONFIG_HOME:-$HOME/.config}/docker-lab/opentofu"
+     cp ./infra/opentofu/env/pilot-single-vps.credentials.env.example \
+       "${XDG_CONFIG_HOME:-$HOME/.config}/docker-lab/opentofu/pilot-single-vps.credentials.env"
+     chmod 600 "${XDG_CONFIG_HOME:-$HOME/.config}/docker-lab/opentofu/pilot-single-vps.credentials.env"
+     ```
+   - placeholder contract in that file:
+     ```env
+     HCLOUD_TOKEN=REPLACE_WITH_HETZNER_API_TOKEN
+     # CLOUDFLARE_API_TOKEN=REPLACE_WITH_CLOUDFLARE_API_TOKEN
+     ```
+4. Set approval controls in shell:
+   - `OPENTOFU_PILOT_APPLY_APPROVED=true`
+   - `OPENTOFU_PILOT_CHANGE_REF=<work-order>`
+5. Run readiness and plan:
+   - `infra/opentofu/scripts/pilot-apply-readiness.sh --var-file ... --env-file ...`
+6. Apply reviewed plan and run idempotency check.
+7. Deploy Docker Lab runtime on the provisioned host using the canonical deploy path.
+8. Add profiles/modules and validate runtime health.
+
+Important:
+
+1. OpenTofu and runtime deploy are complementary, not competing paths.
+2. OpenTofu handles infrastructure API operations.
+3. Docker Lab scripts handle runtime/container operations.
+4. "Provider" here means an API integration/plugin; it is not a background autoscaling service.
+
 ## Security Notice: Deployment Method
 
 **This project uses webhook-based (pull) deployment exclusively.**
@@ -14,6 +79,91 @@ With webhook deployment:
 - Attackers with webhook secret can only trigger deployments of existing code
 
 **Setup webhook deployment**: See [WEBHOOK-DEPLOYMENT.md](WEBHOOK-DEPLOYMENT.md)
+**Promotion runbook**: See [DEPLOYMENT-PROMOTION-RUNBOOK.md](DEPLOYMENT-PROMOTION-RUNBOOK.md)
+
+## Observability Defaults
+
+Current default observability profile is the low-ops overlay:
+
+- `profiles/observability-lite/docker-compose.observability-lite.yml` (Netdata + Uptime Kuma)
+
+Validation command:
+
+```bash
+./scripts/validate-observability-profile.sh
+```
+
+Reference: [OBSERVABILITY-PROFILES.md](OBSERVABILITY-PROFILES.md)
+
+## Supply-Chain Baseline Gates
+
+Deployment preflight includes a supply-chain gate that runs:
+
+1. image policy validation (`tag`/`digest` contract)
+2. SBOM generation (CycloneDX)
+3. vulnerability threshold checks
+
+Version pinning policy:
+
+- See [Enterprise Version Immutability Standard](ENTERPRISE-VERSION-IMMUTABILITY-STANDARD.md)
+- See [Image Digest Baseline](IMAGE-DIGEST-BASELINE.md)
+
+Manual execution:
+
+```bash
+./scripts/security/validate-supply-chain.sh --severity-threshold CRITICAL
+```
+
+Authenticated non-interactive execution (recommended for CI/operators):
+
+```bash
+DOCKER_SCOUT_USERNAME=your-user \
+DOCKER_SCOUT_TOKEN_FILE=/run/secrets/docker_scout_pat \
+./scripts/security/validate-supply-chain.sh --severity-threshold CRITICAL
+```
+
+Deploy default hardening:
+
+1. `SUPPLY_CHAIN_STRICT=true` (default in `scripts/deploy.sh`)
+2. `SUPPLY_CHAIN_FAIL_ON_LATEST=true` (default in `scripts/deploy.sh`)
+
+Override example (typically unnecessary):
+
+```bash
+SUPPLY_CHAIN_STRICT=true \
+SUPPLY_CHAIN_FAIL_ON_LATEST=true \
+SUPPLY_CHAIN_SEVERITY_THRESHOLD=HIGH \
+./scripts/deploy.sh --validate
+```
+
+If you intentionally need legacy degraded behavior in local workflows:
+
+```bash
+SUPPLY_CHAIN_ALLOW_AUTH_DEGRADED=true ./scripts/deploy.sh --validate
+```
+
+Reference: [SUPPLY-CHAIN-SECURITY.md](SUPPLY-CHAIN-SECURITY.md)
+
+## Scalability And Resilience Wave-1
+
+Wave-1 validation captures add-host vs scale-up decisions and non-functional baseline checks.
+
+```bash
+./scripts/scalability/run-wave1-validation.sh
+```
+
+Wave-2 capture and ingestion for 24h latency/error/RTO/RPO evidence:
+
+```bash
+./scripts/scalability/capture-wave2-metrics.sh \
+  --ssh-host root@37.27.208.228 \
+  --output-dir /tmp/pmdl-wave2
+
+./scripts/scalability/run-wave1-validation.sh \
+  --metrics-summary-file /tmp/pmdl-wave2/aggregated/wave2-metrics-summary.env
+```
+
+Reference: [SCALABILITY-RESILIENCE-WAVE1.md](SCALABILITY-RESILIENCE-WAVE1.md)
 
 ## VPS Provider Requirements
 
@@ -375,6 +525,12 @@ COMPOSE_PROFILES=postgresql,redis
 RESOURCE_PROFILE=core
 ```
 
+Important:
+
+1. For real ACME issuance, `ADMIN_EMAIL` must be a valid non-placeholder email domain.
+2. Placeholder domains such as `example.com` can cause ACME account registration failure.
+3. Some free wildcard dynamic DNS domains may hit Let's Encrypt rate limits; if this happens, switch to a different domain family or an owned domain.
+
 ### Step 3: Generate Secrets
 
 ```bash
@@ -396,6 +552,10 @@ ls -la secrets/
 docker compose config --quiet
 # No output = success
 
+# Secret contract parity check
+./scripts/validate-secret-parity.sh --environment production
+# Exit code 0 = no CRITICAL keyset drift
+
 # View resolved configuration
 docker compose config
 
@@ -407,10 +567,12 @@ docker compose config --services
 
 ```bash
 # Pull all required images
-docker compose pull
+docker compose pull --ignore-buildable
 
 # This may take several minutes depending on connection speed
 ```
+
+`--ignore-buildable` is required because Docker Lab includes local build services (for example `dashboard`) that are not expected to exist in a public registry.
 
 ### Step 6: Start Services
 
@@ -469,32 +631,37 @@ docker ps --format "table {{.Names}}\t{{.Status}}"
 
 ### Routine Updates
 
-#### Update Container Images
+Use the canonical deployment entrypoint so preflight, promotion gates, and evidence output stay consistent:
 
 ```bash
 cd /opt/peermesh
 
-# Pull latest images
-docker compose pull
+# Validate only (no apply)
+./scripts/deploy.sh \
+  --validate \
+  --deploy-mode operator \
+  --environment staging \
+  --promotion-from dev \
+  --evidence-root /tmp/pmdl-deploy-evidence \
+  -f docker-compose.yml
 
-# Apply updates with rolling restart
-docker compose up -d
+# Apply staging promotion
+./scripts/deploy.sh \
+  --deploy-mode operator \
+  --environment staging \
+  --promotion-from dev \
+  --promotion-id stage-$(date -u +%Y%m%dT%H%M%SZ) \
+  --evidence-root /tmp/pmdl-deploy-evidence \
+  -f docker-compose.yml
 
-# Verify health after update
-docker compose ps
-```
-
-#### Update Configuration
-
-```bash
-# Edit configuration
-nano .env
-
-# Validate changes
-docker compose config --quiet
-
-# Apply with recreate
-docker compose up -d --force-recreate
+# Apply production promotion
+./scripts/deploy.sh \
+  --deploy-mode operator \
+  --environment production \
+  --promotion-from staging \
+  --promotion-id prod-$(date -u +%Y%m%dT%H%M%SZ) \
+  --evidence-root /tmp/pmdl-deploy-evidence \
+  -f docker-compose.yml
 ```
 
 ### Pre-Update Backup
@@ -506,58 +673,35 @@ Always backup before major updates:
 ./scripts/backup.sh
 
 # Verify backup completed
-ls -la /var/backups/peermesh/
+ls -la /var/backups/pmdl/
 
 # Note the timestamp for potential rollback
 ```
 
 ### Rollback Procedures
 
-#### Rollback Container Image
+Use the rollback artifacts generated by the canonical deploy script:
 
 ```bash
-# Stop affected service
-docker compose stop SERVICE_NAME
+# Inspect rollback pointer and plan from the failed run
+cat /tmp/pmdl-deploy-evidence/<run-id>/rollback-pointer.env
+cat /tmp/pmdl-deploy-evidence/<run-id>/rollback-plan.md
 
-# Pull specific previous version
-docker compose pull SERVICE_NAME:previous-tag
+# Optional: inspect captured source reference (if provided by orchestrator)
+grep '^PRE_DEPLOY_SOURCE_REF=' /tmp/pmdl-deploy-evidence/<run-id>/rollback-pointer.env || true
 
-# Or use local image cache
-docker images | grep SERVICE_NAME
+# Restore source revision using your source orchestrator (outside deploy.sh)
+# deploy.sh is runtime-only and does not perform source-control resets.
 
-# Restart with previous image
-docker compose up -d SERVICE_NAME
-```
-
-#### Rollback Configuration
-
-```bash
-# If using git for configuration
-cd /opt/peermesh
-git diff .env
-git checkout .env
-
-# Restart services
-docker compose up -d --force-recreate
-```
-
-#### Full Rollback from Backup
-
-```bash
-# Stop all services
-docker compose down
-
-# Restore database from backup
-./scripts/restore-postgres.sh /var/backups/peermesh/pre-deploy/postgres/latest
-
-# Restore configuration
-git checkout HEAD~1 -- .env docker-compose.yml
-
-# Restart services
-docker compose up -d
-
-# Verify restoration
-docker compose ps
+# Re-apply known-good runtime
+./scripts/deploy.sh \
+  --deploy-mode manual \
+  --environment production \
+  --promotion-from staging \
+  --promotion-id rollback-$(date -u +%Y%m%dT%H%M%SZ) \
+  --skip-pull \
+  --evidence-root /tmp/pmdl-deploy-evidence \
+  -f docker-compose.yml
 ```
 
 ### Database-Specific Updates
@@ -602,7 +746,7 @@ docker compose down -v  # WARNING: Destroys volumes
 docker compose up -d
 
 # Restore data from backup
-./scripts/restore-all.sh /var/backups/peermesh/latest
+./scripts/restore-all.sh /var/backups/pmdl/latest
 ```
 
 ---
@@ -675,8 +819,8 @@ The webhook deployment script includes a security verification step that:
 ```bash
 # From deploy/webhook/deploy.sh
 verify_no_sensitive_files() {
-    # Checks for .env, secrets/, .dev/, etc.
-    # Blocks deployment if found
+    # Blocks tracked .env files and sensitive patterns.
+    # Allows local VPS .env only when untracked.
 }
 ```
 
@@ -686,7 +830,12 @@ To verify your deployment doesn't contain sensitive files:
 
 ```bash
 # On VPS, check for files that shouldn't exist
-find /opt/peermesh -name ".env" -o -name "*.key" -o -type d -name ".dev"
+find /opt/peermesh -name "*.key" -o -type d -name ".dev"
+
+# Ensure .env is present but untracked
+cd /opt/peermesh
+test -f .env
+git ls-files --error-unmatch .env && echo "ERROR: .env is tracked"
 
 # Using rsync dry-run with .deployignore
 rsync -av --exclude-from='.deployignore' --dry-run ./ /tmp/deploy-test/
@@ -727,4 +876,7 @@ After successful deployment:
 - [Profiles Guide](PROFILES.md) - Resource and tech profiles
 - [Troubleshooting Guide](TROUBLESHOOTING.md) - Common issues and solutions
 - [Webhook Deployment](WEBHOOK-DEPLOYMENT.md) - Automated deployment setup
-- [Operational Runbook](system-design-docs/06-operations/OPERATIONAL-RUNBOOK.md) - Day-to-day operations
+- [Deployment Promotion Runbook](DEPLOYMENT-PROMOTION-RUNBOOK.md) - Canonical promotion and rollback workflow
+- [Federation Adapter Boundary](FEDERATION-ADAPTER-BOUNDARY.md) - Optional federation module boundary rules
+<!-- TODO: Add operational runbook documentation -->
+<!-- - [Operational Runbook](system-design-docs/06-operations/OPERATIONAL-RUNBOOK.md) - Day-to-day operations -->

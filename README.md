@@ -7,6 +7,7 @@ Production-ready Docker Compose boilerplate for self-hosted applications. Clone 
 **A production-grade Docker infrastructure foundation.** This repository provides:
 
 - Battle-tested Docker Compose configurations for common deployment patterns
+- A foundation runtime stack (not a single app container) that other module containers layer onto
 - Traefik reverse proxy with automatic TLS certificate management
 - Docker secrets-based credential management
 - Resource-based profiles (lite/core/full) for different deployment targets
@@ -15,6 +16,23 @@ Production-ready Docker Compose boilerplate for self-hosted applications. Clone 
 - Network isolation patterns for security
 
 This is infrastructure boilerplate - a starting point you clone and customize for your specific application needs.
+
+## Canonical Deployment Model
+
+Docker Lab uses a two-layer model:
+
+1. OpenTofu provisions infrastructure through provider APIs (for example, Hetzner VPS + DNS prerequisites).
+2. Docker Lab deploys and operates the runtime foundation and modules on that infrastructure.
+
+This means:
+
+1. OpenTofu is the infrastructure control plane.
+2. Docker Lab is the runtime/container control plane.
+3. Modules are layered onto the foundation after the base runtime is up.
+4. OpenTofu providers are API connectors used during plan/apply, not always-on autoscaling agents.
+
+See [OpenTofu Deployment Model](docs/OPENTOFU-DEPLOYMENT-MODEL.md) for the full walkthrough and options.
+See [Enterprise Version Immutability Standard](docs/ENTERPRISE-VERSION-IMMUTABILITY-STANDARD.md) for dependency pinning and upgrade controls.
 
 ## What This Repository Is NOT
 
@@ -122,21 +140,36 @@ Ready-to-deploy application configurations:
 | Ghost | Publishing platform | MySQL |
 | LibreChat | AI chat interface | MongoDB, PostgreSQL |
 | Matrix | Federated messaging | PostgreSQL |
+| WordPress | CMS/blog platform | MySQL |
+| Python API (HTTPBin) | API workload baseline | Foundation |
 
 See `examples/` for complete configurations.
 
 ## Documentation
 
 - [Quick Start Guide](docs/QUICKSTART.md) - Get running in 5 minutes
+- [Public Quick Start Tutorial](docs/community/QUICK-START-TUTORIAL.md) - Public onboarding walkthrough
 - [System Architecture](docs/ARCHITECTURE.md) - Four-tier modular architecture overview
 - [Configuration Reference](docs/CONFIGURATION.md) - Environment variables and options
 - [Profiles Guide](docs/PROFILES.md) - Choosing and customizing profiles
 - [Security Guide](docs/SECURITY.md) - Security architecture and hardening
+- [OpenBao No-TPM Fallback Strategy](docs/security/OPENBAO-NO-TPM-FALLBACK-STRATEGY.md) - Fail-closed fallback tiers for unseal workflows
 - [Secrets Management](docs/SECRETS-MANAGEMENT.md) - Docker secrets patterns
 - [Deployment Guide](docs/DEPLOYMENT.md) - Production deployment guidance
+- [Enterprise Version Immutability Standard](docs/ENTERPRISE-VERSION-IMMUTABILITY-STANDARD.md) - Mandatory version pinning and digest policy
+- [Image Digest Baseline](docs/IMAGE-DIGEST-BASELINE.md) - Current locked image references
+- [OpenTofu Deployment Model](docs/OPENTOFU-DEPLOYMENT-MODEL.md) - Infra via API + runtime on-host model
 - [Troubleshooting](docs/TROUBLESHOOTING.md) - Common issues and solutions
+- [Gotchas](docs/GOTCHAS.md) - High-friction deployment pitfalls and fixes
+- [Secrets Per App](docs/SECRETS-PER-APP.md) - Required keys per example app
+- [Multi-Domain Pattern](docs/MULTI-DOMAIN.md) - Domain override strategy and usage
+- [Public Repo Manifest](docs/PUBLIC-REPO-MANIFEST.md) - Public/private file boundaries
 - [Architecture Decisions](docs/decisions/) - ADR documentation
 - [Foundation Reference](foundation/README.md) - Module system documentation
+- [Launch Strategy](docs/community/LAUNCH-STRATEGY.md) - Public launch sequencing and channels
+- [Community Engagement Plan](docs/community/COMMUNITY-ENGAGEMENT-PLAN.md) - SLA and triage model
+- [Good First Issues Backlog](docs/community/GOOD-FIRST-ISSUES.md) - New-contributor task queue
+- [Demo Materials](docs/community/DEMO-MATERIALS.md) - Screenshot + onboarding walkthrough set
 
 ## Requirements
 
@@ -147,11 +180,7 @@ See `examples/` for complete configurations.
 
 ## Contributing
 
-Contributions welcome. Please:
-
-1. Fork the repository
-2. Create a feature branch
-3. Submit a pull request with clear description
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, validation commands, and secrets safety requirements.
 
 ## License
 

@@ -1,0 +1,39 @@
+name: Bug Report
+description: Report a reproducible defect in Docker Lab.
+title: "[Bug]: "
+labels: [bug, triage]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Provide exact reproduction steps and environment details.
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      placeholder: What failed?
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Reproduction Steps
+      placeholder: "1. ...\n2. ...\n3. ..."
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs/Artifacts
+      description: Include deploy logs, command output, or screenshots.
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      placeholder: OS, Docker version, profile set, VPS provider

@@ -139,22 +139,42 @@ sudo rm -rf /var/lib/docker/volumes/synapse_data/_data/homeserver.yaml
 
 ### Shell Compatibility
 
-- [ ] **All scripts use POSIX shebang**
+- [ ] **Script shebang matches runtime requirements**
   ```bash
-  grep -r "#!/.*bash" scripts/
-  # Expected: No output (no bash shebangs)
-  # All scripts should use: #!/bin/sh
+  # Canonical entrypoint is Bash:
+  head -n 1 scripts/deploy.sh
+  # Expected: #!/usr/bin/env bash
+
+  # Webhook wrapper stays POSIX:
+  head -n 1 deploy/webhook/deploy.sh
+  # Expected: #!/bin/sh
   ```
 
 - [ ] **Scripts pass shellcheck**
   ```bash
-  shellcheck -s sh scripts/*.sh
+  shellcheck -s bash scripts/deploy.sh
+  shellcheck -s sh deploy/webhook/deploy.sh scripts/init-volumes.sh scripts/generate-secrets.sh
   # Expected: No errors (warnings acceptable)
   ```
 
-### Common Bash-isms to Avoid
+- [ ] **Baseline script/unit/smoke tests execute**
+  ```bash
+  # Script harness checks (usage/exit contracts for critical scripts)
+  just script-tests
 
-If shellcheck finds issues, fix these common problems:
+  # Dashboard unit tests
+  make dashboard-test
+
+  # Generic HTTP smoke check
+  just smoke-http http://127.0.0.1:8080 200
+
+  # Example app smoke contract (when app is deployed)
+  just smoke-example-app ghost https://ghost.example.com
+  ```
+
+### Common Bash-isms To Avoid In POSIX Scripts
+
+If shellcheck finds issues in POSIX scripts, fix these common problems:
 
 | Bash-ism | POSIX Alternative |
 |----------|-------------------|
@@ -235,6 +255,87 @@ If shellcheck finds issues, fix these common problems:
     SECRET_KEY_BASE: ${SECRET_KEY_BASE}
   ```
 
+### Secret Contract Parity
+
+- [ ] **Canonical keyset parity passes**
+  ```bash
+  ./scripts/validate-secret-parity.sh --environment production
+  # Expected: Secret parity summary with CRITICAL=0
+  ```
+
+- [ ] **Rotation + recovery drill is runnable**
+  ```bash
+  ./scripts/secrets-rotation-recovery-drill.sh --environment staging --key postgres_password
+  # Expected: Drill complete with evidence path in /tmp/pmdl-secrets-drills/
+  ```
+
+### Federation Adapter Boundary
+
+- [ ] **Core runtime is stable without adapter**
+  ```bash
+  docker compose -f docker-compose.yml config -q
+  # Expected: exit 0 with no adapter requirement
+  ```
+
+- [ ] **Adapter boundary validation passes**
+  ```bash
+  ./scripts/validate-federation-adapter-boundary.sh
+  # Expected: failures=0
+  ```
+
+### Observability Profile Baseline
+
+- [ ] **Observability-lite profile validation passes**
+  ```bash
+  ./scripts/validate-observability-profile.sh
+  # Expected: Observability profile summary: failures=0
+  ```
+
+### Supply-Chain Baseline
+
+- [ ] **Image policy gate passes**
+  ```bash
+  ./scripts/security/validate-image-policy.sh
+  # Expected: FAILURES=0
+  ```
+
+- [ ] **SBOM artifacts are generated**
+  ```bash
+  ./scripts/security/generate-sbom.sh --output-dir /tmp/pmdl-sbom
+  ls -la /tmp/pmdl-sbom
+  # Expected: SBOM-INDEX.tsv and CycloneDX JSON files (for local images)
+  ```
+
+- [ ] **Vulnerability threshold gate passes at chosen severity**
+  ```bash
+  # Authenticated mode (recommended)
+  DOCKER_SCOUT_USERNAME=your-user \
+  DOCKER_SCOUT_TOKEN_FILE=/run/secrets/docker_scout_pat \
+  ./scripts/security/validate-supply-chain.sh --severity-threshold CRITICAL
+  # Expected: Supply-chain summary with FAILURES=0
+  ```
+
+- [ ] **Auth-degraded mode is disabled unless explicitly intentional**
+  ```bash
+  # Expected default: SUPPLY_CHAIN_ALLOW_AUTH_DEGRADED is false/unset
+  env | grep '^SUPPLY_CHAIN_ALLOW_AUTH_DEGRADED=' || true
+  ```
+
+### Scalability/Resilience Wave-1
+
+- [ ] **Wave-1 trigger matrix and non-functional checks are generated**
+  ```bash
+  ./scripts/scalability/run-wave1-validation.sh
+  # Expected: wave1-summary.env + trigger-matrix.tsv + nonfunctional-checks.tsv
+  ```
+
+- [ ] **Wave-2 metrics capture removes UNKNOWN telemetry dimensions**
+  ```bash
+  ./scripts/scalability/capture-wave2-metrics.sh --ssh-host root@37.27.208.228 --output-dir /tmp/pmdl-wave2
+  ./scripts/scalability/run-wave1-validation.sh --metrics-summary-file /tmp/pmdl-wave2/aggregated/wave2-metrics-summary.env
+  # Expected: trigger-matrix has no UNKNOWN rows for latency_p99_ms, error_rate_pct, rto_min, rpo_hours
+  ```
+
 ---
 
 ## Deployment Script Safety
@@ -303,6 +404,10 @@ docker compose ps
 # 2. Logs for errors
 docker compose logs --tail=50 | grep -i -E "error|fail|warn"
 # Expected: No critical errors
+
+# 2b. Deployment execution log (webhook/operator evidence context)
+./scripts/view-deploy-log.sh --tail 120
+# Expected: Latest deployment log tail with evidence bundle hint
 
 # 3. External accessibility
 curl -I https://your-app.yourdomain.com

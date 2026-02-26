@@ -1,0 +1,67 @@
+# ==============================================================
+# Python API Example (HTTPBin) - Docker Compose Fragment
+# ==============================================================
+# Lightweight Python-based API profile to validate API-first workloads.
+#
+# Usage:
+#   docker compose -f docker-compose.yml \
+#                  -f examples/python-api/docker-compose.python-api.yml \
+#                  --profile python-api up -d
+# ==============================================================
+
+x-python-api-healthcheck: &python-api-healthcheck
+  interval: 30s
+  timeout: 10s
+  retries: 5
+  start_period: 30s
+
+x-python-api-logging: &python-api-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  python_api:
+    image: kennethreitz/httpbin@sha256:599fe5e5073102dbb0ee3dbb65f049dab44fa9fc251f6835c9990f8fb196a72b
+    container_name: pmdl_python_api
+
+    profiles:
+      - python-api
+      - full
+
+    environment:
+      TZ: ${TZ:-UTC}
+
+    networks:
+      - proxy-external
+
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 128M
+
+    healthcheck:
+      <<: *python-api-healthcheck
+      test: ["CMD-SHELL", "wget -q --spider http://localhost/status/200 || exit 1"]
+
+    restart: unless-stopped
+
+    logging:
+      <<: *python-api-logging
+
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.python-api.rule=Host(`api.${DOMAIN}`)"
+      - "traefik.http.routers.python-api.entrypoints=websecure"
+      - "traefik.http.routers.python-api.tls=true"
+      - "traefik.http.routers.python-api.tls.certresolver=letsencrypt"
+      - "traefik.http.services.python-api.loadbalancer.server.port=80"
+      - "com.centurylinklabs.watchtower.enable=false"
+
+networks:
+  proxy-external:
+    external: true
+    name: pmdl_proxy-external

@@ -45,6 +45,7 @@ profiles/
 ├── mongodb/
 ├── redis/
 ├── minio/
+├── observability-lite/
 │
 └── identity/                     # Identity provider (Social Lab)
     ├── PROFILE-SPEC.md          # Identity profile specification
@@ -121,6 +122,7 @@ These profiles are complete with all sections:
 |---------|--------|----------|
 | Redis | Available | Session storage, caching, pub/sub |
 | MinIO | Available | S3-compatible object storage |
+| Observability Lite | Available | Netdata + Uptime Kuma low-ops baseline |
 | RabbitMQ | Planned | Message queuing |
 
 ### Tier 3: Identity & Authentication Profiles

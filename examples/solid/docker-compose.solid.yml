@@ -24,7 +24,7 @@ x-solid-healthcheck: &solid-healthcheck
   interval: 30s
   timeout: 10s
   retries: 5
-  start_period: 30s
+  start_period: 90s
 
 x-solid-logging: &solid-logging
   driver: "json-file"
@@ -46,7 +46,7 @@ services:
   # - Implements Linked Data Platform (LDP)
   # =============================================================
   solid:
-    image: solidproject/community-server:7
+    image: solidproject/community-server@sha256:a31b765631739ee20bed42829268a93c8dc698c343adba9130545e49551d1756
     container_name: pmdl_solid
 
     # ---------------------------------------------------------

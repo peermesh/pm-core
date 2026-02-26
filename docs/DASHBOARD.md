@@ -117,7 +117,7 @@ echo "DOCKERLAB_PASSWORD=$DOCKERLAB_PASSWORD" >> .env
 echo "Docker Lab Dashboard login: admin / $DOCKERLAB_PASSWORD"
 ```
 
-### Current VPS Credentials (dockerlab.peermesh.org)
+### Current VPS Credentials (dockerlab.example.com)
 
 See `AGENTS.md` for current production credentials. These are only documented in the private repo, not committed to the public repo.
 
@@ -142,7 +142,7 @@ Set the following environment variable in your `.env` file:
 DOCKERLAB_DEMO_MODE=true
 ```
 
-For production deployment at dockerlab.peermesh.org, this should be set to true to enable public access.
+For production deployment at dockerlab.example.com, this should be set to true to enable public access.
 
 > **Backwards Compatibility**: `DEMO_MODE=true` still works but is deprecated.
 

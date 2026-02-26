@@ -1,0 +1,7 @@
+bucket = "replace-with-state-bucket"
+key    = "peer-mesh-docker-lab/pilot-single-vps/terraform.tfstate"
+region = "replace-with-region"
+# endpoint                    = "https://replace-with-s3-endpoint"
+# skip_region_validation      = true
+# skip_credentials_validation = true
+# skip_metadata_api_check     = true

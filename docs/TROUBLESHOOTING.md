@@ -54,7 +54,7 @@ docker compose logs <service-name>
 3. **Missing environment variables**
    ```bash
    # Check .env exists and has required values
-   cat .env | grep -E "DOMAIN|ACME_EMAIL"
+   cat .env | grep -E "DOMAIN|ADMIN_EMAIL"
    ```
 
 4. **Volume permission issues**

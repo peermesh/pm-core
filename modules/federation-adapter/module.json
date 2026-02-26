@@ -1,0 +1,99 @@
+{
+  "$schema": "../../foundation/schemas/module.schema.json",
+  "id": "federation-adapter",
+  "version": "0.1.0",
+  "name": "Federation Adapter Boundary",
+  "description": "Optional adapter module boundary for federation and syndication workloads without coupling core runtime to federation-specific dependencies.",
+  "author": {
+    "name": "PeerMesh Team"
+  },
+  "license": "MIT",
+  "tags": ["federation", "adapter", "activitypub", "solid", "syndication"],
+  "foundation": {
+    "minVersion": "1.0.0"
+  },
+  "requires": {
+    "connections": [
+      {
+        "type": "database",
+        "providers": ["postgres", "mysql", "none"],
+        "required": false,
+        "alias": "adapter-state-db"
+      },
+      {
+        "type": "queue",
+        "providers": ["nats", "rabbitmq", "none"],
+        "required": false,
+        "alias": "adapter-event-bus"
+      }
+    ],
+    "modules": []
+  },
+  "provides": {
+    "connections": [],
+    "events": [
+      "federation.adapter.started",
+      "federation.adapter.stopped",
+      "federation.adapter-sync.completed",
+      "federation.adapter-sync.failed",
+      "federation.adapter-auth.denied"
+    ]
+  },
+  "lifecycle": {
+    "install": {
+      "script": "./hooks/install.sh",
+      "timeout": 120
+    },
+    "start": {
+      "script": "./hooks/start.sh",
+      "timeout": 60
+    },
+    "stop": {
+      "script": "./hooks/stop.sh",
+      "timeout": 30
+    },
+    "uninstall": "./hooks/uninstall.sh",
+    "health": {
+      "script": "./hooks/health.sh",
+      "timeout": 15
+    }
+  },
+  "config": {
+    "version": "1.0",
+    "properties": {
+      "enabled": {
+        "type": "boolean",
+        "default": false,
+        "env": "FEDERATION_ADAPTER_ENABLED",
+        "description": "Master switch for adapter activation"
+      },
+      "mode": {
+        "type": "string",
+        "default": "activitypub",
+        "enum": ["activitypub", "solid-bridge", "rss-bridge"],
+        "env": "FEDERATION_ADAPTER_MODE",
+        "description": "Adapter mode selection"
+      },
+      "ingressHost": {
+        "type": "string",
+        "env": "FEDERATION_ADAPTER_HOST",
+        "description": "Optional adapter host for ingress routing"
+      },
+      "authStrategy": {
+        "type": "string",
+        "default": "token",
+        "enum": ["token", "mTLS", "oauth2"],
+        "env": "FEDERATION_ADAPTER_AUTH_STRATEGY",
+        "description": "Boundary auth strategy"
+      },
+      "queueBackend": {
+        "type": "string",
+        "default": "none",
+        "enum": ["none", "nats", "rabbitmq"],
+        "env": "FEDERATION_ADAPTER_QUEUE_BACKEND",
+        "description": "Optional queue backend for adapter jobs"
+      }
+    },
+    "required": []
+  }
+}

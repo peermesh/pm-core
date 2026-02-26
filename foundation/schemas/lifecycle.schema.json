@@ -32,6 +32,22 @@
     "validate": {
       "$ref": "#/$defs/lifecycleHook",
       "description": "Called before install to validate configuration and dependencies."
+    },
+    "security-provision": {
+      "$ref": "#/$defs/lifecycleHook",
+      "description": "Called after identity credential issuance and encryption key provisioning. Module can perform security-specific setup."
+    },
+    "security-deprovision": {
+      "$ref": "#/$defs/lifecycleHook",
+      "description": "Called before identity revocation and key eviction. Module should clean up security-related state."
+    },
+    "security-rotate": {
+      "$ref": "#/$defs/lifecycleHook",
+      "description": "Called when credentials or keys are rotated. Module should update to use new credentials/keys."
+    },
+    "security-lock": {
+      "$ref": "#/$defs/lifecycleHook",
+      "description": "Called when session locks (if module has security.session.lockBehavior set). Module should respond to lock event."
     }
   },
   "$defs": {

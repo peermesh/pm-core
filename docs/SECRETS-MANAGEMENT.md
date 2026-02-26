@@ -12,6 +12,26 @@ This project uses **SOPS** (Secrets OPerationS) with **age** encryption for mana
 - **Audit trail**: All operations are logged locally
 - **No cloud dependencies**: Works offline, no external services required
 
+## Canonical vs Compatibility Keysets
+
+The secrets lifecycle contract separates canonical runtime keys from compatibility-only keys:
+
+- canonical runtime keyset: `secrets/keysets/canonical-runtime-keys.txt`
+- canonical compose keyset: `secrets/keysets/canonical-compose-keys.txt`
+- compatibility-only keyset: `secrets/keysets/compatibility-only-keys.txt`
+
+Policy:
+
+- canonical keys are baseline deployment contract and drift is `CRITICAL`
+- compatibility keys support optional profiles/apps and cannot silently become canonical
+- root compose `secrets:` entries must remain aligned to canonical compose keyset
+
+Run parity validation:
+
+```bash
+./scripts/validate-secret-parity.sh --environment production
+```
+
 ## Quick Start (Existing Team Members)
 
 ```bash
@@ -126,6 +146,20 @@ just rotate API_KEY staging
 # Prompts for new value (hidden input)
 # Shows reminder to update external systems
 ```
+
+### Rotation + Recovery Drill
+
+Run an auditable drill that validates rotation and recovery workflow without exposing secret values:
+
+```bash
+# Non-destructive simulation (default)
+./scripts/secrets-rotation-recovery-drill.sh --environment staging --key postgres_password
+
+# Destructive drill (apply candidate, validate, then restore backup)
+./scripts/secrets-rotation-recovery-drill.sh --environment staging --key postgres_password --apply
+```
+
+Drill artifacts are written to `/tmp/pmdl-secrets-drills/` by default.
 
 ### Deploy with Secrets
 
@@ -307,3 +341,18 @@ secrets/
 | "No matching private key" | Key not at expected path | Check `~/.config/sops/age/keys.txt` exists |
 | "sops: command not found" | Not installed | `brew install sops` |
 | Can't decrypt after key added | Files not re-encrypted | Admin runs `sops updatekeys file.enc.yaml` |
+
+---
+
+## Related Documentation
+
+**Pattern Guides**:
+- [docs/PATTERNS/secrets-handling.md](PATTERNS/secrets-handling.md) - Choosing between `_FILE` suffix vs direct env vars
+
+**Application Requirements**:
+- [docs/SECRETS-PER-APP.md](SECRETS-PER-APP.md) - Per-application secret requirements matrix
+
+**Architecture**:
+- [docs/SECURITY-ARCHITECTURE.md](SECURITY-ARCHITECTURE.md) - Complete security architecture context
+- [docs/decisions/0003-file-based-secrets.md](decisions/0003-file-based-secrets.md) - ADR: File-based secrets pattern
+- [docs/decisions/0202-sops-age-secrets-encryption.md](decisions/0202-sops-age-secrets-encryption.md) - ADR: SOPS+age encryption

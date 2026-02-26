@@ -1,0 +1,164 @@
+# ==============================================================
+# Peer Mesh Docker Lab - Security Hardening Overlay
+# ==============================================================
+#
+# PURPOSE:
+#   Applies additional security hardening to the base compose services.
+#   This overlay adds security_opt, cap_drop, cap_add, read_only, tmpfs,
+#   and user directives to services that do not have them in the root
+#   docker-compose.yml.
+#
+# USAGE:
+#   docker compose -f docker-compose.yml -f docker-compose.hardening.yml up -d
+#
+#   Or set in .env:
+#     COMPOSE_FILE=docker-compose.yml:docker-compose.hardening.yml
+#
+# DESIGN RATIONALE:
+#   - Override file avoids modifying the stable base compose.
+#   - Services that already have the secured-service anchor (traefik,
+#     dashboard, redis) receive only incremental additions here.
+#   - Database services (postgres, mysql, mongodb) keep root init flow,
+#     but now run through read-only wrapper entrypoints with tmpfs-backed
+#     runtime paths so read_only can be applied.
+#   - Socket-proxy is the only container with a documented root exception.
+#
+# SAFETY:
+#   - Tested against live pilot startup. See WO-056 report for evidence.
+#   - read_only is applied only where runtime tmpfs covers writable needs.
+#   - Database containers use read_only + tmpfs with wrapper entrypoints.
+#   - Wrapper scripts live in profile init-scripts and exec upstream
+#     image entrypoints after runtime path preparation.
+#
+# ==============================================================
+
+services:
+
+  # ----------------------------------------------------------
+  # Socket Proxy - root exception, add security hardening
+  # ----------------------------------------------------------
+  # Note: read_only is NOT applied to socket-proxy because its
+  # entrypoint generates haproxy.cfg from a template at startup,
+  # and the template lives in the same directory. Mounting tmpfs
+  # on /usr/local/etc/haproxy/ wipes the baked-in template.
+  # cap_drop: ALL + no-new-privileges are the effective controls.
+  socket-proxy:
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+  # ----------------------------------------------------------
+  # Traefik - add NET_BIND_SERVICE, read_only with tmpfs
+  # ----------------------------------------------------------
+  # Note: user: "65534:65534" (nobody) is deferred until Traefik v3
+  # migration, because v2.11 writes to /acme internally and the
+  # image expects root-accessible paths in some configurations.
+  # The cap_drop: ALL + cap_add: NET_BIND_SERVICE is the safe
+  # incremental step.
+  traefik:
+    cap_add:
+      - NET_BIND_SERVICE
+    read_only: true
+    tmpfs:
+      - /tmp:size=32m,noexec,nosuid,nodev
+
+  # ----------------------------------------------------------
+  # Dashboard - already secured, add read_only
+  # ----------------------------------------------------------
+  dashboard:
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,noexec,nosuid,nodev
+
+  # ----------------------------------------------------------
+  # PostgreSQL read_only hardening with wrapper + tmpfs runtime paths
+  # ----------------------------------------------------------
+  postgres:
+    profiles:
+      - postgresql
+    entrypoint:
+      - /docker-entrypoint-initdb.d/00-readonly-wrapper.sh
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,noexec,nosuid,nodev
+      - /var/run/postgresql:size=32m,noexec,nosuid,nodev
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+      - SETGID
+      - SETUID
+
+  # ----------------------------------------------------------
+  # MySQL read_only hardening with wrapper + tmpfs runtime paths
+  # ----------------------------------------------------------
+  mysql:
+    profiles:
+      - mysql
+    entrypoint:
+      - /docker-entrypoint-initdb.d/00-readonly-wrapper.sh
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,noexec,nosuid,nodev
+      - /var/run/mysqld:size=32m,noexec,nosuid,nodev
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+      - SETGID
+      - SETUID
+
+  # ----------------------------------------------------------
+  # MongoDB read_only hardening with wrapper + tmpfs runtime paths
+  # ----------------------------------------------------------
+  mongodb:
+    profiles:
+      - mongodb
+    entrypoint:
+      - /docker-entrypoint-initdb.d/00-readonly-wrapper.sh
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,noexec,nosuid,nodev
+      - /var/run/mongodb:size=32m,noexec,nosuid,nodev
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+      - SETGID
+      - SETUID
+
+  # ----------------------------------------------------------
+  # Redis - already secured with user: 999, add read_only
+  # ----------------------------------------------------------
+  redis:
+    profiles:
+      - redis
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,noexec,nosuid,nodev
+
+  # ----------------------------------------------------------
+  # MinIO - add security hardening
+  # MinIO runs its own internal user, so we add security_opt
+  # and cap_drop but do NOT set read_only (writes to /data).
+  # ----------------------------------------------------------
+  minio:
+    profiles:
+      - minio
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL

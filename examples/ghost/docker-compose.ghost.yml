@@ -28,7 +28,7 @@ x-ghost-healthcheck: &ghost-healthcheck
   interval: 30s
   timeout: 10s
   retries: 5
-  start_period: 60s
+  start_period: 90s
 
 x-ghost-logging: &ghost-logging
   driver: "json-file"
@@ -50,7 +50,7 @@ services:
   # - Admin protected by Authelia
   # =============================================================
   ghost:
-    image: ghost:5-alpine
+    image: ghost@sha256:a0506f3f05f5bdc6c950c5113cdcdb1e1f96fbf15f6dc0a39fc093c25348bdb5
     container_name: pmdl_ghost
 
     # ---------------------------------------------------------
@@ -81,7 +81,7 @@ services:
       database__connection__password__file: /run/secrets/ghost_db_password
 
       # URL configuration (MUST match Traefik host)
-      url: ${GHOST_URL:-https://ghost.localhost}
+      url: ${GHOST_URL:-https://ghost.${DOMAIN}}
 
       # Node environment
       NODE_ENV: production

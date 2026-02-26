@@ -19,6 +19,7 @@ secrets/*
 !secrets/.gitkeep
 !secrets/README.md
 !secrets/justfile
+!secrets/.sops.yaml
 !secrets/.sops.yaml.example
 !secrets/lib/
 secrets/lib/*
@@ -28,7 +29,8 @@ secrets/keys/*
 !secrets/keys/public/
 secrets/keys/public/*
 !secrets/keys/public/.gitkeep
-secrets/*.enc.yaml
+!secrets/*.enc.yaml
+!secrets/*.enc.yaml.example
 secrets/*.enc.env
 secrets/audit.log
 
@@ -82,6 +84,9 @@ target/
 
 # Nested Git Repositories (should be submodules)
 .dev/reference-repos/nself/
+
+# AI artifacts are managed in parent project only
+.dev/
 
 # Compiled binaries
 services/dashboard/dashboard

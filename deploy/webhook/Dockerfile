@@ -13,9 +13,14 @@ USER root
 
 # Install git and docker-cli (docker-compose is included in docker-cli-compose)
 RUN apk add --no-cache \
+    bash \
     git \
     docker-cli \
     docker-cli-compose
 
-# Stay as root for deployment operations (needs docker socket access)
-# Note: Security is handled via docker socket proxy and volume permissions
+# Create non-root user for webhook operations
+# Docker socket access is proxied via docker-socket-proxy, so root is not needed
+RUN addgroup -g 1000 webhook && \
+    adduser -u 1000 -G webhook -h /home/webhook -D webhook
+
+USER webhook

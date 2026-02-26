@@ -195,12 +195,12 @@ docker run --rm --net host --pid host --userns host --cap-add audit_control \
 
 Reports are saved to:
 ```
-.dev/ai/security/docker-bench-YYYY-MM-DD-HHMMSS.log
+../../.dev/ai/security/docker-bench-YYYY-MM-DD-HHMMSS.log
 ```
 
 View the latest report:
 ```bash
-ls -la .dev/ai/security/docker-bench-*.log | tail -1
+ls -la ../../.dev/ai/security/docker-bench-*.log | tail -1
 ```
 
 ## Continuous Monitoring

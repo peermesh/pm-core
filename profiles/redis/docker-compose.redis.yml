@@ -23,7 +23,7 @@ services:
   # ==============================================================
   # Use this for: Session storage, job queues, data that should survive restarts
   redis:
-    image: redis:7-alpine
+    image: redis@sha256:02f2cc4882f8bf87c79a220ac958f58c700bdec0dfb9b9ea61b62fb0e8f1bfcf
     container_name: pmdl_redis
 
     # Use init script for secrets-aware startup
@@ -85,7 +85,7 @@ services:
   # Use this for: Pure caching where data loss on restart is acceptable
   # Activate with: docker compose --profile ephemeral-cache up redis-ephemeral
   redis-ephemeral:
-    image: redis:7-alpine
+    image: redis@sha256:02f2cc4882f8bf87c79a220ac958f58c700bdec0dfb9b9ea61b62fb0e8f1bfcf
     container_name: pmdl_redis_ephemeral
 
     # Direct command without authentication (internal-only use)
@@ -148,7 +148,7 @@ services:
   # ==============================================================
   # Activate with: docker compose --profile monitoring up
   redis-exporter:
-    image: oliver006/redis_exporter:latest
+    image: oliver006/redis_exporter@sha256:0a0b4058d3698421bf341fc399258fea46df377ac78ed469ba315821b3173b00
     container_name: pmdl_redis_exporter
 
     environment:

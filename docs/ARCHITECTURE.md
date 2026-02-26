@@ -2,6 +2,28 @@
 
 Docker Lab follows a **four-tier modular architecture** designed for composability, security, and maintainability.
 
+## Provisioning and Runtime Boundary
+
+Docker Lab architecture intentionally separates infrastructure provisioning from runtime operations:
+
+1. Infrastructure layer (OpenTofu):
+   - manages VPS/network/firewall/DNS resources via provider APIs
+   - runs `plan/apply` workflows with explicit evidence
+2. Runtime layer (Docker Lab foundation + modules):
+   - runs container services on provisioned hosts
+   - handles deployment, promotion gates, backups, and runtime validation
+
+Provider terminology:
+
+1. VPS provider:
+   The infrastructure vendor (for example, Hetzner Cloud).
+2. OpenTofu provider plugin:
+   The API adapter used by OpenTofu to control that vendor.
+
+Canonical model reference:
+
+- [OpenTofu Deployment Model](OPENTOFU-DEPLOYMENT-MODEL.md)
+
 ## Architecture Overview
 
 ```
@@ -125,6 +147,15 @@ Custom services that integrate with the foundation for specific functionality.
 |---------|---------|----------|
 | Dashboard | Module registry, container management | `services/dashboard/` |
 
+### Optional Boundary Modules
+
+| Module | Purpose | Location |
+|--------|---------|----------|
+| Federation Adapter | Optional federation/syndication boundary scaffold | `modules/federation-adapter/` |
+
+Adapter modules are opt-in and must never be required for baseline compose startup.
+See [FEDERATION-ADAPTER-BOUNDARY.md](FEDERATION-ADAPTER-BOUNDARY.md).
+
 ### Service Integration
 
 Services integrate with the foundation through:
@@ -196,5 +227,5 @@ All architectural decisions are documented as ADRs:
 
 ---
 
-*Architecture version: 1.0.0*
-*Last updated: 2026-01-21*
+*Architecture version: 1.1.0*
+*Last updated: 2026-02-21*

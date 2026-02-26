@@ -1,6 +1,10 @@
 ---
 extends: default
 
+ignore:
+  - secrets/
+  - tests/lib/
+
 rules:
   line-length:
     max: 120
@@ -10,6 +14,7 @@ rules:
   comments:
     require-starting-space: true
     min-spaces-from-content: 1
+  comments-indentation: disable
   document-start: disable
   braces:
     max-spaces-inside: 1

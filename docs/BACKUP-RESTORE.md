@@ -401,7 +401,7 @@ New server from off-site backups:
 4. Start databases only:
    ```bash
    docker compose -f docker-compose.yml \
-     -f profiles/postgresql/docker-compose.postgresql.yml \
+     -f .dev/profiles/postgresql/docker-compose.postgresql.yml \
      up -d postgres
    sleep 30
    ```

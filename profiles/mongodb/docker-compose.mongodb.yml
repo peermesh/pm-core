@@ -2,7 +2,7 @@
 # MongoDB 7.0 - Docker Compose Service Definition
 # ==============================================================
 # Profile Version: 1.0
-# Documentation: .dev/profiles/mongodb/PROFILE-SPEC.md
+# Documentation: profiles/mongodb/PROFILE-SPEC.md
 #
 # Usage:
 #   - Copy this file to your project or include via extends
@@ -19,7 +19,7 @@
 
 services:
   mongodb:
-    image: mongo:7.0
+    image: mongo@sha256:81ed620b45935fb49704010b75d3fa73df547f71323cfdba49323a64412253a4
     container_name: pmdl-mongodb
     restart: unless-stopped
 

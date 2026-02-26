@@ -79,7 +79,7 @@ The reverse proxy handling HTTPS termination, routing, and load balancing.
 | Variable | Purpose |
 |----------|---------|
 | `TRAEFIK_LOG_LEVEL` | Logging verbosity |
-| `TRAEFIK_ACME_EMAIL` | Let's Encrypt contact |
+| `TRAEFIK_ACME_EMAIL` | Let's Encrypt contact (actual env var: `ADMIN_EMAIL`) |
 | `TRAEFIK_ENTRYPOINTS_*` | Entry point config |
 
 ---
@@ -202,7 +202,7 @@ Examples:
 | Container | `pmdl_{service}` | `pmdl_dashboard` |
 | Volume | `pmdl_{service}_data` | `pmdl_postgres_data` |
 | Network | `pmdl_{purpose}` | `pmdl_db-internal` |
-| Image | `pmdl/{service}:tag` | `pmdl/dashboard:latest` |
+| Image | `pmdl/{service}:tag` | `pmdl/dashboard:0.1.0` |
 | Env Var | `{MODULE}_SETTING` | `POSTGRES_MEMORY_LIMIT` |
 | Event | `{module}.{entity}.{action}` | `backup.postgres.completed` |
 | Profile | `lowercase-singular` | `postgresql`, `monitoring` |

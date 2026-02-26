@@ -305,6 +305,6 @@ echo "=== Deployment Complete ==="
 
 ## References
 
-- Research: `.dev/ai/research/2026-01-03-universal-patterns-from-app-testing.md`
-- Element handoff: `.dev/ai/handoffs/2026-01-01-18-03-58Z-handoff-element-deployment-blocked.md`
+- Research: `../../.dev/ai/research/2026-01-03-universal-patterns-from-app-testing.md`
+- Element handoff: `../../.dev/ai/handoffs/2026-01-01-18-03-58Z-handoff-element-deployment-blocked.md`
 - Init script: `scripts/init-volumes.sh`

@@ -3,7 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>PeerMesh Docker Lab - Dashboard</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='15' fill='%231e293b'/><text x='50' y='68' font-size='48' text-anchor='middle' fill='%230ea5e9' font-family='system-ui,sans-serif' font-weight='bold'>DL</text></svg>">
 
     <!-- Tailwind CSS via CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -39,6 +43,22 @@
 
     <!-- Alpine.js -->
     <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+
+    <!-- Session validation: redirect to login if session expired (defense against cached pages) -->
+    <script>
+        (function() {
+            fetch('/api/session', { credentials: 'same-origin' })
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    if (!data.authenticated) {
+                        window.location.replace('/login.html');
+                    }
+                })
+                .catch(function() {
+                    window.location.replace('/login.html');
+                });
+        })();
+    </script>
 </head>
 <body class="bg-gray-900 text-gray-100 min-h-screen" x-data="{ sidebarOpen: false, isGuest: false }">
     <!-- Guest Mode Banner - shown when user is in demo/guest mode -->
@@ -495,7 +515,7 @@
                     </div>
                     <div class="bg-gray-700/50 rounded-lg p-4">
                         <div class="text-sm text-gray-400 mb-1">Docker Version</div>
-                        <div class="text-lg font-medium text-gray-200">${data.docker_version || 'pending'}</div>
+                        <div class="text-lg font-medium text-gray-200">${data.docker_version || 'N/A'}</div>
                     </div>
                     <div class="bg-gray-700/50 rounded-lg p-4">
                         <div class="text-sm text-gray-400 mb-1">Uptime</div>
@@ -596,6 +616,9 @@
                 }
             }
 
+            // Expose processContainersData to window so resource chart script can hook into it
+            window.processContainersData = processContainersData;
+
             function connectSSE() {
                 if (eventSource) {
                     eventSource.close();
@@ -613,7 +636,8 @@
                 eventSource.addEventListener('containers', function(e) {
                     try {
                         const data = JSON.parse(e.data);
-                        processContainersData(data.containers);
+                        // Use window.processContainersData to ensure resource chart hooks are called
+                        (window.processContainersData || processContainersData)(data.containers);
                     } catch (err) {
                         console.error('Failed to parse containers event:', err);
                     }
@@ -650,7 +674,10 @@
             // Initial load via REST API (before SSE connection)
             fetch('/api/containers')
                 .then(r => r.json())
-                .then(data => processContainersData(data.containers))
+                .then(data => {
+                    // Use window.processContainersData to ensure resource chart hooks are called
+                    (window.processContainersData || processContainersData)(data.containers);
+                })
                 .catch(e => console.error('Failed to load containers:', e));
 
             // Connect to SSE after page loads and templates are ready

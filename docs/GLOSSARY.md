@@ -128,7 +128,7 @@ Security proxy for Docker socket access.
 
 ## Modules
 
-Modules follow the pattern: `modules/{name}/`
+Modules are Docker Lab infrastructure extensions with formal lifecycle management. They follow the pattern: `modules/{name}/` and are governed by `module.json` manifests validated against `foundation/schemas/module.schema.json`. For the complete architecture, see [MODULE-ARCHITECTURE.md](MODULE-ARCHITECTURE.md).
 
 ### Backup Module
 

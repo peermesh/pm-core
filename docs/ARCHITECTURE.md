@@ -63,13 +63,15 @@ The Foundation layer provides core infrastructure that all other tiers depend on
 
 ### Foundation Module System
 
-The `foundation/` directory contains:
+The `foundation/` directory contains the contract layer that defines what modules are and how they integrate:
 
 - **Schemas** - JSON schemas for modules, events, connections
 - **Interfaces** - TypeScript/Python interface definitions
-- **Lib** - Shell scripts for version checking, migrations
+- **Lib** - Shell scripts for version checking, migrations, dependency resolution
 - **Templates** - Module creation templates
 - **Docs** - Component documentation
+
+The foundation is NOT a module -- it is the platform that modules plug into. For the full architectural explanation of this distinction and the module system design, see [MODULE-ARCHITECTURE.md](MODULE-ARCHITECTURE.md).
 
 See [foundation/README.md](../foundation/README.md) for complete documentation.
 
@@ -158,12 +160,14 @@ See [FEDERATION-ADAPTER-BOUNDARY.md](FEDERATION-ADAPTER-BOUNDARY.md).
 
 ### Service Integration
 
-Services integrate with the foundation through:
+Services and modules integrate with the foundation through:
 
-- **Module Manifest** - `module.json` describing the service
-- **Docker Compose** - Standard compose patterns with foundation anchors
-- **Event Bus** - Communication with other modules
-- **Dashboard Registration** - UI integration
+- **Module Manifest** - `module.json` describing the module's identity, dependencies, and integration points
+- **Docker Compose** - Standard compose patterns extending foundation base services
+- **Event Bus** - Communication with other modules (interface defined, implementation pending)
+- **Dashboard Registration** - UI integration via manifest declarations
+
+For comprehensive documentation of the module system -- including the manifest specification, lifecycle hooks, dependency resolution, CLI commands, and implementation status -- see [MODULE-ARCHITECTURE.md](MODULE-ARCHITECTURE.md).
 
 ## Network Architecture
 
@@ -220,6 +224,8 @@ All architectural decisions are documented as ADRs:
 
 ## Related Documentation
 
+- [Module Architecture](MODULE-ARCHITECTURE.md) - Deep-dive into the module system, four-tier model, and naming conventions
+- [Module Rubric](MODULE-RUBRIC.md) - Quality checklist for module development
 - [Foundation Reference](../foundation/README.md)
 - [Profiles Guide](PROFILES.md)
 - [Security Guide](SECURITY.md)

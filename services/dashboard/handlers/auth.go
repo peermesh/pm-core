@@ -147,6 +147,14 @@ func AuthMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
+		// Set anti-cache headers on ALL authenticated responses to prevent
+		// browsers from caching protected content. This ensures that expired
+		// sessions cannot display stale dashboard content on page reload or
+		// browser back button.
+		w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate")
+		w.Header().Set("Pragma", "no-cache")
+		w.Header().Set("Expires", "0")
+
 		next.ServeHTTP(w, r)
 	})
 }
@@ -298,7 +306,8 @@ func SessionHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate")
+	w.Header().Set("Pragma", "no-cache")
 
 	if err := json.NewEncoder(w).Encode(info); err != nil {
 		http.Error(w, "Failed to encode response", http.StatusInternalServerError)

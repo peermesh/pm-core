@@ -2,10 +2,14 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
+	"io"
+	"net"
 	"net/http"
 	"os"
 	"os/exec"
 	"runtime"
+	"strings"
 	"time"
 )
 
@@ -58,7 +62,8 @@ func SystemHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate")
+	w.Header().Set("Pragma", "no-cache")
 
 	if err := json.NewEncoder(w).Encode(info); err != nil {
 		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
@@ -66,11 +71,50 @@ func SystemHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// getDockerVersion returns the Docker version
-// TODO: Implement actual Docker API call via socket-proxy
+// getDockerVersion returns the Docker version by querying the Docker API via socket-proxy
 func getDockerVersion() string {
-	// Placeholder - will be implemented when Docker client is added
-	return "pending"
+	socketProxyURL := os.Getenv("DOCKER_HOST")
+	if socketProxyURL == "" {
+		socketProxyURL = "http://socket-proxy:2375"
+	}
+	socketProxyURL = strings.Replace(socketProxyURL, "tcp://", "http://", 1)
+
+	client := &http.Client{
+		Timeout: 5 * time.Second,
+		Transport: &http.Transport{
+			DialContext: (&net.Dialer{
+				Timeout:   3 * time.Second,
+				KeepAlive: 30 * time.Second,
+			}).DialContext,
+			DisableCompression: true,
+		},
+	}
+
+	resp, err := client.Get(socketProxyURL + "/version")
+	if err != nil {
+		fmt.Printf("Warning: Failed to get Docker version: %v\n", err)
+		return "unavailable"
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		fmt.Printf("Warning: Docker version API error: %s (status %d)\n", string(body), resp.StatusCode)
+		return "unavailable"
+	}
+
+	var versionInfo struct {
+		Version string `json:"Version"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&versionInfo); err != nil {
+		fmt.Printf("Warning: Failed to decode Docker version: %v\n", err)
+		return "unavailable"
+	}
+
+	if versionInfo.Version == "" {
+		return "unknown"
+	}
+	return versionInfo.Version
 }
 
 // getSystemMemoryMB returns total system memory in MB

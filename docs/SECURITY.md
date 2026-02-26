@@ -229,6 +229,43 @@ For local development without valid domain:
 TRAEFIK_ACME_STAGING=true
 ```
 
+## Dashboard API Authentication
+
+### Authentication-First Design
+
+The Docker Lab Dashboard protects **all endpoints** behind authentication, including typically-public endpoints like `/api/health`. This is an intentional secure-by-default design decision.
+
+**Rationale:**
+
+- **No information disclosure**: Even health status can reveal system information to attackers
+- **Consistent security model**: No exceptions to authentication policy in default configuration
+- **Defense-in-depth**: Additional layer beyond network-level access controls
+
+**Trade-offs:**
+
+- External monitoring tools (Uptime Kuma, Prometheus exporters, etc.) cannot check `/api/health` without credentials
+- Users must explicitly opt-in to public health endpoints if needed
+
+**Customizing for Monitoring:**
+
+If your deployment requires a public health endpoint for external monitoring:
+
+1. Edit the auth middleware in `services/dashboard/handlers/auth.go`
+2. Add an exception for `/api/health`:
+   ```go
+   // Example: exempt health endpoint from authentication
+   if r.URL.Path == "/api/health" {
+       next.ServeHTTP(w, r)
+       return
+   }
+   ```
+3. Document your modification in deployment notes
+4. Consider network-level access controls (IP allowlisting) as an alternative
+
+**Security vs. Convenience:**
+
+This design favors security over convenience. The health endpoint authentication is not a bug - it's a deliberate architectural choice. Users who need different behavior must explicitly modify the code, ensuring conscious security decisions.
+
 ## CI/CD Security Controls
 
 Deployment security model:

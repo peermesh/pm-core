@@ -54,7 +54,7 @@ Key external research topics mapped to this project:
 | Config Management | `~/.agents/.dev/ai/research/large-config-management-patterns-research-2025.md` |
 | Plugin Architecture | `~/.agents/.dev/ai/proposals/2026-01-19-02-17-34Z-tool-plugin-architecture-proposal.md` |
 | Provider Abstraction | `~/.agents/.dev/ai/proposals/2025-12-15-13-06-06-provider-abstraction-harness-integration.md` |
-| Message Queues | `~/work/peermesh/repo/knowledge-graph-lab-alpha/.dev/ai/research/R8-message-queue-messaging-decisions.md` |
+| Message Queues | `~/work/peermesh/repo/peer-mesh-docker-lab/.dev/ai/research/R8-message-queue-messaging-decisions.md` |
 | Identity/DID | `~/work/obsidian-vault/🕸️ PeerMesh.org/research/05-decentralized-identity/` |
 
 ---

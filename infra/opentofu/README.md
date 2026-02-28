@@ -15,11 +15,11 @@ Canonical deployment model:
 
 Reference:
 
-- `/Users/grig/work/peermesh/repo/knowledge-graph-lab-alpha/.dev/modules/peer-mesh-docker-lab/sub-repos/docker-lab/docs/OPENTOFU-DEPLOYMENT-MODEL.md`
+- `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/docs/OPENTOFU-DEPLOYMENT-MODEL.md`
 
 Authoritative planning/policy document:
 
-- `/Users/grig/work/peermesh/repo/knowledge-graph-lab-alpha/.dev/modules/peer-mesh-docker-lab/.dev/ai/research/opentofu-integration/OPENTOFU-PILOT-SCAFFOLD-AND-STATE-POLICY.md`
+- `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/.dev/ai/research/opentofu-integration/OPENTOFU-PILOT-SCAFFOLD-AND-STATE-POLICY.md`
 
 Current layout:
 

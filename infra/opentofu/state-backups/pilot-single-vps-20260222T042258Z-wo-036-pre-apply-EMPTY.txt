@@ -1,3 +1,3 @@
 No state snapshot was available at backup time.
-Stack: /Users/grig/work/peermesh/repo/knowledge-graph-lab-alpha/.dev/modules/peer-mesh-docker-lab/sub-repos/docker-lab/infra/opentofu/stacks/pilot-single-vps
+Stack: /Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/infra/opentofu/stacks/pilot-single-vps
 Timestamp (UTC): 2026-02-22T04:22:59Z

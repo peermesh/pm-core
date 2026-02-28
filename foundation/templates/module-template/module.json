@@ -1,5 +1,5 @@
 {
-  "$schema": "../../schemas/module.schema.json",
+  "$schema": "../../foundation/schemas/module.schema.json",
   "id": "my-module",
   "version": "0.1.0",
   "name": "My Module",
@@ -61,11 +61,11 @@
     ]
   },
   "lifecycle": {
-    "install": "./scripts/install.sh",
-    "start": null,
-    "stop": null,
-    "uninstall": "./scripts/uninstall.sh",
-    "health": "./scripts/health.sh"
+    "install": "./hooks/install.sh",
+    "start": "./hooks/start.sh",
+    "stop": "./hooks/stop.sh",
+    "uninstall": "./hooks/uninstall.sh",
+    "health": "./hooks/health.sh"
   },
   "config": {
     "version": "1.0",

@@ -24,6 +24,8 @@ cd modules/my-module
 # Edit module.json with your module details
 ```
 
+**Note on relative paths**: The `$schema` in `module.json` and the `extends.file` in `docker-compose.yml` use paths like `../../foundation/...`. These resolve correctly when the module is at `modules/<name>/` but NOT from the template's own location at `foundation/templates/module-template/`. This is intentional -- the paths are designed for the copy destination.
+
 ## Configuration
 
 | Variable | Description | Default | Required |
@@ -74,11 +76,13 @@ my-module/
 ├── module.json           # Module manifest
 ├── docker-compose.yml    # Service definitions
 ├── .env.example          # Example environment file
-├── scripts/
+├── secrets-required.txt  # List of required secret files
+├── hooks/
 │   ├── install.sh        # Installation script
+│   ├── start.sh          # Start service script
+│   ├── stop.sh           # Stop service script
 │   ├── uninstall.sh      # Cleanup script
 │   └── health.sh         # Health check script
-├── src/                  # Source code
 └── README.md             # This file
 ```
 
@@ -92,7 +96,7 @@ docker compose up -d
 docker compose logs -f
 
 # Run health check
-./scripts/health.sh
+./hooks/health.sh
 ```
 
 ### Testing

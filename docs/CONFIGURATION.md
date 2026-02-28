@@ -33,11 +33,13 @@ These must be set before starting services:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `TRAEFIK_DASHBOARD_ENABLED` | `true` | Enable Traefik web dashboard |
 | `TRAEFIK_LOG_LEVEL` | `ERROR` | Log level: `DEBUG`, `INFO`, `WARN`, `ERROR` |
-| `TRAEFIK_ACME_STAGING` | `true` | Use Let's Encrypt staging (set `false` for production) |
 
-### Authelia (Authentication)
+> **Note**: Traefik dashboard and ACME staging are configured via command-line arguments in `docker-compose.yml`, not environment variables. See the Traefik service definition for details.
+
+### Authelia (Authentication) -- Example Application
+
+> **Note**: Authelia is an **example application**, not a core foundation service. The variables below apply only if you deploy the Authelia example. They are not present in the base `.env.example` or `docker-compose.yml`.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
@@ -156,18 +158,17 @@ Individual services can be configured through their compose files in `profiles/`
 
 ```env
 ENVIRONMENT=development
-TRAEFIK_DASHBOARD_ENABLED=true
-TRAEFIK_ACME_STAGING=true
 TRAEFIK_LOG_LEVEL=DEBUG
+# Note: Traefik dashboard and ACME staging are configured in docker-compose.yml,
+# not via environment variables. Adjust command-line arguments there.
 ```
 
 ### Production Settings
 
 ```env
 ENVIRONMENT=production
-TRAEFIK_DASHBOARD_ENABLED=false
-TRAEFIK_ACME_STAGING=false
 TRAEFIK_LOG_LEVEL=ERROR
+# Note: Ensure Traefik ACME staging is disabled in docker-compose.yml for production.
 ```
 
 ## Validation

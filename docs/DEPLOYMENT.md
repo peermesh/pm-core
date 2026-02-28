@@ -201,6 +201,8 @@ Before provisioning, verify your provider offers:
 
 Complete these steps after provisioning your VPS. All commands run as root or with sudo.
 
+> **IMPORTANT**: Before starting deployment, complete [DEPLOYMENT-CHECKLIST.md](DEPLOYMENT-CHECKLIST.md) first. It includes critical pre-flight checks such as Snap Docker detection (which causes silent bind mount failures) and FHS path validation. Skipping the checklist may result in hard-to-diagnose deployment issues.
+
 ### Step 1: Initial Access
 
 ```bash
@@ -315,7 +317,6 @@ Create `/etc/docker/daemon.json`:
     "max-file": "3"
   },
   "live-restore": true,
-  "userns-remap": "default",
   "no-new-privileges": true,
   "default-ulimits": {
     "nofile": {
@@ -326,6 +327,12 @@ Create `/etc/docker/daemon.json`:
   }
 }
 ```
+
+> **WARNING -- Daemon settings intentionally omitted**:
+>
+> - **`"icc": false`** -- Do NOT set this. It disables inter-container communication globally, breaking Docker Compose internal networks. Network isolation is achieved via `internal: true` on compose networks. See [SECURITY.md](SECURITY.md).
+>
+> - **`"userns-remap": "default"`** -- Omitted because it causes UID namespace remapping that breaks bind mounts with fixed ownership. If you use only Docker-managed volumes (not bind mounts), you may enable this for additional security.
 
 Apply changes:
 
@@ -387,22 +394,14 @@ ufw status verbose
 
 ### Docker and UFW Integration
 
-Docker modifies iptables directly, bypassing UFW. To enforce UFW rules on Docker:
+Docker modifies iptables directly, bypassing UFW. Use the DOCKER-USER chain to enforce filtering rules on Docker traffic without disabling Docker's iptables management:
 
-Create `/etc/docker/daemon.json` with:
-
-```json
-{
-  "iptables": false
-}
-```
-
-Then configure iptables manually for Docker:
+> **CRITICAL**: NEVER set `"iptables": false` in daemon.json. This completely breaks Docker container networking (containers will not be able to communicate or reach the internet). Use the DOCKER-USER chain approach below instead.
 
 ```bash
-# Create DOCKER-USER chain rules file
-cat > /etc/ufw/after.rules << 'EOF'
-# Docker UFW integration
+# Append DOCKER-USER chain rules to /etc/ufw/after.rules
+cat >> /etc/ufw/after.rules << 'EOF'
+# Docker UFW integration via DOCKER-USER chain
 *filter
 :DOCKER-USER - [0:0]
 -A DOCKER-USER -j RETURN -s 10.0.0.0/8
@@ -423,6 +422,7 @@ This ensures:
 - Internal Docker networks function normally
 - Database ports (PostgreSQL, MySQL, MongoDB, Redis) are blocked from external access
 - Only Traefik-proxied services are accessible externally
+- Docker's own iptables rules remain intact (do NOT set `"iptables": false`)
 
 ### Firewall Rules Summary
 

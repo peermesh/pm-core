@@ -20,6 +20,8 @@ For environments without TPM/vTPM support, OpenBao unseal handling must follow a
 
 ## Network Isolation
 
+> **Network Documentation Map**: This section provides a simplified overview. For the authoritative technical specification, see [SECURITY-ARCHITECTURE.md](SECURITY-ARCHITECTURE.md) and [ARCHITECTURE.md](ARCHITECTURE.md).
+
 ### Three-Tier Network Architecture
 
 ```

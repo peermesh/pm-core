@@ -1,5 +1,9 @@
 # Secrets Management Runbook
 
+> **Canonical operational reference**: This is the authoritative secrets operations runbook for the project. Related documents:
+> - **Beginner-friendly guide**: [SECRETS-PER-APP.md](SECRETS-PER-APP.md) -- per-application secret setup
+> - **Pattern reference**: [PATTERNS/secrets-handling.md](PATTERNS/secrets-handling.md) -- reusable technical patterns
+
 Team onboarding guide for SOPS + age encrypted secrets.
 
 ## Overview

@@ -1,5 +1,7 @@
 # Backup and Restore Guide
 
+> **Note**: This is the operational backup/restore guide. Backup scripts are located in `profiles/<database>/backup-scripts/` within this repository.
+
 Create backups and recover data across all database profiles.
 
 ## Overview

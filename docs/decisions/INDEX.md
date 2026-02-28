@@ -71,6 +71,7 @@ Decisions about module architecture, templates, and extension patterns.
 | ADR | Title | Status | Date |
 |-----|-------|--------|------|
 | [0500](./0500-module-architecture.md) | Module Architecture -- Layer Definitions and Naming | pending (analysis complete) | 2026-02-26 |
+| [0501](./0501-container-naming-convention.md) | Container Naming Convention | **accepted** | 2026-02-27 |
 
 ---
 
@@ -88,8 +89,8 @@ Decisions about module architecture, templates, and extension patterns.
 
 ## Statistics
 
-- **Total Decisions**: 13 accepted, 1 pending
-- **Last Updated**: 2026-02-26
+- **Total Decisions**: 14 accepted, 1 pending
+- **Last Updated**: 2026-02-27
 
 ---
 
@@ -133,6 +134,9 @@ Decisions about module architecture, templates, and extension patterns.
 ### How are modules structured?
 - [ADR-0500](./0500-module-architecture.md) (pending) defines module architecture and layer terminology. Analysis is complete; awaiting owner decision.
 - [MODULE-ARCHITECTURE.md](../MODULE-ARCHITECTURE.md) provides the comprehensive architecture document based on the analysis findings.
+
+### How should containers be named?
+- [ADR-0501](./0501-container-naming-convention.md) documents the `pmdl_` prefix convention for container names. Existing inconsistencies are grandfathered; new containers must follow the pattern.
 
 ---
 

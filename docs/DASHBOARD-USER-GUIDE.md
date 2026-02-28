@@ -567,7 +567,7 @@ Without persistence, you'll need to re-register instances after each container r
 
 **Documentation:**
 
-- Main docs: `/Users/grig/work/peermesh/repo/knowledge-graph-lab-alpha/.dev/modules/peer-mesh-docker-lab/sub-repos/docker-lab/docs/`
+- Main docs: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/docs/`
 - Troubleshooting: `docs/TROUBLESHOOTING.md`
 - Security guide: `docs/SECURITY.md`
 

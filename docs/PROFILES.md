@@ -99,13 +99,25 @@ Add infrastructure services to your deployment.
 | `mongodb` | MongoDB 7.0 | Document database | 27017 |
 | `redis` | Redis 7 | Caching, sessions | 6379 |
 | `minio` | MinIO | S3-compatible storage | 9000/9001 |
+| `observability-lite` | Netdata + Uptime Kuma | Lightweight monitoring | 19999/3001 |
+| `observability-full` | Prometheus + Grafana + Loki | Full observability stack | 9090/3000 |
+
+### Backup Module
+
+The backup module (`modules/backup/`) provides automated backup capabilities:
+
+- Per-database backup scripts (PostgreSQL, MySQL, MongoDB)
+- Cron-based scheduling
+- Age encryption for secure storage
+- Configurable retention policies
+- Compression and rotation
+
+See [Backup Module Documentation](../modules/backup/README.md) for configuration details.
 
 ### Future Profiles
 
 | Profile | Service | Purpose | Status |
 |---------|---------|---------|--------|
-| `monitoring` | Prometheus + Grafana | Metrics and dashboards | Planned |
-| `backup` | Restic + rclone | Automated backups | Planned |
 | `dev` | Dev tools | Hot reload, debugging | Planned |
 
 ### Using a Tech Profile

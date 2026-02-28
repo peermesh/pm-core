@@ -11,7 +11,7 @@
 
 This document provides a comprehensive index of all security evidence artifacts in the Docker Lab codebase. It is organized by security control category and maps to the CIS Docker Benchmark, OWASP Container Security, and threat model mitigations.
 
-**Base Path**: `/Users/grig/work/peermesh/repo/knowledge-graph-lab-alpha/.dev/modules/peer-mesh-docker-lab/sub-repos/docker-lab/`
+**Base Path**: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/`
 
 All file paths in this document are absolute paths from the sub-repo root.
 
@@ -42,9 +42,9 @@ All file paths in this document are absolute paths from the sub-repo root.
 | `foundation/docker-compose.base.yml` | Security anchors (x-secured-service), logging defaults, restart policies | Reusable YAML anchors for consistent security configuration |
 
 **Absolute Paths**:
-- `/Users/grig/work/peermesh/repo/knowledge-graph-lab-alpha/.dev/modules/peer-mesh-docker-lab/sub-repos/docker-lab/docker-compose.yml`
-- `/Users/grig/work/peermesh/repo/knowledge-graph-lab-alpha/.dev/modules/peer-mesh-docker-lab/sub-repos/docker-lab/docker-compose.hardening.yml`
-- `/Users/grig/work/peermesh/repo/knowledge-graph-lab-alpha/.dev/modules/peer-mesh-docker-lab/sub-repos/docker-lab/foundation/docker-compose.base.yml`
+- `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/docker-compose.yml`
+- `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/docker-compose.hardening.yml`
+- `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/foundation/docker-compose.base.yml`
 
 **CIS Controls**: 2.1 (network isolation), 5.3 (capabilities), 5.11 (memory limits), 5.25 (restart policy), 5.26 (no-new-privileges), 5.29 (custom networks)
 
@@ -64,7 +64,7 @@ All file paths in this document are absolute paths from the sub-repo root.
 - Access logging
 
 **Absolute Path**:
-- `/Users/grig/work/peermesh/repo/knowledge-graph-lab-alpha/.dev/modules/peer-mesh-docker-lab/sub-repos/docker-lab/docker-compose.yml` (traefik service labels)
+- `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/docker-compose.yml` (traefik service labels)
 
 **CIS Controls**: 5.13 (bind incoming traffic), TLS enforcement
 
@@ -97,10 +97,10 @@ All file paths in this document are absolute paths from the sub-repo root.
 | `scripts/security/audit-ownership.sh` | Audits file ownership and permissions for security-sensitive files | Ownership violations report |
 
 **Absolute Paths**:
-- `/Users/grig/work/peermesh/repo/knowledge-graph-lab-alpha/.dev/modules/peer-mesh-docker-lab/sub-repos/docker-lab/scripts/security/validate-image-policy.sh`
-- `/Users/grig/work/peermesh/repo/knowledge-graph-lab-alpha/.dev/modules/peer-mesh-docker-lab/sub-repos/docker-lab/scripts/security/generate-sbom.sh`
-- `/Users/grig/work/peermesh/repo/knowledge-graph-lab-alpha/.dev/modules/peer-mesh-docker-lab/sub-repos/docker-lab/scripts/security/validate-supply-chain.sh`
-- `/Users/grig/work/peermesh/repo/knowledge-graph-lab-alpha/.dev/modules/peer-mesh-docker-lab/sub-repos/docker-lab/scripts/security/audit-ownership.sh`
+- `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/scripts/security/validate-image-policy.sh`
+- `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/scripts/security/generate-sbom.sh`
+- `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/scripts/security/validate-supply-chain.sh`
+- `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/scripts/security/audit-ownership.sh`
 
 **CIS Controls**: 4.2 (use trusted base images), 4.5 (content trust), 4.11 (install verified packages)
 
@@ -113,11 +113,11 @@ All file paths in this document are absolute paths from the sub-repo root.
 | `scripts/security/run-docker-bench.sh` | Runs docker-bench-security (CIS Docker Benchmark scanner) | Timestamped log in `.dev/ai/security/` |
 
 **Absolute Path**:
-- `/Users/grig/work/peermesh/repo/knowledge-graph-lab-alpha/.dev/modules/peer-mesh-docker-lab/sub-repos/docker-lab/scripts/security/run-docker-bench.sh`
+- `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/scripts/security/run-docker-bench.sh`
 
 **Documentation**:
-- `/Users/grig/work/peermesh/repo/knowledge-graph-lab-alpha/.dev/modules/peer-mesh-docker-lab/sub-repos/docker-lab/scripts/security/DOCKER-BENCH-GUIDE.md`
-- `/Users/grig/work/peermesh/repo/knowledge-graph-lab-alpha/.dev/modules/peer-mesh-docker-lab/sub-repos/docker-lab/scripts/security/README.md`
+- `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/scripts/security/DOCKER-BENCH-GUIDE.md`
+- `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/scripts/security/README.md`
 
 **CIS Controls**: Full CIS Docker Benchmark v1.6.0
 
@@ -130,7 +130,7 @@ All file paths in this document are absolute paths from the sub-repo root.
 | `scripts/generate-secrets.sh` | Generates secure random secrets, sets file permissions (600/700) | Secrets files in `secrets/` directory |
 
 **Absolute Path**:
-- `/Users/grig/work/peermesh/repo/knowledge-graph-lab-alpha/.dev/modules/peer-mesh-docker-lab/sub-repos/docker-lab/scripts/generate-secrets.sh`
+- `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/scripts/generate-secrets.sh`
 
 **CIS Controls**: 4.10 (do not store secrets in Dockerfiles), secrets management best practices
 
@@ -144,8 +144,8 @@ All file paths in this document are absolute paths from the sub-repo root.
 | `scripts/init-volumes.sh` | Initializes volumes with correct ownership/permissions | Prevents permission-denied issues for non-root containers |
 
 **Absolute Paths**:
-- `/Users/grig/work/peermesh/repo/knowledge-graph-lab-alpha/.dev/modules/peer-mesh-docker-lab/sub-repos/docker-lab/scripts/deploy.sh`
-- `/Users/grig/work/peermesh/repo/knowledge-graph-lab-alpha/.dev/modules/peer-mesh-docker-lab/sub-repos/docker-lab/scripts/init-volumes.sh`
+- `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/scripts/deploy.sh`
+- `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/scripts/init-volumes.sh`
 
 **Related ADR**: ADR-0301 (deployment scripts)
 
@@ -165,7 +165,7 @@ All file paths in this document are absolute paths from the sub-repo root.
 | `docs/SUPPLY-CHAIN-SECURITY.md` | Supply-chain security baseline | Image policy, SBOM, vulnerability thresholds |
 | `docs/GOTCHAS.md` | Documented deployment gotchas and security trade-offs | Explains intentional exceptions (read_only, cap_drop on databases) |
 
-**Absolute Paths** (prefix: `/Users/grig/work/peermesh/repo/knowledge-graph-lab-alpha/.dev/modules/peer-mesh-docker-lab/sub-repos/docker-lab/docs/`):
+**Absolute Paths** (prefix: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/docs/`):
 - `SECURITY-ARCHITECTURE.md`
 - `SECURITY.md`
 - `SECURITY-CHECKLIST.md`
@@ -185,7 +185,7 @@ All file paths in this document are absolute paths from the sub-repo root.
 | `docs/security/AUDIT-READINESS-CHECKLIST.md` | CIS Docker Benchmark mapping to implementation | Gap analysis, compliance status |
 | `docs/security/OSS-AUDIT-RESULTS.md` | Results from open-source security audit tools | Pre-audit findings |
 
-**Absolute Paths** (prefix: `/Users/grig/work/peermesh/repo/knowledge-graph-lab-alpha/.dev/modules/peer-mesh-docker-lab/sub-repos/docker-lab/docs/security/`):
+**Absolute Paths** (prefix: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/docs/security/`):
 - `THREAT-MODEL.md`
 - `EVIDENCE-INVENTORY.md`
 - `AUDIT-READINESS-CHECKLIST.md`
@@ -203,7 +203,7 @@ All file paths in this document are absolute paths from the sub-repo root.
 | `docs/DEPLOYMENT-PROMOTION-RUNBOOK.md` | Promotion workflow with security gates | Evidence-based promotion process |
 | `docs/BACKUP-RESTORE.md` | Backup encryption, restore procedures | Data protection, disaster recovery |
 
-**Absolute Paths** (prefix: `/Users/grig/work/peermesh/repo/knowledge-graph-lab-alpha/.dev/modules/peer-mesh-docker-lab/sub-repos/docker-lab/docs/`):
+**Absolute Paths** (prefix: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/docs/`):
 - `DEPLOYMENT.md`
 - `WEBHOOK-DEPLOYMENT.md`
 - `DEPLOYMENT-CHECKLIST.md`
@@ -226,7 +226,7 @@ All file paths in this document are absolute paths from the sub-repo root.
 | ADR-0201 | Security Anchors | Standardized security configuration (no-new-privileges, cap_drop) |
 | ADR-0202 | SOPS+Age Secrets Encryption | Encrypted secrets at rest, team-based decryption |
 
-**Absolute Paths** (prefix: `/Users/grig/work/peermesh/repo/knowledge-graph-lab-alpha/.dev/modules/peer-mesh-docker-lab/sub-repos/docker-lab/docs/decisions/`):
+**Absolute Paths** (prefix: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/docs/decisions/`):
 - `0001-traefik-reverse-proxy.md`
 - `0002-four-network-topology.md`
 - `0003-file-based-secrets.md`
@@ -245,7 +245,7 @@ All file paths in this document are absolute paths from the sub-repo root.
 | ADR-0301 | Deployment Scripts | Fail-closed gates, evidence bundles |
 | ADR-0300 | Health Check Strategy | Service liveness, restart policies |
 
-**Absolute Paths** (prefix: `/Users/grig/work/peermesh/repo/knowledge-graph-lab-alpha/.dev/modules/peer-mesh-docker-lab/sub-repos/docker-lab/docs/decisions/`):
+**Absolute Paths** (prefix: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/docs/decisions/`):
 - `0102-backup-architecture.md`
 - `0301-deployment-scripts.md`
 - `0300-health-check-strategy.md`
@@ -268,8 +268,8 @@ All file paths in this document are absolute paths from the sub-repo root.
 **Test Framework**: bats-core (submodules in `tests/lib/`)
 
 **Absolute Paths**:
-- `/Users/grig/work/peermesh/repo/knowledge-graph-lab-alpha/.dev/modules/peer-mesh-docker-lab/sub-repos/docker-lab/tests/`
-- Documentation: `/Users/grig/work/peermesh/repo/knowledge-graph-lab-alpha/.dev/modules/peer-mesh-docker-lab/sub-repos/docker-lab/docs/testing-guide.md`
+- `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/tests/`
+- Documentation: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/docs/testing-guide.md`
 
 **Justfile Integration**: `just test`, `just test-unit`, `just test-integration`, etc.
 
@@ -300,7 +300,7 @@ All file paths in this document are absolute paths from the sub-repo root.
 | `foundation/interfaces/contract.py` | Python | Capability-based security (evaluate, enforce) |
 | `foundation/interfaces/contract.ts` | TypeScript | Same as above (TS version) |
 
-**Absolute Paths** (prefix: `/Users/grig/work/peermesh/repo/knowledge-graph-lab-alpha/.dev/modules/peer-mesh-docker-lab/sub-repos/docker-lab/foundation/interfaces/`):
+**Absolute Paths** (prefix: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/foundation/interfaces/`):
 - `identity.py`, `identity.ts`
 - `encryption.py`, `encryption.ts`
 - `contract.py`, `contract.ts`
@@ -319,7 +319,7 @@ All file paths in this document are absolute paths from the sub-repo root.
 | `foundation/schemas/lifecycle.schema.json` | Security lifecycle hooks (provision, deprovision, rotate, lock) | Hook schema validation |
 | `foundation/schemas/module.schema.json` | Module manifest (includes security section) | Full manifest validation |
 
-**Absolute Paths** (prefix: `/Users/grig/work/peermesh/repo/knowledge-graph-lab-alpha/.dev/modules/peer-mesh-docker-lab/sub-repos/docker-lab/foundation/schemas/`):
+**Absolute Paths** (prefix: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/foundation/schemas/`):
 - `security.schema.json`
 - `contract-manifest.schema.json`
 - `security-event.schema.json`
@@ -338,7 +338,7 @@ All file paths in this document are absolute paths from the sub-repo root.
 | `foundation/docs/CONTRACT-SYSTEM.md` | Capability-based security model |
 | `foundation/docs/SECURITY-LIFECYCLE-HOOKS.md` | Security hook invocation model |
 
-**Absolute Paths** (prefix: `/Users/grig/work/peermesh/repo/knowledge-graph-lab-alpha/.dev/modules/peer-mesh-docker-lab/sub-repos/docker-lab/foundation/docs/`):
+**Absolute Paths** (prefix: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/foundation/docs/`):
 - `SECURITY-FRAMEWORK.md`
 - `IDENTITY-INTERFACE.md`
 - `ENCRYPTION-INTERFACE.md`
@@ -375,13 +375,13 @@ Deployment evidence bundles are created by `scripts/deploy.sh` and stored in tim
 
 Standalone supply-chain runs (outside deployment) generate reports in:
 
-**Location**: `/Users/grig/work/peermesh/repo/knowledge-graph-lab-alpha/.dev/modules/peer-mesh-docker-lab/sub-repos/docker-lab/reports/supply-chain/`
+**Location**: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/reports/supply-chain/`
 
 **Contents**: Same as evidence bundle supply-chain artifacts
 
-**Example Absolute Path**: `/Users/grig/work/peermesh/repo/knowledge-graph-lab-alpha/.dev/modules/peer-mesh-docker-lab/sub-repos/docker-lab/reports/supply-chain/2026-02-22-221500/`
+**Example Absolute Path**: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/reports/supply-chain/2026-02-22-221500/`
 
-**Absolute Path Glob**: `/Users/grig/work/peermesh/repo/knowledge-graph-lab-alpha/.dev/modules/peer-mesh-docker-lab/sub-repos/docker-lab/reports/supply-chain/*/`
+**Absolute Path Glob**: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/reports/supply-chain/*/`
 
 ---
 
@@ -399,7 +399,7 @@ Standalone supply-chain runs (outside deployment) generate reports in:
 
 **Usage**: `docker compose -f docker-compose.yml -f docker-compose.hardening.yml up -d`
 
-**Absolute Path**: `/Users/grig/work/peermesh/repo/knowledge-graph-lab-alpha/.dev/modules/peer-mesh-docker-lab/sub-repos/docker-lab/docker-compose.hardening.yml`
+**Absolute Path**: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/docker-compose.hardening.yml`
 
 **Rationale**: Documented in GOTCHAS.md entries #9, #10, #11, #12
 
@@ -413,7 +413,7 @@ Standalone supply-chain runs (outside deployment) generate reports in:
 |----------|---------|--------|
 | `.dev/ai/security/SECURITY-FINDINGS.md` | Tracked security findings (SEC-001 through SEC-009) | 1 open, 8 mitigated |
 
-**Absolute Path**: `/Users/grig/work/peermesh/repo/knowledge-graph-lab-alpha/.dev/modules/peer-mesh-docker-lab/.dev/ai/security/SECURITY-FINDINGS.md`
+**Absolute Path**: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/.dev/ai/security/SECURITY-FINDINGS.md`
 
 **Findings Summary**:
 - **Open**: SEC-009 (Content Trust not enabled)
@@ -427,7 +427,7 @@ Standalone supply-chain runs (outside deployment) generate reports in:
 |--------|----------|----------|
 | Latest docker-bench run | 2026-02-17 | `.dev/ai/security/docker-bench-2026-02-17-232636.log` |
 
-**Absolute Path**: `/Users/grig/work/peermesh/repo/knowledge-graph-lab-alpha/.dev/modules/peer-mesh-docker-lab/.dev/ai/security/docker-bench-2026-02-17-232636.log`
+**Absolute Path**: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/.dev/ai/security/docker-bench-2026-02-17-232636.log`
 
 **Note**: docker-bench-security runs are triggered manually via `scripts/security/run-docker-bench.sh` and logged with timestamps.
 
@@ -488,9 +488,9 @@ Standalone supply-chain runs (outside deployment) generate reports in:
 
 ## Related Documentation
 
-- **Threat Model**: `/Users/grig/work/peermesh/repo/knowledge-graph-lab-alpha/.dev/modules/peer-mesh-docker-lab/sub-repos/docker-lab/docs/security/THREAT-MODEL.md`
-- **Audit Readiness Checklist**: `/Users/grig/work/peermesh/repo/knowledge-graph-lab-alpha/.dev/modules/peer-mesh-docker-lab/sub-repos/docker-lab/docs/security/AUDIT-READINESS-CHECKLIST.md`
-- **OSS Audit Results**: `/Users/grig/work/peermesh/repo/knowledge-graph-lab-alpha/.dev/modules/peer-mesh-docker-lab/sub-repos/docker-lab/docs/security/OSS-AUDIT-RESULTS.md`
+- **Threat Model**: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/docs/security/THREAT-MODEL.md`
+- **Audit Readiness Checklist**: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/docs/security/AUDIT-READINESS-CHECKLIST.md`
+- **OSS Audit Results**: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/docs/security/OSS-AUDIT-RESULTS.md`
 
 ---
 

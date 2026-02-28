@@ -59,11 +59,11 @@ This document captures results from running open-source security audit tools aga
 
 ### Execution
 
-**Script**: `/Users/grig/work/peermesh/repo/knowledge-graph-lab-alpha/.dev/modules/peer-mesh-docker-lab/sub-repos/docker-lab/scripts/security/run-docker-bench.sh`
+**Script**: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/scripts/security/run-docker-bench.sh`
 
 **Latest Run**: 2026-02-17 23:26:36
 
-**Output**: `/Users/grig/work/peermesh/repo/knowledge-graph-lab-alpha/.dev/modules/peer-mesh-docker-lab/.dev/ai/security/docker-bench-2026-02-17-232636.log`
+**Output**: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/.dev/ai/security/docker-bench-2026-02-17-232636.log`
 
 ---
 
@@ -140,8 +140,8 @@ Scope executed on 2026-02-24:
 - Profile image set not currently running (`mysql`, `mongo`, `minio`)
 
 Logs:
-- `/Users/grig/work/peermesh/repo/knowledge-graph-lab-alpha/.dev/modules/peer-mesh-docker-lab/.dev/ai/security/trivy-pilot-2026-02-24-073844Z.log`
-- `/Users/grig/work/peermesh/repo/knowledge-graph-lab-alpha/.dev/modules/peer-mesh-docker-lab/.dev/ai/security/trivy-pilot-profile-images-2026-02-24-073844Z.log`
+- `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/.dev/ai/security/trivy-pilot-2026-02-24-073844Z.log`
+- `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/.dev/ai/security/trivy-pilot-profile-images-2026-02-24-073844Z.log`
 
 #### Runtime Image Findings (CRITICAL/HIGH only)
 
@@ -265,7 +265,7 @@ Manual review checklist:
 - Date: 2026-02-24
 - Host: pilot VPS (`46.225.188.213`)
 - Log:
-  - `/Users/grig/work/peermesh/repo/knowledge-graph-lab-alpha/.dev/modules/peer-mesh-docker-lab/.dev/ai/security/lynis-pilot-2026-02-24-073844Z.log`
+  - `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/.dev/ai/security/lynis-pilot-2026-02-24-073844Z.log`
 
 ### Results Summary
 
@@ -290,7 +290,7 @@ Manual review checklist:
 - Date: 2026-02-24
 - Target: Traefik/dashboard endpoint on pilot host (`http://127.0.0.1`)
 - Log:
-  - `/Users/grig/work/peermesh/repo/knowledge-graph-lab-alpha/.dev/modules/peer-mesh-docker-lab/.dev/ai/security/zap-baseline-pilot-2026-02-24-073844Z.log`
+  - `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/.dev/ai/security/zap-baseline-pilot-2026-02-24-073844Z.log`
 
 ### Results Summary
 
@@ -530,8 +530,8 @@ docker compose config | grep -A 3 "networks:"
 **Status**: **COMPLETE** - All high findings have documented risk acceptance rationale.
 
 **Evidence**:
-- User namespaces: `/Users/grig/work/peermesh/repo/knowledge-graph-lab-alpha/.dev/modules/peer-mesh-docker-lab/sub-repos/docker-lab/docs/security/THREAT-MODEL.md` (Limitation #5)
-- Content Trust: `/Users/grig/work/peermesh/repo/knowledge-graph-lab-alpha/.dev/modules/peer-mesh-docker-lab/.dev/ai/security/SECURITY-FINDINGS.md` (SEC-009)
+- User namespaces: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/docs/security/THREAT-MODEL.md` (Limitation #5)
+- Content Trust: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/.dev/ai/security/SECURITY-FINDINGS.md` (SEC-009)
 
 ---
 
@@ -542,9 +542,9 @@ docker compose config | grep -A 3 "networks:"
 **Status**: **COMPLETE** - All medium findings have documented mitigations.
 
 **Evidence**:
-- Root containers: `/Users/grig/work/peermesh/repo/knowledge-graph-lab-alpha/.dev/modules/peer-mesh-docker-lab/sub-repos/docker-lab/docs/GOTCHAS.md` (#9, #10, #11)
-- Read-only filesystems: `/Users/grig/work/peermesh/repo/knowledge-graph-lab-alpha/.dev/modules/peer-mesh-docker-lab/sub-repos/docker-lab/docs/GOTCHAS.md` (#10, #12)
-- Centralized logging: `/Users/grig/work/peermesh/repo/knowledge-graph-lab-alpha/.dev/modules/peer-mesh-docker-lab/.dev/ai/security/SECURITY-FINDINGS.md` (SEC-006)
+- Root containers: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/docs/GOTCHAS.md` (#9, #10, #11)
+- Read-only filesystems: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/docs/GOTCHAS.md` (#10, #12)
+- Centralized logging: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/.dev/ai/security/SECURITY-FINDINGS.md` (SEC-006)
 
 ---
 
@@ -589,7 +589,7 @@ docker compose config | grep -A 3 "networks:"
 ### Docker Bench for Security
 
 ```bash
-cd /Users/grig/work/peermesh/repo/knowledge-graph-lab-alpha/.dev/modules/peer-mesh-docker-lab/sub-repos/docker-lab
+cd /Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab
 ./scripts/security/run-docker-bench.sh
 ```
 
@@ -621,7 +621,7 @@ done
 ### Supply-Chain Validation
 
 ```bash
-cd /Users/grig/work/peermesh/repo/knowledge-graph-lab-alpha/.dev/modules/peer-mesh-docker-lab/sub-repos/docker-lab
+cd /Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab
 ./scripts/security/validate-supply-chain.sh --severity-threshold CRITICAL
 ```
 
@@ -632,7 +632,7 @@ cd /Users/grig/work/peermesh/repo/knowledge-graph-lab-alpha/.dev/modules/peer-me
 ### Network Internal Audit
 
 ```bash
-cd /Users/grig/work/peermesh/repo/knowledge-graph-lab-alpha/.dev/modules/peer-mesh-docker-lab/sub-repos/docker-lab
+cd /Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab
 docker compose config | grep -A 3 "networks:"
 ```
 
@@ -642,10 +642,10 @@ docker compose config | grep -A 3 "networks:"
 
 ## Related Documentation
 
-- **Threat Model**: `/Users/grig/work/peermesh/repo/knowledge-graph-lab-alpha/.dev/modules/peer-mesh-docker-lab/sub-repos/docker-lab/docs/security/THREAT-MODEL.md`
-- **Evidence Inventory**: `/Users/grig/work/peermesh/repo/knowledge-graph-lab-alpha/.dev/modules/peer-mesh-docker-lab/sub-repos/docker-lab/docs/security/EVIDENCE-INVENTORY.md`
-- **Audit Readiness Checklist**: `/Users/grig/work/peermesh/repo/knowledge-graph-lab-alpha/.dev/modules/peer-mesh-docker-lab/sub-repos/docker-lab/docs/security/AUDIT-READINESS-CHECKLIST.md`
-- **Security Findings**: `/Users/grig/work/peermesh/repo/knowledge-graph-lab-alpha/.dev/modules/peer-mesh-docker-lab/.dev/ai/security/SECURITY-FINDINGS.md`
+- **Threat Model**: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/docs/security/THREAT-MODEL.md`
+- **Evidence Inventory**: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/docs/security/EVIDENCE-INVENTORY.md`
+- **Audit Readiness Checklist**: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/docs/security/AUDIT-READINESS-CHECKLIST.md`
+- **Security Findings**: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/.dev/ai/security/SECURITY-FINDINGS.md`
 
 ---
 

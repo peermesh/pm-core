@@ -45,6 +45,7 @@ func main() {
 	// API endpoints
 	mux.HandleFunc("/api/system", handlers.SystemHandler)
 	mux.HandleFunc("/api/containers", handlers.ContainersHandler)
+	mux.HandleFunc("/api/containers/", handlers.ContainerDetailHandler)
 	mux.HandleFunc("/api/volumes", handlers.VolumesHandler)
 	mux.HandleFunc("/api/alerts", handlers.AlertsHandler)
 	mux.HandleFunc("/api/events", handlers.EventsHandler)

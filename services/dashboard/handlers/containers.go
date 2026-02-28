@@ -57,22 +57,57 @@ type dockerAPIContainer struct {
 }
 
 type dockerAPIInspect struct {
+	ID    string `json:"Id"`
 	State struct {
 		Status     string    `json:"Status"`
 		StartedAt  time.Time `json:"StartedAt"`
 		Health     *struct {
 			Status string `json:"Status"`
+			Log    []struct {
+				Start    time.Time `json:"Start"`
+				End      time.Time `json:"End"`
+				ExitCode int       `json:"ExitCode"`
+				Output   string    `json:"Output"`
+			} `json:"Log"`
 		} `json:"Health"`
 	} `json:"State"`
+	Created    string            `json:"Created"`
+	Image      string            `json:"Image"`
+	Name       string            `json:"Name"`
+	RestartCount int             `json:"RestartCount"`
+	Config     struct {
+		Cmd        []string          `json:"Cmd"`
+		Entrypoint []string          `json:"Entrypoint"`
+		Env        []string          `json:"Env"`
+		Image      string            `json:"Image"`
+		Labels     map[string]string `json:"Labels"`
+	} `json:"Config"`
 	HostConfig struct {
-		Memory int64 `json:"Memory"`
+		Memory     int64  `json:"Memory"`
+		NanoCpus   int64  `json:"NanoCpus"`
+		CpuShares  int64  `json:"CpuShares"`
+		CpuQuota   int64  `json:"CpuQuota"`
+		CpuPeriod  int64  `json:"CpuPeriod"`
+		CapAdd     []string `json:"CapAdd"`
+		CapDrop    []string `json:"CapDrop"`
+		SecurityOpt []string `json:"SecurityOpt"`
+		ReadonlyRootfs bool `json:"ReadonlyRootfs"`
+		Privileged     bool `json:"Privileged"`
 	} `json:"HostConfig"`
 	Mounts []struct {
 		Type        string `json:"Type"`
 		Name        string `json:"Name"`
 		Source      string `json:"Source"`
 		Destination string `json:"Destination"`
+		RW          bool   `json:"RW"`
 	} `json:"Mounts"`
+	NetworkSettings struct {
+		Networks map[string]struct {
+			IPAddress string `json:"IPAddress"`
+			Gateway   string `json:"Gateway"`
+			NetworkID string `json:"NetworkID"`
+		} `json:"Networks"`
+	} `json:"NetworkSettings"`
 }
 
 type dockerAPIStats struct {
@@ -90,9 +125,26 @@ type dockerAPIStats struct {
 		SystemCPUUsage uint64 `json:"system_cpu_usage"`
 	} `json:"precpu_stats"`
 	MemoryStats struct {
-		Usage uint64 `json:"usage"`
-		Limit uint64 `json:"limit"`
+		Usage    uint64            `json:"usage"`
+		Limit    uint64            `json:"limit"`
+		Stats    map[string]uint64 `json:"stats"`
 	} `json:"memory_stats"`
+	Networks map[string]struct {
+		RxBytes   uint64 `json:"rx_bytes"`
+		TxBytes   uint64 `json:"tx_bytes"`
+		RxPackets uint64 `json:"rx_packets"`
+		TxPackets uint64 `json:"tx_packets"`
+	} `json:"networks"`
+	BlkioStats struct {
+		IoServiceBytesRecursive []struct {
+			Op    string `json:"op"`
+			Value uint64 `json:"value"`
+		} `json:"io_service_bytes_recursive"`
+	} `json:"blkio_stats"`
+	PidsStats struct {
+		Current uint64 `json:"current"`
+		Limit   uint64 `json:"limit"`
+	} `json:"pids_stats"`
 }
 
 type containersClient struct {
@@ -357,4 +409,419 @@ func formatContainerUptime(d time.Duration) string {
 		return fmt.Sprintf("%dm", minutes)
 	}
 	return fmt.Sprintf("%ds", int(d.Seconds()))
+}
+
+// --- Container Detail Endpoint ---
+
+// HealthCheckResult represents a single health check log entry
+type HealthCheckResult struct {
+	Timestamp string `json:"timestamp"`
+	ExitCode  int    `json:"exit_code"`
+	Output    string `json:"output"`
+}
+
+// ContainerMount represents a mount/volume on a container
+type ContainerMount struct {
+	Type        string `json:"type"`
+	Source      string `json:"source"`
+	Destination string `json:"destination"`
+	ReadWrite   bool   `json:"rw"`
+	Name        string `json:"name,omitempty"`
+}
+
+// ContainerNetwork represents a network attached to a container
+type ContainerNetwork struct {
+	Name      string `json:"name"`
+	IPAddress string `json:"ip_address"`
+	Gateway   string `json:"gateway"`
+}
+
+// ContainerPort represents a port mapping
+type ContainerPort struct {
+	Container int    `json:"container"`
+	Host      int    `json:"host,omitempty"`
+	Protocol  string `json:"protocol"`
+}
+
+// ContainerSecurity represents the security posture of a container
+type ContainerSecurity struct {
+	CapAdd         []string `json:"cap_add"`
+	CapDrop        []string `json:"cap_drop"`
+	SecurityOpt    []string `json:"security_opt"`
+	ReadOnlyRootfs bool     `json:"read_only_rootfs"`
+	Privileged     bool     `json:"privileged"`
+	User           string   `json:"user,omitempty"`
+}
+
+// ContainerResourceLimits represents configured resource limits
+type ContainerResourceLimits struct {
+	MemoryBytes int64 `json:"memory_bytes"`
+	NanoCPUs    int64 `json:"nano_cpus"`
+	CPUShares   int64 `json:"cpu_shares"`
+	CPUQuota    int64 `json:"cpu_quota"`
+	CPUPeriod   int64 `json:"cpu_period"`
+}
+
+// NetworkIO represents network I/O counters
+type NetworkIO struct {
+	RxBytes   uint64 `json:"rx_bytes"`
+	TxBytes   uint64 `json:"tx_bytes"`
+	RxPackets uint64 `json:"rx_packets"`
+	TxPackets uint64 `json:"tx_packets"`
+}
+
+// BlockIO represents block I/O counters
+type BlockIO struct {
+	ReadBytes  uint64 `json:"read_bytes"`
+	WriteBytes uint64 `json:"write_bytes"`
+}
+
+// MemoryBreakdown represents detailed memory stats
+type MemoryBreakdown struct {
+	RSS      uint64 `json:"rss"`
+	Cache    uint64 `json:"cache"`
+	Swap     uint64 `json:"swap"`
+	Usage    uint64 `json:"usage"`
+	Limit    uint64 `json:"limit"`
+}
+
+// ContainerDetailResponse is the full detail response for a single container
+type ContainerDetailResponse struct {
+	// Overview tab
+	ID           string              `json:"id"`
+	Name         string              `json:"name"`
+	Image        string              `json:"image"`
+	Created      string              `json:"created"`
+	Started      string              `json:"started"`
+	Uptime       string              `json:"uptime"`
+	Status       string              `json:"status"`
+	Health       string              `json:"health"`
+	HealthChecks []HealthCheckResult `json:"health_checks"`
+	RestartCount int                 `json:"restart_count"`
+	Command      string              `json:"command"`
+	Entrypoint   string              `json:"entrypoint"`
+	Profile      string              `json:"profile"`
+
+	// Resources tab (live)
+	CPUPercent      float64         `json:"cpu_percent"`
+	MemoryBreakdown MemoryBreakdown `json:"memory_breakdown"`
+	NetworkIO       NetworkIO       `json:"network_io"`
+	BlockIO         BlockIO         `json:"block_io"`
+	PIDCount        uint64          `json:"pid_count"`
+
+	// Configuration tab
+	Environment    []EnvVar                `json:"environment"`
+	Mounts         []ContainerMount        `json:"mounts"`
+	Networks       []ContainerNetwork      `json:"networks"`
+	Ports          []ContainerPort         `json:"ports"`
+	Security       ContainerSecurity       `json:"security"`
+	ResourceLimits ContainerResourceLimits `json:"resource_limits"`
+}
+
+// EnvVar represents an environment variable with optional masking
+type EnvVar struct {
+	Key   string `json:"key"`
+	Value string `json:"value"`
+}
+
+// sensitiveEnvPatterns are patterns that indicate a sensitive environment variable
+var sensitiveEnvPatterns = []string{
+	"PASSWORD",
+	"SECRET",
+	"KEY",
+	"TOKEN",
+	"CREDENTIAL",
+	"PRIVATE",
+	"AUTH",
+}
+
+// isSensitiveEnvVar checks if an environment variable key matches sensitive patterns
+func isSensitiveEnvVar(key string) bool {
+	upper := strings.ToUpper(key)
+	for _, pattern := range sensitiveEnvPatterns {
+		if strings.Contains(upper, pattern) {
+			return true
+		}
+	}
+	return false
+}
+
+// maskEnvVars processes environment variable strings and masks sensitive values
+func maskEnvVars(envStrings []string) []EnvVar {
+	vars := make([]EnvVar, 0, len(envStrings))
+	for _, env := range envStrings {
+		parts := strings.SplitN(env, "=", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		key := parts[0]
+		value := parts[1]
+		if isSensitiveEnvVar(key) {
+			value = "***"
+		}
+		vars = append(vars, EnvVar{Key: key, Value: value})
+	}
+	return vars
+}
+
+// ContainerDetailHandler handles GET /api/containers/{id}
+// It returns combined inspect + stats data for a single container
+func ContainerDetailHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Extract container ID from path: /api/containers/{id}
+	path := strings.TrimPrefix(r.URL.Path, "/api/containers/")
+	containerID := strings.TrimSpace(path)
+	if containerID == "" {
+		http.Error(w, "Container ID is required", http.StatusBadRequest)
+		return
+	}
+
+	// Validate container ID (hex chars only, 12 or 64 chars typical)
+	if len(containerID) > 64 {
+		http.Error(w, "Invalid container ID", http.StatusBadRequest)
+		return
+	}
+	for _, c := range containerID {
+		if !((c >= 'a' && c <= 'f') || (c >= '0' && c <= '9')) {
+			http.Error(w, "Invalid container ID", http.StatusBadRequest)
+			return
+		}
+	}
+
+	client := newContainersClient()
+
+	// First, find the full container ID by listing and matching
+	containers, err := client.listContainers()
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to list containers: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	var fullID string
+	var listEntry *dockerAPIContainer
+	for i, c := range containers {
+		if c.ID == containerID || strings.HasPrefix(c.ID, containerID) {
+			fullID = c.ID
+			listEntry = &containers[i]
+			break
+		}
+	}
+
+	if fullID == "" {
+		http.Error(w, "Container not found", http.StatusNotFound)
+		return
+	}
+
+	// Get detailed inspect data
+	inspect, err := client.inspectContainer(fullID)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to inspect container: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	// Build the detail response
+	response := buildContainerDetailResponse(inspect, listEntry)
+
+	// Get live stats if running
+	if inspect.State.Status == "running" {
+		stats, err := client.getContainerStats(fullID)
+		if err == nil {
+			populateStatsData(&response, stats)
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate")
+	w.Header().Set("Pragma", "no-cache")
+
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+		return
+	}
+}
+
+// buildContainerDetailResponse constructs the full detail response from inspect data
+func buildContainerDetailResponse(inspect *dockerAPIInspect, listEntry *dockerAPIContainer) ContainerDetailResponse {
+	name := inspect.Name
+	if len(name) > 0 && name[0] == '/' {
+		name = name[1:]
+	}
+
+	profile := detectProfile(inspect.Config.Labels)
+
+	// Health status
+	health := "none"
+	var healthChecks []HealthCheckResult
+	if inspect.State.Health != nil {
+		health = inspect.State.Health.Status
+		if inspect.State.Health.Log != nil {
+			// Take last 5 entries
+			logs := inspect.State.Health.Log
+			start := 0
+			if len(logs) > 5 {
+				start = len(logs) - 5
+			}
+			for _, entry := range logs[start:] {
+				output := entry.Output
+				// Truncate long output
+				if len(output) > 200 {
+					output = output[:200] + "..."
+				}
+				healthChecks = append(healthChecks, HealthCheckResult{
+					Timestamp: entry.Start.Format(time.RFC3339),
+					ExitCode:  entry.ExitCode,
+					Output:    strings.TrimSpace(output),
+				})
+			}
+		}
+	} else if inspect.State.Status == "running" {
+		health = "healthy"
+	}
+	if healthChecks == nil {
+		healthChecks = []HealthCheckResult{}
+	}
+
+	// Uptime
+	uptime := "unknown"
+	started := ""
+	if !inspect.State.StartedAt.IsZero() {
+		uptime = formatContainerUptime(time.Since(inspect.State.StartedAt))
+		started = inspect.State.StartedAt.Format(time.RFC3339)
+	}
+
+	// Command and entrypoint
+	command := strings.Join(inspect.Config.Cmd, " ")
+	entrypoint := strings.Join(inspect.Config.Entrypoint, " ")
+
+	// Environment variables (masked)
+	envVars := maskEnvVars(inspect.Config.Env)
+
+	// Mounts
+	mounts := make([]ContainerMount, 0, len(inspect.Mounts))
+	for _, m := range inspect.Mounts {
+		mounts = append(mounts, ContainerMount{
+			Type:        m.Type,
+			Source:      m.Source,
+			Destination: m.Destination,
+			ReadWrite:   m.RW,
+			Name:        m.Name,
+		})
+	}
+
+	// Networks
+	networks := make([]ContainerNetwork, 0, len(inspect.NetworkSettings.Networks))
+	for netName, netInfo := range inspect.NetworkSettings.Networks {
+		networks = append(networks, ContainerNetwork{
+			Name:      netName,
+			IPAddress: netInfo.IPAddress,
+			Gateway:   netInfo.Gateway,
+		})
+	}
+	sort.Slice(networks, func(i, j int) bool {
+		return networks[i].Name < networks[j].Name
+	})
+
+	// Ports from list entry
+	ports := make([]ContainerPort, 0)
+	if listEntry != nil {
+		for _, p := range listEntry.Ports {
+			ports = append(ports, ContainerPort{
+				Container: p.PrivatePort,
+				Host:      p.PublicPort,
+				Protocol:  p.Type,
+			})
+		}
+	}
+
+	// Security
+	security := ContainerSecurity{
+		CapAdd:         inspect.HostConfig.CapAdd,
+		CapDrop:        inspect.HostConfig.CapDrop,
+		SecurityOpt:    inspect.HostConfig.SecurityOpt,
+		ReadOnlyRootfs: inspect.HostConfig.ReadonlyRootfs,
+		Privileged:     inspect.HostConfig.Privileged,
+	}
+	if security.CapAdd == nil {
+		security.CapAdd = []string{}
+	}
+	if security.CapDrop == nil {
+		security.CapDrop = []string{}
+	}
+	if security.SecurityOpt == nil {
+		security.SecurityOpt = []string{}
+	}
+
+	// Resource limits
+	limits := ContainerResourceLimits{
+		MemoryBytes: inspect.HostConfig.Memory,
+		NanoCPUs:    inspect.HostConfig.NanoCpus,
+		CPUShares:   inspect.HostConfig.CpuShares,
+		CPUQuota:    inspect.HostConfig.CpuQuota,
+		CPUPeriod:   inspect.HostConfig.CpuPeriod,
+	}
+
+	return ContainerDetailResponse{
+		ID:             truncateID(inspect.ID),
+		Name:           name,
+		Image:          inspect.Config.Image,
+		Created:        inspect.Created,
+		Started:        started,
+		Uptime:         uptime,
+		Status:         inspect.State.Status,
+		Health:         health,
+		HealthChecks:   healthChecks,
+		RestartCount:   inspect.RestartCount,
+		Command:        command,
+		Entrypoint:     entrypoint,
+		Profile:        profile,
+		Environment:    envVars,
+		Mounts:         mounts,
+		Networks:       networks,
+		Ports:          ports,
+		Security:       security,
+		ResourceLimits: limits,
+		// Stats fields default to zero values
+		MemoryBreakdown: MemoryBreakdown{},
+		NetworkIO:       NetworkIO{},
+		BlockIO:         BlockIO{},
+	}
+}
+
+// populateStatsData fills in the live resource stats from Docker stats API
+func populateStatsData(response *ContainerDetailResponse, stats *dockerAPIStats) {
+	response.CPUPercent = calculateCPUPercent(stats)
+
+	// Memory breakdown
+	response.MemoryBreakdown.Usage = stats.MemoryStats.Usage
+	response.MemoryBreakdown.Limit = stats.MemoryStats.Limit
+	if stats.MemoryStats.Stats != nil {
+		response.MemoryBreakdown.RSS = stats.MemoryStats.Stats["rss"]
+		response.MemoryBreakdown.Cache = stats.MemoryStats.Stats["cache"]
+		response.MemoryBreakdown.Swap = stats.MemoryStats.Stats["swap"]
+	}
+
+	// Network I/O (aggregate all interfaces)
+	for _, netStats := range stats.Networks {
+		response.NetworkIO.RxBytes += netStats.RxBytes
+		response.NetworkIO.TxBytes += netStats.TxBytes
+		response.NetworkIO.RxPackets += netStats.RxPackets
+		response.NetworkIO.TxPackets += netStats.TxPackets
+	}
+
+	// Block I/O
+	for _, entry := range stats.BlkioStats.IoServiceBytesRecursive {
+		switch strings.ToLower(entry.Op) {
+		case "read":
+			response.BlockIO.ReadBytes += entry.Value
+		case "write":
+			response.BlockIO.WriteBytes += entry.Value
+		}
+	}
+
+	// PIDs
+	response.PIDCount = stats.PidsStats.Current
 }

@@ -268,9 +268,14 @@
                     </button>
                 </div>
             </div>
+            <p class="text-sm text-gray-400 mb-4">
+                Manage multiple PeerMesh Docker Lab deployments from a single dashboard.
+                Register remote instances to monitor their health, view containers, and trigger syncs across your fleet.
+                If you only run a single server, you can ignore this section -- the "This Instance" card below already represents your current deployment.
+            </p>
 
             <!-- This Instance Card -->
-            <div id="this-instance-card" class="bg-gray-800 rounded-lg border border-primary-600 p-4 mb-4">
+            <div id="this-instance-card" class="bg-gray-800 rounded-lg border border-primary-600 p-4 mb-4 instance-card-clickable" onclick="scrollToContainers()" title="Click to view containers for this instance">
                 <div class="flex items-center justify-between">
                     <div class="flex items-center">
                         <div class="w-3 h-3 bg-green-500 rounded-full animate-pulse mr-3"></div>
@@ -591,6 +596,7 @@
                     else if (c.status !== 'running' && p.health !== 'degraded') p.health = 'degraded';
 
                     p.containers.push({
+                        id: c.id,
                         name: c.name,
                         image: c.image,
                         state: c.status,
@@ -1661,6 +1667,10 @@
                 </button>
             </div>
             <form onsubmit="submitAddInstance(event)" class="p-4 space-y-4">
+                <p class="text-sm text-gray-400 pb-2 border-b border-gray-700">
+                    Register another PeerMesh Docker Lab dashboard running on a different server.
+                    The remote instance must be network-accessible from this dashboard's container.
+                </p>
                 <div>
                     <label for="instance-name-input" class="block text-sm font-medium text-gray-300 mb-1">Name *</label>
                     <input
@@ -1670,6 +1680,7 @@
                         placeholder="Production Server"
                         required
                     >
+                    <p class="text-xs text-gray-500 mt-1">A human-readable label for this remote server (e.g., "Production VPS", "Staging Server")</p>
                 </div>
                 <div>
                     <label for="instance-url-input" class="block text-sm font-medium text-gray-300 mb-1">Dashboard URL *</label>
@@ -1680,7 +1691,7 @@
                         placeholder="https://dashboard.example.com"
                         required
                     >
-                    <p class="text-xs text-gray-500 mt-1">Full URL to the remote PeerMesh dashboard</p>
+                    <p class="text-xs text-gray-500 mt-1">The full HTTPS URL where the remote PeerMesh dashboard is accessible (e.g., https://staging.dockerlab.peermesh.org)</p>
                 </div>
                 <div>
                     <label for="instance-desc-input" class="block text-sm font-medium text-gray-300 mb-1">Description</label>
@@ -1688,8 +1699,9 @@
                         type="text"
                         id="instance-desc-input"
                         class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-gray-200 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                        placeholder="Main production deployment"
+                        placeholder="Main production deployment on Hetzner"
                     >
+                    <p class="text-xs text-gray-500 mt-1">Optional note about this instance's purpose or location</p>
                 </div>
                 <div>
                     <label for="instance-token-input" class="block text-sm font-medium text-gray-300 mb-1">Shared Secret (Optional)</label>
@@ -1699,7 +1711,7 @@
                         class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-gray-200 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                         placeholder="Optional authentication token"
                     >
-                    <p class="text-xs text-gray-500 mt-1">If the remote instance requires authentication between instances</p>
+                    <p class="text-xs text-gray-500 mt-1">Required for cross-instance sync and container actions. Both dashboards must share the same <code class="bg-gray-600 px-1 rounded">DOCKERLAB_INSTANCE_SECRET</code> environment variable.</p>
                 </div>
                 <div class="flex justify-end space-x-3 pt-2">
                     <button
@@ -1719,5 +1731,689 @@
             </form>
         </div>
     </div>
+
+    <!-- Container Detail Slide-out Panel -->
+    <div id="container-detail-overlay" class="detail-panel-overlay fixed inset-0 bg-black/50 z-50 hidden" onclick="closeContainerDetail()"></div>
+    <div id="container-detail-panel" class="detail-panel fixed top-0 right-0 h-full w-full max-w-2xl bg-gray-800 border-l border-gray-700 z-50 flex flex-col shadow-2xl">
+        <!-- Panel Header -->
+        <div class="flex items-center justify-between p-4 border-b border-gray-700 flex-shrink-0">
+            <div class="flex items-center space-x-3 min-w-0">
+                <div id="detail-status-dot" class="w-3 h-3 rounded-full bg-gray-500 flex-shrink-0"></div>
+                <div class="min-w-0">
+                    <h3 id="detail-container-name" class="text-lg font-semibold text-gray-200 truncate">Container</h3>
+                    <p id="detail-container-image" class="text-sm text-gray-400 truncate"></p>
+                </div>
+            </div>
+            <button onclick="closeContainerDetail()" class="p-2 text-gray-400 hover:text-gray-200 hover:bg-gray-700 rounded transition-colors flex-shrink-0" aria-label="Close detail panel">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
+
+        <!-- Tabs -->
+        <div class="flex border-b border-gray-700 flex-shrink-0 px-4 overflow-x-auto">
+            <button class="detail-tab active" data-tab="overview" onclick="switchDetailTab('overview')">Overview</button>
+            <button class="detail-tab" data-tab="resources" onclick="switchDetailTab('resources')">Resources</button>
+            <button class="detail-tab" data-tab="configuration" onclick="switchDetailTab('configuration')">Configuration</button>
+        </div>
+
+        <!-- Tab Content -->
+        <div class="flex-1 overflow-y-auto detail-panel-content">
+            <!-- Overview Tab -->
+            <div id="detail-tab-overview" class="detail-tab-content p-4 space-y-4">
+                <div id="detail-overview-loading" class="flex items-center justify-center py-12">
+                    <svg class="animate-spin h-8 w-8 text-primary-500" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span class="ml-3 text-gray-400">Loading container details...</span>
+                </div>
+                <div id="detail-overview-content" class="hidden space-y-4">
+                    <!-- Identity -->
+                    <div class="bg-gray-700/50 rounded-lg p-4 space-y-3">
+                        <h4 class="text-sm font-medium text-gray-400 uppercase tracking-wide">Identity</h4>
+                        <div class="grid grid-cols-2 gap-3 text-sm">
+                            <div>
+                                <span class="text-gray-500">Container ID</span>
+                                <p id="detail-id" class="text-gray-200 font-mono"></p>
+                            </div>
+                            <div>
+                                <span class="text-gray-500">Profile</span>
+                                <p id="detail-profile" class="text-gray-200"></p>
+                            </div>
+                            <div class="col-span-2">
+                                <span class="text-gray-500">Image</span>
+                                <p id="detail-image-full" class="text-gray-200 font-mono text-xs break-all"></p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Lifecycle -->
+                    <div class="bg-gray-700/50 rounded-lg p-4 space-y-3">
+                        <h4 class="text-sm font-medium text-gray-400 uppercase tracking-wide">Lifecycle</h4>
+                        <div class="grid grid-cols-2 gap-3 text-sm">
+                            <div>
+                                <span class="text-gray-500">Created</span>
+                                <p id="detail-created" class="text-gray-200"></p>
+                            </div>
+                            <div>
+                                <span class="text-gray-500">Started</span>
+                                <p id="detail-started" class="text-gray-200"></p>
+                            </div>
+                            <div>
+                                <span class="text-gray-500">Uptime</span>
+                                <p id="detail-uptime" class="text-gray-200"></p>
+                            </div>
+                            <div>
+                                <span class="text-gray-500">Restart Count</span>
+                                <p id="detail-restarts" class="text-gray-200"></p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Status & Health -->
+                    <div class="bg-gray-700/50 rounded-lg p-4 space-y-3">
+                        <h4 class="text-sm font-medium text-gray-400 uppercase tracking-wide">Status & Health</h4>
+                        <div class="grid grid-cols-2 gap-3 text-sm">
+                            <div>
+                                <span class="text-gray-500">State</span>
+                                <p id="detail-state" class="text-gray-200"></p>
+                            </div>
+                            <div>
+                                <span class="text-gray-500">Health</span>
+                                <p id="detail-health" class="text-gray-200"></p>
+                            </div>
+                        </div>
+                        <div id="detail-health-checks" class="hidden">
+                            <span class="text-gray-500 text-sm">Recent Health Checks</span>
+                            <div id="detail-health-checks-list" class="mt-2 space-y-1"></div>
+                        </div>
+                    </div>
+
+                    <!-- Command -->
+                    <div class="bg-gray-700/50 rounded-lg p-4 space-y-3">
+                        <h4 class="text-sm font-medium text-gray-400 uppercase tracking-wide">Command</h4>
+                        <div class="space-y-2 text-sm">
+                            <div id="detail-entrypoint-row">
+                                <span class="text-gray-500">Entrypoint</span>
+                                <pre id="detail-entrypoint" class="text-gray-200 bg-gray-900 rounded p-2 mt-1 text-xs overflow-x-auto"></pre>
+                            </div>
+                            <div id="detail-command-row">
+                                <span class="text-gray-500">Command</span>
+                                <pre id="detail-command" class="text-gray-200 bg-gray-900 rounded p-2 mt-1 text-xs overflow-x-auto"></pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Resources Tab -->
+            <div id="detail-tab-resources" class="detail-tab-content p-4 space-y-4 hidden">
+                <div id="detail-resources-content" class="space-y-4">
+                    <!-- CPU -->
+                    <div class="bg-gray-700/50 rounded-lg p-4 space-y-3">
+                        <div class="flex items-center justify-between">
+                            <h4 class="text-sm font-medium text-gray-400 uppercase tracking-wide">CPU</h4>
+                            <span id="detail-cpu-value" class="text-lg font-semibold text-gray-200">0%</span>
+                        </div>
+                        <div class="gauge-bar">
+                            <div id="detail-cpu-bar" class="gauge-fill bg-green-500" style="width: 0%"></div>
+                        </div>
+                    </div>
+
+                    <!-- Memory -->
+                    <div class="bg-gray-700/50 rounded-lg p-4 space-y-3">
+                        <div class="flex items-center justify-between">
+                            <h4 class="text-sm font-medium text-gray-400 uppercase tracking-wide">Memory</h4>
+                            <span id="detail-memory-value" class="text-lg font-semibold text-gray-200">0 MB</span>
+                        </div>
+                        <div class="gauge-bar">
+                            <div id="detail-memory-bar" class="gauge-fill bg-blue-500" style="width: 0%"></div>
+                        </div>
+                        <div class="grid grid-cols-3 gap-2 text-xs">
+                            <div class="bg-gray-800 rounded p-2 text-center">
+                                <span class="text-gray-500 block">RSS</span>
+                                <span id="detail-mem-rss" class="text-gray-300">--</span>
+                            </div>
+                            <div class="bg-gray-800 rounded p-2 text-center">
+                                <span class="text-gray-500 block">Cache</span>
+                                <span id="detail-mem-cache" class="text-gray-300">--</span>
+                            </div>
+                            <div class="bg-gray-800 rounded p-2 text-center">
+                                <span class="text-gray-500 block">Swap</span>
+                                <span id="detail-mem-swap" class="text-gray-300">--</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Network I/O -->
+                    <div class="bg-gray-700/50 rounded-lg p-4 space-y-3">
+                        <h4 class="text-sm font-medium text-gray-400 uppercase tracking-wide">Network I/O</h4>
+                        <div class="grid grid-cols-2 gap-3 text-sm">
+                            <div class="bg-gray-800 rounded p-3">
+                                <div class="flex items-center space-x-2">
+                                    <svg class="w-4 h-4 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                                    </svg>
+                                    <span class="text-gray-500">RX (Received)</span>
+                                </div>
+                                <p id="detail-net-rx" class="text-gray-200 text-lg font-semibold mt-1">--</p>
+                                <p id="detail-net-rx-packets" class="text-gray-500 text-xs">-- packets</p>
+                            </div>
+                            <div class="bg-gray-800 rounded p-3">
+                                <div class="flex items-center space-x-2">
+                                    <svg class="w-4 h-4 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18" />
+                                    </svg>
+                                    <span class="text-gray-500">TX (Sent)</span>
+                                </div>
+                                <p id="detail-net-tx" class="text-gray-200 text-lg font-semibold mt-1">--</p>
+                                <p id="detail-net-tx-packets" class="text-gray-500 text-xs">-- packets</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Block I/O -->
+                    <div class="bg-gray-700/50 rounded-lg p-4 space-y-3">
+                        <h4 class="text-sm font-medium text-gray-400 uppercase tracking-wide">Block I/O</h4>
+                        <div class="grid grid-cols-2 gap-3 text-sm">
+                            <div class="bg-gray-800 rounded p-3">
+                                <span class="text-gray-500">Read</span>
+                                <p id="detail-blkio-read" class="text-gray-200 text-lg font-semibold mt-1">--</p>
+                            </div>
+                            <div class="bg-gray-800 rounded p-3">
+                                <span class="text-gray-500">Write</span>
+                                <p id="detail-blkio-write" class="text-gray-200 text-lg font-semibold mt-1">--</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- PIDs -->
+                    <div class="bg-gray-700/50 rounded-lg p-4">
+                        <div class="flex items-center justify-between">
+                            <h4 class="text-sm font-medium text-gray-400 uppercase tracking-wide">Processes</h4>
+                            <span id="detail-pid-count" class="text-lg font-semibold text-gray-200">--</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Configuration Tab -->
+            <div id="detail-tab-configuration" class="detail-tab-content p-4 space-y-4 hidden">
+                <div id="detail-config-content" class="space-y-4">
+                    <!-- Environment Variables -->
+                    <div class="bg-gray-700/50 rounded-lg p-4 space-y-3">
+                        <div class="flex items-center justify-between">
+                            <h4 class="text-sm font-medium text-gray-400 uppercase tracking-wide">Environment Variables</h4>
+                            <span id="detail-env-count" class="text-xs text-gray-500">0 vars</span>
+                        </div>
+                        <div id="detail-env-list" class="space-y-1 max-h-64 overflow-y-auto"></div>
+                    </div>
+
+                    <!-- Mounts -->
+                    <div class="bg-gray-700/50 rounded-lg p-4 space-y-3">
+                        <div class="flex items-center justify-between">
+                            <h4 class="text-sm font-medium text-gray-400 uppercase tracking-wide">Mounts & Volumes</h4>
+                            <span id="detail-mounts-count" class="text-xs text-gray-500">0 mounts</span>
+                        </div>
+                        <div id="detail-mounts-list" class="space-y-2"></div>
+                    </div>
+
+                    <!-- Networks -->
+                    <div class="bg-gray-700/50 rounded-lg p-4 space-y-3">
+                        <h4 class="text-sm font-medium text-gray-400 uppercase tracking-wide">Networks</h4>
+                        <div id="detail-networks-list" class="space-y-2"></div>
+                    </div>
+
+                    <!-- Ports -->
+                    <div class="bg-gray-700/50 rounded-lg p-4 space-y-3">
+                        <h4 class="text-sm font-medium text-gray-400 uppercase tracking-wide">Port Mapping</h4>
+                        <div id="detail-ports-list" class="space-y-1"></div>
+                    </div>
+
+                    <!-- Security -->
+                    <div class="bg-gray-700/50 rounded-lg p-4 space-y-3">
+                        <h4 class="text-sm font-medium text-gray-400 uppercase tracking-wide">Security</h4>
+                        <div class="grid grid-cols-2 gap-3 text-sm">
+                            <div>
+                                <span class="text-gray-500">Read-Only Root</span>
+                                <p id="detail-readonly-rootfs" class="text-gray-200">--</p>
+                            </div>
+                            <div>
+                                <span class="text-gray-500">Privileged</span>
+                                <p id="detail-privileged" class="text-gray-200">--</p>
+                            </div>
+                        </div>
+                        <div>
+                            <span class="text-gray-500 text-sm">Capabilities Added</span>
+                            <div id="detail-cap-add" class="mt-1 flex flex-wrap gap-1"></div>
+                        </div>
+                        <div>
+                            <span class="text-gray-500 text-sm">Capabilities Dropped</span>
+                            <div id="detail-cap-drop" class="mt-1 flex flex-wrap gap-1"></div>
+                        </div>
+                        <div>
+                            <span class="text-gray-500 text-sm">Security Options</span>
+                            <div id="detail-security-opt" class="mt-1 flex flex-wrap gap-1"></div>
+                        </div>
+                    </div>
+
+                    <!-- Resource Limits -->
+                    <div class="bg-gray-700/50 rounded-lg p-4 space-y-3">
+                        <h4 class="text-sm font-medium text-gray-400 uppercase tracking-wide">Resource Limits</h4>
+                        <div class="grid grid-cols-2 gap-3 text-sm">
+                            <div>
+                                <span class="text-gray-500">Memory Limit</span>
+                                <p id="detail-limit-memory" class="text-gray-200">--</p>
+                            </div>
+                            <div>
+                                <span class="text-gray-500">CPU Limit</span>
+                                <p id="detail-limit-cpu" class="text-gray-200">--</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Panel Footer -->
+        <div class="border-t border-gray-700 p-3 flex-shrink-0">
+            <div class="flex items-center justify-between text-xs text-gray-500">
+                <button id="detail-refresh-btn" onclick="refreshContainerDetail()" class="inline-flex items-center px-2 py-1 text-gray-400 hover:text-gray-200 hover:bg-gray-700 rounded transition-colors guest-allowed" data-action="refresh">
+                    <svg class="w-3.5 h-3.5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    Refresh
+                </button>
+                <span id="detail-last-updated" class="text-gray-500"></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Container Detail Panel Script -->
+    <script>
+    (function() {
+        let currentContainerID = null;
+        let detailRefreshTimer = null;
+
+        // Format bytes to human-readable
+        function fmtBytes(bytes) {
+            if (!bytes || bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        // Format timestamp to local string
+        function fmtTime(isoStr) {
+            if (!isoStr) return '--';
+            try {
+                const d = new Date(isoStr);
+                return d.toLocaleString();
+            } catch {
+                return isoStr;
+            }
+        }
+
+        // Open the container detail panel
+        window.openContainerDetail = function(containerID) {
+            currentContainerID = containerID;
+            const overlay = document.getElementById('container-detail-overlay');
+            const panel = document.getElementById('container-detail-panel');
+
+            overlay.classList.remove('hidden');
+            // Use requestAnimationFrame to trigger transition
+            requestAnimationFrame(function() {
+                panel.classList.add('open');
+            });
+
+            // Prevent body scroll
+            document.body.style.overflow = 'hidden';
+
+            // Reset to overview tab
+            switchDetailTab('overview');
+
+            // Show loading state
+            document.getElementById('detail-overview-loading').classList.remove('hidden');
+            document.getElementById('detail-overview-content').classList.add('hidden');
+
+            // Fetch detail data
+            fetchContainerDetail(containerID);
+
+            // Start auto-refresh (every 10 seconds)
+            if (detailRefreshTimer) clearInterval(detailRefreshTimer);
+            detailRefreshTimer = setInterval(function() {
+                if (currentContainerID) {
+                    fetchContainerDetail(currentContainerID);
+                }
+            }, 10000);
+        };
+
+        // Close the container detail panel
+        window.closeContainerDetail = function() {
+            currentContainerID = null;
+            const overlay = document.getElementById('container-detail-overlay');
+            const panel = document.getElementById('container-detail-panel');
+
+            panel.classList.remove('open');
+            // Wait for transition to finish then hide overlay
+            setTimeout(function() {
+                overlay.classList.add('hidden');
+            }, 300);
+
+            // Restore body scroll
+            document.body.style.overflow = '';
+
+            // Stop auto-refresh
+            if (detailRefreshTimer) {
+                clearInterval(detailRefreshTimer);
+                detailRefreshTimer = null;
+            }
+        };
+
+        // Refresh current container detail
+        window.refreshContainerDetail = function() {
+            if (currentContainerID) {
+                fetchContainerDetail(currentContainerID);
+            }
+        };
+
+        // Switch between detail tabs
+        window.switchDetailTab = function(tabName) {
+            // Update tab buttons
+            document.querySelectorAll('.detail-tab').forEach(function(tab) {
+                if (tab.getAttribute('data-tab') === tabName) {
+                    tab.classList.add('active');
+                } else {
+                    tab.classList.remove('active');
+                }
+            });
+
+            // Update tab content
+            document.querySelectorAll('.detail-tab-content').forEach(function(content) {
+                content.classList.add('hidden');
+            });
+            var target = document.getElementById('detail-tab-' + tabName);
+            if (target) {
+                target.classList.remove('hidden');
+            }
+        };
+
+        // Fetch container detail from API
+        function fetchContainerDetail(containerID) {
+            fetch('/api/containers/' + containerID)
+                .then(function(r) {
+                    if (!r.ok) {
+                        throw new Error('Failed to fetch container detail (status ' + r.status + ')');
+                    }
+                    return r.json();
+                })
+                .then(function(data) {
+                    renderContainerDetail(data);
+                })
+                .catch(function(err) {
+                    console.error('Failed to load container detail:', err);
+                    document.getElementById('detail-overview-loading').innerHTML =
+                        '<p class="text-red-400 text-center">Failed to load container details: ' + escapeHtmlDetail(err.message) + '</p>';
+                });
+        }
+
+        // Render all container detail data
+        function renderContainerDetail(data) {
+            // Hide loading, show content
+            document.getElementById('detail-overview-loading').classList.add('hidden');
+            document.getElementById('detail-overview-content').classList.remove('hidden');
+
+            // Header
+            document.getElementById('detail-container-name').textContent = data.name || 'Unknown';
+            document.getElementById('detail-container-image').textContent = data.image || '--';
+
+            var dot = document.getElementById('detail-status-dot');
+            if (data.status === 'running') {
+                dot.className = 'w-3 h-3 rounded-full flex-shrink-0 ' + (data.health === 'healthy' ? 'bg-green-500 animate-pulse' : data.health === 'unhealthy' ? 'bg-red-500' : 'bg-yellow-500');
+            } else {
+                dot.className = 'w-3 h-3 rounded-full flex-shrink-0 bg-gray-500';
+            }
+
+            // Overview tab
+            document.getElementById('detail-id').textContent = data.id || '--';
+            document.getElementById('detail-profile').textContent = data.profile || '--';
+            document.getElementById('detail-image-full').textContent = data.image || '--';
+            document.getElementById('detail-created').textContent = fmtTime(data.created);
+            document.getElementById('detail-started').textContent = fmtTime(data.started);
+            document.getElementById('detail-uptime').textContent = data.uptime || '--';
+            document.getElementById('detail-restarts').textContent = data.restart_count !== undefined ? data.restart_count.toString() : '--';
+
+            // State badge
+            var stateEl = document.getElementById('detail-state');
+            stateEl.innerHTML = data.status === 'running'
+                ? '<span class="px-2 py-0.5 rounded text-xs font-medium bg-green-900/50 text-green-400">' + escapeHtmlDetail(data.status) + '</span>'
+                : '<span class="px-2 py-0.5 rounded text-xs font-medium bg-gray-700 text-gray-400">' + escapeHtmlDetail(data.status || '--') + '</span>';
+
+            // Health badge
+            var healthEl = document.getElementById('detail-health');
+            var hClass = data.health === 'healthy' ? 'bg-green-900/50 text-green-400' : data.health === 'unhealthy' ? 'bg-red-900/50 text-red-400' : 'bg-gray-700 text-gray-400';
+            healthEl.innerHTML = '<span class="px-2 py-0.5 rounded text-xs font-medium ' + hClass + '">' + escapeHtmlDetail(data.health || 'none') + '</span>';
+
+            // Health checks
+            var checksContainer = document.getElementById('detail-health-checks');
+            var checksList = document.getElementById('detail-health-checks-list');
+            if (data.health_checks && data.health_checks.length > 0) {
+                checksContainer.classList.remove('hidden');
+                checksList.innerHTML = data.health_checks.map(function(hc) {
+                    var icon = hc.exit_code === 0
+                        ? '<svg class="w-3.5 h-3.5 health-check-pass flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>'
+                        : '<svg class="w-3.5 h-3.5 health-check-fail flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>';
+                    return '<div class="flex items-center space-x-2 text-xs py-1">' +
+                        icon +
+                        '<span class="text-gray-500">' + fmtTime(hc.timestamp) + '</span>' +
+                        '<span class="text-gray-400 truncate">' + escapeHtmlDetail(hc.output || '(no output)') + '</span>' +
+                        '</div>';
+                }).join('');
+            } else {
+                checksContainer.classList.add('hidden');
+            }
+
+            // Command
+            var epRow = document.getElementById('detail-entrypoint-row');
+            var cmdRow = document.getElementById('detail-command-row');
+            if (data.entrypoint) {
+                epRow.classList.remove('hidden');
+                document.getElementById('detail-entrypoint').textContent = data.entrypoint;
+            } else {
+                epRow.classList.add('hidden');
+            }
+            if (data.command) {
+                cmdRow.classList.remove('hidden');
+                document.getElementById('detail-command').textContent = data.command;
+            } else {
+                cmdRow.classList.add('hidden');
+            }
+
+            // Resources tab
+            renderResourcesTab(data);
+
+            // Configuration tab
+            renderConfigurationTab(data);
+
+            // Update timestamp
+            document.getElementById('detail-last-updated').textContent = 'Updated ' + new Date().toLocaleTimeString();
+        }
+
+        function renderResourcesTab(data) {
+            // CPU
+            var cpuPercent = (data.cpu_percent || 0).toFixed(1);
+            document.getElementById('detail-cpu-value').textContent = cpuPercent + '%';
+            var cpuBar = document.getElementById('detail-cpu-bar');
+            cpuBar.style.width = Math.min(100, parseFloat(cpuPercent)) + '%';
+            cpuBar.className = 'gauge-fill ' + (parseFloat(cpuPercent) > 80 ? 'bg-red-500' : parseFloat(cpuPercent) > 50 ? 'bg-amber-500' : 'bg-green-500');
+
+            // Memory
+            var mem = data.memory_breakdown || {};
+            var memUsed = mem.usage || 0;
+            var memLimit = mem.limit || 0;
+            var memPercent = memLimit > 0 ? (memUsed / memLimit) * 100 : 0;
+            document.getElementById('detail-memory-value').textContent = fmtBytes(memUsed) + (memLimit > 0 ? ' / ' + fmtBytes(memLimit) : '');
+            var memBar = document.getElementById('detail-memory-bar');
+            memBar.style.width = Math.min(100, memPercent) + '%';
+            memBar.className = 'gauge-fill ' + (memPercent > 80 ? 'bg-red-500' : memPercent > 60 ? 'bg-amber-500' : 'bg-blue-500');
+
+            document.getElementById('detail-mem-rss').textContent = fmtBytes(mem.rss || 0);
+            document.getElementById('detail-mem-cache').textContent = fmtBytes(mem.cache || 0);
+            document.getElementById('detail-mem-swap').textContent = fmtBytes(mem.swap || 0);
+
+            // Network I/O
+            var net = data.network_io || {};
+            document.getElementById('detail-net-rx').textContent = fmtBytes(net.rx_bytes || 0);
+            document.getElementById('detail-net-tx').textContent = fmtBytes(net.tx_bytes || 0);
+            document.getElementById('detail-net-rx-packets').textContent = (net.rx_packets || 0).toLocaleString() + ' packets';
+            document.getElementById('detail-net-tx-packets').textContent = (net.tx_packets || 0).toLocaleString() + ' packets';
+
+            // Block I/O
+            var blk = data.block_io || {};
+            document.getElementById('detail-blkio-read').textContent = fmtBytes(blk.read_bytes || 0);
+            document.getElementById('detail-blkio-write').textContent = fmtBytes(blk.write_bytes || 0);
+
+            // PIDs
+            document.getElementById('detail-pid-count').textContent = data.pid_count || '--';
+        }
+
+        function renderConfigurationTab(data) {
+            // Environment variables
+            var envList = document.getElementById('detail-env-list');
+            var envVars = data.environment || [];
+            document.getElementById('detail-env-count').textContent = envVars.length + ' var' + (envVars.length !== 1 ? 's' : '');
+            if (envVars.length > 0) {
+                envList.innerHTML = envVars.map(function(env) {
+                    var masked = env.value === '***';
+                    var valueClass = masked ? 'text-amber-400' : 'text-gray-300';
+                    return '<div class="flex items-start text-xs font-mono py-1 border-b border-gray-700/50">' +
+                        '<span class="text-primary-400 min-w-0 break-all">' + escapeHtmlDetail(env.key) + '</span>' +
+                        '<span class="text-gray-600 mx-1">=</span>' +
+                        '<span class="' + valueClass + ' min-w-0 break-all">' + escapeHtmlDetail(env.value) + '</span>' +
+                        '</div>';
+                }).join('');
+            } else {
+                envList.innerHTML = '<p class="text-gray-500 text-sm italic">No environment variables</p>';
+            }
+
+            // Mounts
+            var mountsList = document.getElementById('detail-mounts-list');
+            var mounts = data.mounts || [];
+            document.getElementById('detail-mounts-count').textContent = mounts.length + ' mount' + (mounts.length !== 1 ? 's' : '');
+            if (mounts.length > 0) {
+                mountsList.innerHTML = mounts.map(function(m) {
+                    var typeColor = m.type === 'volume' ? 'text-primary-400' : m.type === 'bind' ? 'text-amber-400' : 'text-gray-400';
+                    var rwBadge = m.rw
+                        ? '<span class="px-1.5 py-0.5 bg-amber-900/50 text-amber-400 rounded text-xs">RW</span>'
+                        : '<span class="px-1.5 py-0.5 bg-green-900/50 text-green-400 rounded text-xs">RO</span>';
+                    return '<div class="bg-gray-800 rounded p-2 text-xs space-y-1">' +
+                        '<div class="flex items-center justify-between">' +
+                        '<span class="' + typeColor + ' font-medium">' + escapeHtmlDetail(m.type) + (m.name ? ': ' + escapeHtmlDetail(m.name) : '') + '</span>' +
+                        rwBadge +
+                        '</div>' +
+                        '<div class="text-gray-500 font-mono break-all">' + escapeHtmlDetail(m.source) + ' &rarr; ' + escapeHtmlDetail(m.destination) + '</div>' +
+                        '</div>';
+                }).join('');
+            } else {
+                mountsList.innerHTML = '<p class="text-gray-500 text-sm italic">No mounts</p>';
+            }
+
+            // Networks
+            var networksList = document.getElementById('detail-networks-list');
+            var networks = data.networks || [];
+            if (networks.length > 0) {
+                networksList.innerHTML = networks.map(function(n) {
+                    return '<div class="bg-gray-800 rounded p-2 text-xs flex items-center justify-between">' +
+                        '<span class="text-primary-400 font-medium">' + escapeHtmlDetail(n.name) + '</span>' +
+                        '<span class="text-gray-400 font-mono">' + escapeHtmlDetail(n.ip_address || 'no IP') + '</span>' +
+                        '</div>';
+                }).join('');
+            } else {
+                networksList.innerHTML = '<p class="text-gray-500 text-sm italic">No networks</p>';
+            }
+
+            // Ports
+            var portsList = document.getElementById('detail-ports-list');
+            var ports = data.ports || [];
+            if (ports.length > 0) {
+                portsList.innerHTML = ports.map(function(p) {
+                    var mapping = p.host && p.host > 0
+                        ? '<span class="text-green-400">' + p.host + '</span> &rarr; <span class="text-gray-300">' + p.container + '/' + p.protocol + '</span>'
+                        : '<span class="text-gray-300">' + p.container + '/' + p.protocol + '</span>';
+                    return '<div class="text-xs font-mono py-1">' + mapping + '</div>';
+                }).join('');
+            } else {
+                portsList.innerHTML = '<p class="text-gray-500 text-sm italic">No port mappings</p>';
+            }
+
+            // Security
+            document.getElementById('detail-readonly-rootfs').innerHTML = data.security && data.security.read_only_rootfs
+                ? '<span class="text-green-400">Yes</span>'
+                : '<span class="text-gray-400">No</span>';
+            document.getElementById('detail-privileged').innerHTML = data.security && data.security.privileged
+                ? '<span class="text-red-400">Yes</span>'
+                : '<span class="text-green-400">No</span>';
+
+            renderBadgeList('detail-cap-add', data.security ? data.security.cap_add : [], 'bg-amber-900/50 text-amber-400');
+            renderBadgeList('detail-cap-drop', data.security ? data.security.cap_drop : [], 'bg-green-900/50 text-green-400');
+            renderBadgeList('detail-security-opt', data.security ? data.security.security_opt : [], 'bg-gray-700 text-gray-300');
+
+            // Resource limits
+            var limits = data.resource_limits || {};
+            document.getElementById('detail-limit-memory').textContent = limits.memory_bytes > 0 ? fmtBytes(limits.memory_bytes) : 'Unlimited';
+
+            var cpuLimitText = 'Unlimited';
+            if (limits.nano_cpus > 0) {
+                cpuLimitText = (limits.nano_cpus / 1e9).toFixed(2) + ' cores';
+            } else if (limits.cpu_quota > 0 && limits.cpu_period > 0) {
+                cpuLimitText = (limits.cpu_quota / limits.cpu_period).toFixed(2) + ' cores';
+            }
+            document.getElementById('detail-limit-cpu').textContent = cpuLimitText;
+        }
+
+        function renderBadgeList(elementId, items, badgeClass) {
+            var el = document.getElementById(elementId);
+            if (!items || items.length === 0) {
+                el.innerHTML = '<span class="text-gray-500 text-xs italic">None</span>';
+                return;
+            }
+            el.innerHTML = items.map(function(item) {
+                return '<span class="px-1.5 py-0.5 rounded text-xs ' + badgeClass + '">' + escapeHtmlDetail(item) + '</span>';
+            }).join('');
+        }
+
+        function escapeHtmlDetail(str) {
+            if (!str) return '';
+            var div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
+        // Scroll to containers section (for "This Instance" card click)
+        window.scrollToContainers = function() {
+            var section = document.getElementById('modules-container');
+            if (section) {
+                section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                // Brief highlight effect
+                section.style.outline = '2px solid var(--color-accent)';
+                section.style.outlineOffset = '4px';
+                section.style.borderRadius = '0.5rem';
+                setTimeout(function() {
+                    section.style.outline = 'none';
+                }, 2000);
+            }
+        };
+
+        // Close on escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && currentContainerID) {
+                closeContainerDetail();
+            }
+        });
+    })();
+    </script>
 </body>
 </html>

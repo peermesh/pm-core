@@ -157,6 +157,107 @@ button:focus-visible {
 }
 
 /* ====================
+   Container Detail Panel
+   ==================== */
+
+/* Slide-out panel overlay */
+.detail-panel-overlay {
+    transition: opacity 0.2s ease;
+}
+
+/* Slide-out panel */
+.detail-panel {
+    transition: transform 0.3s ease;
+    transform: translateX(100%);
+}
+
+.detail-panel.open {
+    transform: translateX(0);
+}
+
+/* Tab styles */
+.detail-tab {
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--color-text-secondary);
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+    transition: color 0.15s ease, border-color 0.15s ease;
+    white-space: nowrap;
+}
+
+.detail-tab:hover {
+    color: var(--color-text-primary);
+}
+
+.detail-tab.active {
+    color: var(--color-accent);
+    border-bottom-color: var(--color-accent);
+}
+
+/* Gauge styles */
+.gauge-bar {
+    height: 0.5rem;
+    border-radius: 0.25rem;
+    overflow: hidden;
+    background-color: var(--color-bg-tertiary);
+}
+
+.gauge-fill {
+    height: 100%;
+    border-radius: 0.25rem;
+    transition: width 0.5s ease;
+}
+
+/* Clickable container rows */
+.container-row-clickable {
+    cursor: pointer;
+}
+
+.container-row-clickable:hover {
+    background-color: rgba(55, 65, 81, 0.7) !important;
+}
+
+/* Detail panel scrollbar */
+.detail-panel-content {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-bg-tertiary) var(--color-bg-secondary);
+}
+
+.detail-panel-content::-webkit-scrollbar {
+    width: 6px;
+}
+
+.detail-panel-content::-webkit-scrollbar-track {
+    background: var(--color-bg-secondary);
+}
+
+.detail-panel-content::-webkit-scrollbar-thumb {
+    background: var(--color-bg-tertiary);
+    border-radius: 3px;
+}
+
+/* Health check badge */
+.health-check-pass {
+    color: var(--color-success);
+}
+
+.health-check-fail {
+    color: var(--color-error);
+}
+
+/* Instance card clickable */
+.instance-card-clickable {
+    cursor: pointer;
+    transition: border-color 0.2s ease;
+}
+
+.instance-card-clickable:hover {
+    border-color: var(--color-accent) !important;
+}
+
+/* ====================
    Guest/Demo Mode Styles
    ==================== */
 

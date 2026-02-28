@@ -56,7 +56,7 @@ func isSafeEndpoint(method, path string) bool {
 
 	// Check if the path matches any safe endpoint
 	for _, safe := range safeEndpoints {
-		if path == safe || strings.HasPrefix(path, safe+"?") {
+		if path == safe || strings.HasPrefix(path, safe+"?") || strings.HasPrefix(path, safe+"/") {
 			return true
 		}
 	}

@@ -70,7 +70,7 @@
 </template>
 
 <template id="container-row-template">
-    <div class="container-row flex items-center justify-between bg-gray-700/30 rounded-lg p-3 hover:bg-gray-700/50 transition-colors">
+    <div class="container-row container-row-clickable flex items-center justify-between bg-gray-700/30 rounded-lg p-3 hover:bg-gray-700/50 transition-colors" title="Click for details">
         <div class="flex items-center space-x-3">
             <div class="container-status-dot w-2 h-2 rounded-full"></div>
             <div>
@@ -82,6 +82,9 @@
             <span class="container-memory"></span>
             <span class="container-cpu"></span>
             <span class="container-state px-2 py-0.5 rounded text-xs font-medium"></span>
+            <svg class="w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+            </svg>
         </div>
     </div>
 </template>
@@ -188,6 +191,14 @@
             stateEl.className = 'container-state px-2 py-0.5 rounded text-xs font-medium bg-red-500/20 text-red-400';
         } else {
             stateEl.className = 'container-state px-2 py-0.5 rounded text-xs font-medium bg-gray-500/20 text-gray-400';
+        }
+
+        // Add click handler to open container detail panel
+        if (container.id && typeof window.openContainerDetail === 'function') {
+            row.setAttribute('data-container-id', container.id);
+            row.addEventListener('click', function() {
+                window.openContainerDetail(container.id);
+            });
         }
 
         return row;

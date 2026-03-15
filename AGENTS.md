@@ -181,6 +181,7 @@ User assigns a role with phrases like:
 | `blueprint keeper`, `check vision`, `vision alignment` | `agent-blueprint-keeper.md` | **L2 Hierarchy.** Strategic vision guardian. Cascades vision changes. |
 | `request router`, `route request`, `evaluate request` | `agent-request-router.md` | **L3 Hierarchy.** Blueprint-aware gatekeeper. Creates WOs from validated requests. |
 | `gas manager`, `gas team`, `gas teams`, `launch gas team`, `launch gas teams`, `execute work orders`, `run gas loop` | `agent-gas-manager.md` | **L4 Hierarchy.** Autonomous WO execution engine. Spawns workers, monitors completion. |
+| `paperclip worker`, `paperclip agent` | `agent-paperclip-worker.md` | Paperclip-managed heartbeat worker |
 | `trio`, `activate trio` | All three agents | Multi-agent coordination |
 | `commit agent`, `smart commit` | `SMART-COMMIT-MODE.md` | Intelligent commits |
 | `design parity audit`, `run design audit`, `design audit`, `DPA`, `journey audit`, `check design parity`, `are the specs implemented` | `DESIGN-PARITY-AUDIT-MODE.md` | Three-parity audit: Vision-to-Design, Design-to-Code, Journey-to-Experience. Parallel agents, delta tracking, remediation WOs. |
@@ -1297,6 +1298,28 @@ agents_dir = "~/.agents"  # DISASTER
 | `"~/.agents/"` | Python string | ❌ No | ❌ Creates ~/dir |
 
 **Remember:** If your path contains a literal `~` character after assignment, it's NOT expanded - you WILL create a `~` directory!
+
+---
+
+## 🌐 GAS LLM GATEWAY (PAPERCLIP AGENTS)
+
+Paperclip-managed agents can optionally call the GAS LLM gateway for supplementary completions (routing, summarization, parallel queries) without replacing their primary Claude/Codex adapter.
+
+**Env var:** `GAS_LLM_GATEWAY_URL` — injected automatically into all Paperclip agent processes.
+**Default value:** `http://127.0.0.1:8201`
+**Health check:** `GET $GAS_LLM_GATEWAY_URL/health`
+
+**Usage from agent code:**
+```python
+import os, httpx
+gateway = os.environ.get("GAS_LLM_GATEWAY_URL")
+if gateway:
+    resp = httpx.post(f"{gateway}/v1/chat", json={"model": "claude-cli/sonnet", "messages": [...]})
+```
+
+**How it is injected (two mechanisms):**
+1. **Per-agent (adapterConfig.env):** Each agent's `adapterConfig.env` can include `GAS_LLM_GATEWAY_URL` with `{type: "plain", value: "http://127.0.0.1:8201"}`. Resolved by Paperclip secrets service at heartbeat time.
+2. **Server-level (LaunchAgent):** `ai.gas.paperclip` plist and `run-paperclip-launchd.sh` export `GAS_LLM_GATEWAY_URL` so all spawned agent processes inherit it via `process.env`. Takes effect on next Paperclip server restart.
 
 ---
 

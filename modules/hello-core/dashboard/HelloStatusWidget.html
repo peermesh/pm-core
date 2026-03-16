@@ -1,0 +1,194 @@
+<!--
+  Hello Core Module - Dashboard Status Widget
+
+  A minimal dashboard widget showing module status and greeting.
+  This widget demonstrates the pattern for dashboard integration.
+
+  NOTE: The current Docker Lab dashboard does not dynamically load
+  widget HTML from module directories at runtime. This widget
+  documents the pattern and structure for when that capability
+  is implemented. For advanced widget examples with config panels
+  and charts, see the backup module: modules/backup/dashboard/
+
+  Data flow:
+    1. Widget attempts to fetch health data from module API endpoint
+    2. Falls back to window.helloCoreHealthData if API is unavailable
+    3. Displays module status, greeting, and link to the module page
+-->
+<div class="hello-status-widget" id="hello-status-widget">
+  <div class="widget-header">
+    <div class="widget-icon">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M18 8h1a4 4 0 0 1 0 8h-1"/>
+        <path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/>
+        <line x1="6" y1="1" x2="6" y2="4"/>
+        <line x1="10" y1="1" x2="10" y2="4"/>
+        <line x1="14" y1="1" x2="14" y2="4"/>
+      </svg>
+    </div>
+    <h3 class="widget-title">Hello Core Module</h3>
+    <span class="status-indicator" id="hello-status-indicator" data-status="unknown"></span>
+  </div>
+
+  <div class="widget-content">
+    <div class="hello-info-row">
+      <span class="hello-label">Status</span>
+      <span class="hello-value" id="hello-core-status">--</span>
+    </div>
+    <div class="hello-info-row">
+      <span class="hello-label">Greeting</span>
+      <span class="hello-value" id="hello-core-greeting">--</span>
+    </div>
+    <div class="hello-info-row">
+      <span class="hello-label">Version</span>
+      <span class="hello-value">1.0.0</span>
+    </div>
+  </div>
+
+  <div class="widget-footer">
+    <a href="/hello-core" class="widget-link" id="hello-core-link">Open Module</a>
+  </div>
+</div>
+
+<style>
+  .hello-status-widget {
+    background: var(--widget-bg, #ffffff);
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    padding: 16px;
+    font-family: var(--font-family, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif);
+  }
+
+  .hello-status-widget .widget-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border-color, #e5e7eb);
+  }
+
+  .hello-status-widget .widget-icon {
+    color: var(--primary-color, #3b82f6);
+    display: flex;
+    align-items: center;
+  }
+
+  .hello-status-widget .widget-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary, #111827);
+    margin: 0;
+    flex: 1;
+  }
+
+  .hello-status-widget .status-indicator {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--status-unknown, #9ca3af);
+  }
+
+  .hello-status-widget .status-indicator[data-status="healthy"] {
+    background: var(--status-healthy, #10b981);
+  }
+
+  .hello-status-widget .status-indicator[data-status="degraded"] {
+    background: var(--status-degraded, #f59e0b);
+  }
+
+  .hello-status-widget .status-indicator[data-status="unhealthy"] {
+    background: var(--status-unhealthy, #ef4444);
+  }
+
+  .hello-status-widget .widget-content {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .hello-info-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+  }
+
+  .hello-label {
+    color: var(--text-secondary, #6b7280);
+  }
+
+  .hello-value {
+    color: var(--text-primary, #111827);
+    font-weight: 500;
+  }
+
+  .hello-status-widget .widget-footer {
+    margin-top: 16px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border-color, #e5e7eb);
+    text-align: right;
+  }
+
+  .hello-status-widget .widget-link {
+    font-size: 12px;
+    color: var(--primary-color, #3b82f6);
+    text-decoration: none;
+  }
+
+  .hello-status-widget .widget-link:hover {
+    text-decoration: underline;
+  }
+
+  /* Dark mode support */
+  @media (prefers-color-scheme: dark) {
+    .hello-status-widget {
+      --widget-bg: #1f2937;
+      --text-primary: #f9fafb;
+      --text-secondary: #9ca3af;
+      --border-color: #374151;
+    }
+  }
+</style>
+
+<script>
+(function() {
+  'use strict';
+
+  var statusIndicator = document.getElementById('hello-status-indicator');
+  var moduleStatus = document.getElementById('hello-core-status');
+  var moduleGreeting = document.getElementById('hello-core-greeting');
+
+  function updateWidget(data) {
+    statusIndicator.dataset.status = data.status || 'unknown';
+    moduleStatus.textContent = data.status ? data.status.charAt(0).toUpperCase() + data.status.slice(1) : '--';
+    moduleGreeting.textContent = data.greeting || 'Hello from PeerMesh!';
+  }
+
+  // Try to fetch health data from module API
+  async function fetchHealth() {
+    try {
+      var response = await fetch('/api/modules/hello-core/health');
+      if (response.ok) {
+        var data = await response.json();
+        updateWidget(data);
+        return;
+      }
+    } catch (e) {
+      // API not available
+    }
+
+    // Fallback to injected data or defaults
+    if (window.helloCoreHealthData) {
+      updateWidget(window.helloCoreHealthData);
+    } else {
+      updateWidget({ status: 'unknown', greeting: 'Hello from PeerMesh!' });
+    }
+  }
+
+  fetchHealth();
+
+  // Refresh every 5 minutes
+  setInterval(fetchHealth, 5 * 60 * 1000);
+})();
+</script>

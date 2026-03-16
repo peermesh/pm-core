@@ -1,0 +1,183 @@
+# ==============================================================
+# Hello Core Module - Docker Compose Configuration
+# ==============================================================
+# A complete, working example module for PeerMesh Docker Lab.
+# Serves a static "Hello from PeerMesh" greeting page via nginx.
+#
+# This file demonstrates:
+#   - Extending foundation base patterns (_service-lite)
+#   - Pinned image digest for supply-chain security
+#   - Traefik labels for HTTPS routing
+#   - Health check configuration
+#   - Resource limits via foundation inheritance
+#   - Network isolation (proxy-external only)
+#
+# Prerequisites:
+#   - Foundation stack running (Traefik, socket-proxy)
+#   - DOMAIN environment variable set
+#
+# Deploy (standalone):
+#   cd modules/hello-core
+#   docker compose up -d
+#
+# Deploy (with foundation):
+#   docker compose -f docker-compose.yml \
+#     -f modules/hello-core/docker-compose.yml \
+#     up -d
+#
+# Documentation: hello-core/README.md
+# ==============================================================
+
+services:
+  # ==========================================================================
+  # Hello Core Module - Nginx Web Server
+  # ==========================================================================
+  # Serves a static greeting page. Extends _service-lite for resource limits
+  # (256MB memory, 0.5 CPU) and standard logging configuration.
+
+  hello-core:
+    # Extend from foundation base service for consistent resource limits
+    # Options: _service-lite (256MB), _service-standard (512MB), _service-heavy (1GB)
+    # CUSTOMIZE: Change the resource profile if your module needs more resources
+    extends:
+      file: ../../foundation/docker-compose.base.yml
+      service: _service-lite
+
+    # CUSTOMIZE: Replace with your module's image
+    # Always pin the digest for supply-chain security
+    image: nginx:1.27-alpine@sha256:65645c7bb6a0661892a8b03b89d0743208a18dd2f3f17a54ef4b76fb8e2f2a10
+
+    # CUSTOMIZE: Change to your module name
+    container_name: hello-core
+
+    # Environment configuration
+    # CUSTOMIZE: Add your module's environment variables
+    environment:
+      - HELLO_CORE_GREETING=${HELLO_CORE_GREETING:-Hello from PeerMesh!}
+      - HELLO_CORE_SUBDOMAIN=${HELLO_CORE_SUBDOMAIN:-hello-core}
+
+    # Mount the static HTML content into nginx
+    # CUSTOMIZE: Replace with your application's volume mounts
+    volumes:
+      - ./html:/usr/share/nginx/html:ro
+
+    # Health check using wget (available in Alpine images)
+    # CUSTOMIZE: Adjust the health check for your application's endpoint
+    healthcheck:
+      # Busybox wget is present in nginx:alpine; add a per-request timeout to avoid hangs
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "--timeout=2", "http://127.0.0.1:80/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+    # Network: join proxy-external so Traefik can route traffic to this service
+    # CUSTOMIZE: Add db-internal if your module needs database access
+    networks:
+      - proxy-external
+
+    # Security hardening
+    # CUSTOMIZE: Keep these unless your application requires specific capabilities
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    # nginx entrypoint performs a chown on /var/cache/nginx; with all caps dropped
+    # that fails. Add back only the minimal capability needed.
+    cap_add:
+      - CHOWN
+      # nginx needs to drop privileges from root to nginx (uid/gid 101)
+      # CAP_SETGID and CAP_SETUID are required for setgid/setuid syscalls
+      - SETGID
+      - SETUID
+
+    # Traefik routing labels
+    # CUSTOMIZE: Replace 'hello-core' with your module name throughout
+    labels:
+      - "traefik.enable=true"
+
+      # Router: HTTPS access at hello-core.${DOMAIN}
+      # CUSTOMIZE: Change the Host rule to your module's subdomain
+      - "traefik.http.routers.hello-core.rule=Host(`${HELLO_CORE_SUBDOMAIN:-hello-core}.${DOMAIN}`)"
+      - "traefik.http.routers.hello-core.entrypoints=websecure"
+      - "traefik.http.routers.hello-core.tls.certresolver=letsencrypt"
+
+      # Service: forward traffic to nginx port 80
+      # CUSTOMIZE: Change the port to match your application
+      - "traefik.http.services.hello-core.loadbalancer.server.port=80"
+
+      # OPTIONAL: Uncomment to require authentication via Authelia/auth middleware
+      # - "traefik.http.routers.hello-core.middlewares=auth@file"
+
+# ==============================================================
+# EXAMPLE: Uncomment to add a PostgreSQL database
+# ==============================================================
+# This demonstrates how to add a database dependency to your module.
+#
+#  hello-core-db:
+#    extends:
+#      file: ../../foundation/docker-compose.base.yml
+#      service: _service-lite
+#    image: postgres:17-alpine@sha256:REPLACE_WITH_ACTUAL_DIGEST
+#    container_name: hello-core-db
+#    environment:
+#      POSTGRES_DB: hello_core
+#      POSTGRES_USER: hello_core
+#      POSTGRES_PASSWORD_FILE: /run/secrets/hello_core_db_password
+#    secrets:
+#      - hello_core_db_password
+#    volumes:
+#      - hello-core-db-data:/var/lib/postgresql/data
+#    networks:
+#      - db-internal
+#    healthcheck:
+#      test: ["CMD-SHELL", "pg_isready -U hello_core"]
+#      interval: 10s
+#      timeout: 5s
+#      retries: 5
+#      start_period: 30s
+#
+# If adding a database, also uncomment in the hello-core service:
+#    depends_on:
+#      hello-core-db:
+#        condition: service_healthy
+#    networks:
+#      - db-internal
+#    environment:
+#      - DATABASE_URL=postgresql://hello_core:${HELLO_CORE_DB_PASSWORD}@hello-core-db:5432/hello_core
+
+# ==============================================================
+# Secrets (Optional)
+# ==============================================================
+# Uncomment to use file-based secrets (recommended over env vars).
+#
+# secrets:
+#   hello_core_db_password:
+#     file: ./secrets/hello_core_db_password
+
+# ==============================================================
+# Volumes (Optional)
+# ==============================================================
+# Uncomment if your module needs persistent data storage.
+#
+# volumes:
+#   hello-core-data:
+#     name: hello-core-data
+#   hello-core-db-data:
+#     name: hello-core-db-data
+
+# ==============================================================
+# Networks
+# ==============================================================
+# Declare external networks used by this module.
+# These are created by the foundation stack.
+
+networks:
+  proxy-external:
+    external: true
+    name: pmdl_proxy-external
+
+  # OPTIONAL: Uncomment if your module needs database access
+  # db-internal:
+  #   external: true
+  #   name: pmdl_db-internal

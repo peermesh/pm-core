@@ -2,13 +2,13 @@
 # ==============================================================
 # Hello Custom Module - HTML Renderer (Template)
 # ==============================================================
-# Purpose: Replace the HELLO_CUSTOM_NOTE placeholder inside the
-# template so the configured note appears in the served page.
+# Purpose: Replace the HELLO_CUSTOM_NOTE placeholder so the
+# configured note appears in the served page.
 # This script is intentionally POSIX-compatible so it can run inside
 # both the host hooks and the nginx container at startup.
 # ==============================================================
 
-set -e
+set -euo pipefail
 
 MODULE_HTML_DIR="$(cd "$(dirname "$0")" && pwd)"
 MODULE_DIR="$(cd "${MODULE_HTML_DIR}/.." && pwd)"
@@ -30,7 +30,9 @@ if [ ! -f "$TEMPLATE" ]; then
   exit 1
 fi
 
-awk -v note="$NOTE" '{
-  gsub(/\{\{HELLO_CUSTOM_NOTE\}\}/, note)
-  print
-}' "$TEMPLATE" > "$OUTPUT"
+{
+  while IFS= read -r line || [ -n "$line" ]; do
+    line="${line//\{\{HELLO_CUSTOM_NOTE\}\}/$NOTE}"
+    printf '%s\n' "$line"
+  done
+} < "$TEMPLATE" > "$OUTPUT"

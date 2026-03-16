@@ -180,7 +180,7 @@ The `docker-compose.yml` contains a commented-out PostgreSQL example. To add a d
 
 ## How to Add Dashboard Components
 
-The `dashboard/HelloStatusWidget.html` demonstrates a minimal status widget. For more advanced examples:
+The `dashboard/HelloCustomStatusWidget.html` demonstrates a minimal status widget. For more advanced examples:
 
 - **Config panels**: See `modules/backup/dashboard/BackupConfigPanel.html`
 - **Full pages**: See `modules/backup/dashboard/BackupPage.html`

@@ -1,10 +1,10 @@
 # Deployment Guide
 
-Deploy Peer Mesh Docker Lab to a commodity VPS ($20-50/month) running Ubuntu 22.04/24.04 LTS.
+Deploy PeerMeshCore Docker Lab to a commodity VPS ($20-50/month) running Ubuntu 22.04/24.04 LTS.
 
 ## Deployment Paths
 
-Docker Lab supports two valid paths:
+PeerMeshCore Docker Lab supports two valid paths:
 
 1. OpenTofu-managed infrastructure (recommended):
    - OpenTofu provisions VPS/network/firewall/DNS via provider API
@@ -802,7 +802,7 @@ The `.deployignore` file specifies files and directories that should **never** b
 | Category | Files/Patterns | Reason |
 |----------|---------------|--------|
 | Secrets | `.env`, `secrets/`, `*.key`, `*.pem` | Contain credentials |
-| AI Workspace | `.dev/` | Work orders, findings, development notes |
+| AI Workspace | Development workspace artifacts | Work orders, findings, development notes |
 | Local Overrides | `*.local.*`, `docker-compose.override.yml` | Dev-specific configs |
 | IDE Config | `.vscode/`, `.idea/` | Developer settings |
 | Test Fixtures | `**/test/fixtures/`, `*.test.env` | May contain mock credentials |
@@ -830,7 +830,7 @@ To verify your deployment doesn't contain sensitive files:
 
 ```bash
 # On VPS, check for files that shouldn't exist
-find /opt/peermesh -name "*.key" -o -type d -name ".dev"
+find /opt/peermesh -name "*.key" -o -type d -name "*workspace*"
 
 # Ensure .env is present but untracked
 cd /opt/peermesh

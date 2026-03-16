@@ -1,10 +1,10 @@
-# Docker Lab
+# PeerMeshCore Docker Lab
 
-Production-ready Docker Compose boilerplate for self-hosted applications. Clone it, configure it, deploy it.
+PeerMeshCore's runtime foundation for self-hosted applications. Clone it, configure it, deploy it.
 
 ## What This Repository Is
 
-**A production-grade Docker infrastructure foundation.** This repository provides:
+**A production-grade PeerMeshCore runtime foundation.** This repository provides:
 
 - Battle-tested Docker Compose configurations for common deployment patterns
 - A foundation runtime stack (not a single app container) that other module containers layer onto
@@ -15,11 +15,11 @@ Production-ready Docker Compose boilerplate for self-hosted applications. Clone 
 - Healthcheck-based startup ordering for reliable deployments
 - Network isolation patterns for security
 
-This is infrastructure boilerplate - a starting point you clone and customize for your specific application needs.
+This is infrastructure boilerplate for PeerMeshCore – clone it and layer your own modules on top.
 
 ## Canonical Deployment Model
 
-Docker Lab uses a two-layer model:
+PeerMeshCore Docker Lab uses a two-layer model:
 
 1. OpenTofu provisions infrastructure through provider APIs (for example, Hetzner VPS + DNS prerequisites).
 2. Docker Lab deploys and operates the runtime foundation and modules on that infrastructure.
@@ -58,11 +58,11 @@ cd docker-lab
 ./launch_peermesh.sh status
 ```
 
-Your services are now running with Traefik reverse proxy at ports 80/443.
+Your PeerMeshCore runtime is now running with Traefik reverse proxy at ports 80/443.
 
 ## Unified CLI
 
-The `launch_peermesh.sh` script provides a single entry point for all deployment operations:
+The `launch_peermesh.sh` script is the PeerMeshCore CLI and provides a single entry point for all deployment operations:
 
 ```bash
 # Interactive menu (run without arguments)

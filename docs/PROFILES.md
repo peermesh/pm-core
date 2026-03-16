@@ -4,7 +4,7 @@ Understand and customize resource profiles and supporting tech profiles.
 
 ## What Are Profiles?
 
-Peer Mesh Docker Lab uses two types of profiles:
+PeerMeshCore Docker Lab uses two types of profiles:
 
 1. **Resource Profiles** - Control memory and CPU allocation (`lite`, `core`, `full`)
 2. **Supporting Tech Profiles** - Add database and infrastructure services (`postgresql`, `mysql`, `redis`, etc.)
@@ -127,13 +127,13 @@ Include the profile's compose file:
 ```bash
 # Single profile
 docker compose -f docker-compose.yml \
-               -f .dev/profiles/postgresql/docker-compose.postgresql.yml \
+               -f profiles/postgresql/docker-compose.postgresql.yml \
                up -d
 
 # Multiple profiles
 docker compose -f docker-compose.yml \
-               -f .dev/profiles/postgresql/docker-compose.postgresql.yml \
-               -f .dev/profiles/redis/docker-compose.redis.yml \
+               -f profiles/postgresql/docker-compose.postgresql.yml \
+               -f profiles/redis/docker-compose.redis.yml \
                up -d
 ```
 
@@ -217,7 +217,7 @@ services:
 5. Test with the foundation:
    ```bash
    docker compose -f docker-compose.yml \
-                  -f .dev/profiles/my-service/docker-compose.my-service.yml \
+  -f profiles/my-service/docker-compose.my-service.yml \
                   config
    ```
 

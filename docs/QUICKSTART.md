@@ -1,6 +1,6 @@
 # Quick Start Guide
 
-Get Peer Mesh Docker Lab running in 5 minutes.
+Get PeerMeshCore Docker Lab running in 5 minutes.
 
 Note:
 
@@ -69,7 +69,7 @@ This creates files in `secrets/` with randomly generated credentials.
 
 ## Step 4: Start Services
 
-Start the core infrastructure:
+Start the PeerMeshCore runtime foundation:
 
 ```bash
 docker compose up -d
@@ -79,7 +79,7 @@ For development with PostgreSQL:
 
 ```bash
 docker compose -f docker-compose.yml \
-               -f .dev/profiles/postgresql/docker-compose.postgresql.yml \
+               -f profiles/postgresql/docker-compose.postgresql.yml \
                up -d
 ```
 
@@ -111,12 +111,12 @@ http://localhost:8080
 ```bash
 # PostgreSQL
 docker compose -f docker-compose.yml \
-               -f .dev/profiles/postgresql/docker-compose.postgresql.yml \
+               -f profiles/postgresql/docker-compose.postgresql.yml \
                up -d
 
 # MySQL
 docker compose -f docker-compose.yml \
-               -f .dev/profiles/mysql/docker-compose.mysql.yml \
+               -f profiles/mysql/docker-compose.mysql.yml \
                up -d
 ```
 
@@ -125,8 +125,8 @@ docker compose -f docker-compose.yml \
 ```bash
 # Ghost blogging platform
 docker compose -f docker-compose.yml \
-               -f .dev/profiles/mysql/docker-compose.mysql.yml \
-               -f .dev/examples/ghost/docker-compose.ghost.yml \
+               -f profiles/mysql/docker-compose.mysql.yml \
+               -f examples/ghost/docker-compose.ghost.yml \
                up -d
 ```
 

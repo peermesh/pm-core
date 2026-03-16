@@ -2,7 +2,7 @@
 
 > **Note**: This is the operational backup/restore guide. Backup scripts are located in `profiles/<database>/backup-scripts/` within this repository.
 
-Create backups and recover data across all database profiles.
+Create backups and recover PeerMeshCore runtime data across all database profiles.
 
 ## Overview
 
@@ -402,8 +402,8 @@ New server from off-site backups:
 
 4. Start databases only:
    ```bash
-   docker compose -f docker-compose.yml \
-     -f .dev/profiles/postgresql/docker-compose.postgresql.yml \
+docker compose -f docker-compose.yml \
+     -f profiles/postgresql/docker-compose.postgresql.yml \
      up -d postgres
    sleep 30
    ```

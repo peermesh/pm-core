@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hello from PeerMesh Module System</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .container {
+      text-align: center;
+      max-width: 640px;
+      padding: 2rem;
+    }
+
+    .logo {
+      width: 80px;
+      height: 80px;
+      margin: 0 auto 2rem;
+      background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2.5rem;
+      box-shadow: 0 4px 24px rgba(59, 130, 246, 0.3);
+    }
+
+    h1 {
+      font-size: 2.5rem;
+      font-weight: 700;
+      color: #f8fafc;
+      margin-bottom: 0.5rem;
+      line-height: 1.2;
+    }
+
+    .greeting {
+      font-size: 1.25rem;
+      color: #94a3b8;
+      margin-bottom: 2rem;
+    }
+
+    .card {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+      text-align: left;
+    }
+
+    .card h2 {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 1rem;
+    }
+
+    .custom-note-card {
+      border-color: #5b21b6;
+      background: #0f172a;
+    }
+
+    .custom-note-message {
+      color: #facc15;
+      font-size: 1rem;
+      margin-top: 0.75rem;
+      font-weight: 600;
+    }
+
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.5rem 0;
+      border-bottom: 1px solid #334155;
+    }
+
+    .info-row:last-child {
+      border-bottom: none;
+    }
+
+    .info-label {
+      color: #94a3b8;
+      font-size: 0.875rem;
+    }
+
+    .info-value {
+      color: #e2e8f0;
+      font-size: 0.875rem;
+      font-weight: 500;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.375rem;
+      background: rgba(16, 185, 129, 0.1);
+      color: #10b981;
+      padding: 0.25rem 0.75rem;
+      border-radius: 9999px;
+      font-size: 0.8125rem;
+      font-weight: 500;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #10b981;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .footer {
+      margin-top: 2rem;
+      font-size: 0.8125rem;
+      color: #475569;
+    }
+
+    .footer a {
+      color: #3b82f6;
+      text-decoration: none;
+    }
+
+    .footer a:hover {
+      text-decoration: underline;
+    }
+
+    @media (max-width: 480px) {
+      h1 { font-size: 1.75rem; }
+      .greeting { font-size: 1rem; }
+      .container { padding: 1rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="logo" aria-hidden="true">
+      <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M18 8h1a4 4 0 0 1 0 8h-1"/>
+        <path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/>
+        <line x1="6" y1="1" x2="6" y2="4"/>
+        <line x1="10" y1="1" x2="10" y2="4"/>
+        <line x1="14" y1="1" x2="14" y2="4"/>
+      </svg>
+    </div>
+
+    <h1>Hello from PeerMesh Custom</h1>
+    <p class="greeting">Second copy of the reference module</p>
+
+    <div class="card">
+      <h2>Module Information</h2>
+      <div class="info-row">
+        <span class="info-label">Module</span>
+        <span class="info-value">hello-custom</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Version</span>
+        <span class="info-value">1.0.0</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Status</span>
+        <span class="status-badge">
+          <span class="status-dot"></span>
+          Running
+        </span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Server</span>
+        <span class="info-value">nginx/alpine</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>What Is This?</h2>
+      <p style="color: #94a3b8; font-size: 0.875rem; line-height: 1.6;">
+        This is the <strong style="color: #e2e8f0;">Hello Custom Module</strong>, a second working
+        copy of the PeerMesh example. It demonstrates the same manifest configuration, lifecycle hooks,
+        Traefik routing, health checks, and dashboard integration as the original module.
+        The only difference is the configurable note that reflects HELLO_CUSTOM_NOTE, letting you
+        observe two modules running side-by-side.
+      </p>
+    </div>
+
+    <div class="card custom-note-card">
+      <h2>Custom Note</h2>
+      <p class="custom-note-message">Custom variant engaged</p>
+    </div>
+
+    <div class="footer">
+      <p>
+        PeerMesh Docker Lab &middot;
+        hello-custom variant &middot;
+        <a href="https://github.com/peermesh/hello-module">Hello Module Source</a> &middot;
+        <a href="https://github.com/peermesh/docker-lab">Documentation</a>
+      </p>
+    </div>
+  </div>
+</body>
+</html>

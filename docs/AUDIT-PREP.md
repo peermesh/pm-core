@@ -1,10 +1,10 @@
 # Security Audit Preparation Package
 
-Complete documentation package for professional security audit of Peer Mesh Docker Lab.
+Complete documentation package for professional security audit of PeerMeshCore Docker Lab.
 
 **Version**: 1.0.0
 **Prepared**: 2026-01-21
-**Project**: Peer Mesh Docker Lab
+**Project**: PeerMeshCore Docker Lab
 **Architecture**: Docker Compose only (no Kubernetes/Swarm)
 
 ---
@@ -27,7 +27,7 @@ Complete documentation package for professional security audit of Peer Mesh Dock
 
 ### Project Description
 
-Peer Mesh Docker Lab is a Docker Compose-based infrastructure platform designed for self-hosted applications on commodity VPS instances. It provides:
+PeerMeshCore Docker Lab is a Docker Compose-based infrastructure platform designed for self-hosted applications on commodity VPS instances. It provides:
 
 - **Reverse Proxy**: Traefik with automatic HTTPS
 - **Database Profiles**: PostgreSQL, MySQL, MongoDB, Redis
@@ -256,7 +256,7 @@ The platform implements defense-in-depth with:
 | Security Architecture | [`docs/SECURITY-ARCHITECTURE.md`](SECURITY-ARCHITECTURE.md) | Comprehensive security design |
 | Security Guide | [`docs/SECURITY.md`](SECURITY.md) | Hardening and best practices |
 | Security Checklist | [`docs/SECURITY-CHECKLIST.md`](SECURITY-CHECKLIST.md) | CIS/OWASP controls |
-| Security Findings | [`.dev/ai/security/SECURITY-FINDINGS.md`](../../../.dev/ai/security/SECURITY-FINDINGS.md) | Issue tracking |
+| Security Findings | [`security/EVIDENCE-INVENTORY.md`](security/EVIDENCE-INVENTORY.md) | Issue tracking |
 
 ### Architecture Decision Records
 
@@ -397,7 +397,7 @@ socket-proxy:
 | SEC-004 | Medium | SSH keys in CI/CD | Webhook deployment |
 | SEC-005 | Medium | Traefik dashboard exposure | Localhost binding |
 
-Full details: [`.dev/ai/security/SECURITY-FINDINGS.md`](../../../.dev/ai/security/SECURITY-FINDINGS.md)
+Full details: [`security/EVIDENCE-INVENTORY.md`](security/EVIDENCE-INVENTORY.md) and [`security/OSS-AUDIT-RESULTS.md`](security/OSS-AUDIT-RESULTS.md)
 
 ---
 
@@ -415,7 +415,7 @@ sudo ./scripts/security/run-docker-bench.sh
 ./scripts/security/run-docker-bench.sh --quick
 ```
 
-Reports saved to: `../../.dev/ai/security/docker-bench-*.log`
+Reports saved to: `reports/security/docker-bench-*.log`
 
 Documentation: [`scripts/security/DOCKER-BENCH-GUIDE.md`](../scripts/security/DOCKER-BENCH-GUIDE.md)
 

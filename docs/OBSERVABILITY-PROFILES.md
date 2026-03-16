@@ -1,6 +1,6 @@
 # Observability Profiles
 
-This document defines the observability defaults and upgrade path.
+This document defines the observability defaults and upgrade path for the PeerMeshCore runtime foundation.
 
 ## Current Default (Primary)
 
@@ -111,7 +111,7 @@ This creates a repeatable evidence chain from metric collection through promotio
 To remove observability-lite overlay services:
 
 ```bash
-docker compose -f docker-compose.yml -f .dev/profiles/observability-lite/docker-compose.observability-lite.yml down
+docker compose -f docker-compose.yml -f profiles/observability-lite/docker-compose.observability-lite.yml down
 ```
 
 Then return to foundation-only runtime:

@@ -1,10 +1,10 @@
-# Docker Lab
+# PeerMeshCore Docker Lab
 
-Production-ready Docker Compose boilerplate for self-hosted applications. Clone it, configure it, deploy it.
+PeerMeshCore's runtime foundation for self-hosted applications. Clone it, configure it, deploy it.
 
 ## What This Repository Is
 
-**A production-grade Docker infrastructure foundation.** This repository provides:
+**A production-grade PeerMeshCore runtime foundation.** This repository provides:
 
 - Battle-tested Docker Compose configurations for common deployment patterns
 - A foundation runtime stack (not a single app container) that other module containers layer onto
@@ -15,7 +15,7 @@ Production-ready Docker Compose boilerplate for self-hosted applications. Clone 
 - Healthcheck-based startup ordering for reliable deployments
 - Network isolation patterns for security
 
-This is infrastructure boilerplate - a starting point you clone and customize for your specific application needs.
+This is infrastructure boilerplate for PeerMeshCore – clone it and layer your own modules on top.
 
 ## Public Boundary
 
@@ -23,7 +23,7 @@ This repository is the PeerMeshCore public boundary, exposed at https://github.c
 
 ## Canonical Deployment Model
 
-Docker Lab uses a two-layer model:
+PeerMeshCore Docker Lab uses a two-layer model:
 
 1. OpenTofu provisions infrastructure through provider APIs (for example, Hetzner VPS + DNS prerequisites).
 2. Docker Lab deploys and operates the runtime foundation and modules on that infrastructure.
@@ -49,9 +49,26 @@ See [Enterprise Version Immutability Standard](docs/ENTERPRISE-VERSION-IMMUTABIL
 
 The canonical public install path is maintained in [docs/QUICKSTART.md](docs/QUICKSTART.md). That guide walks through cloning `https://github.com/peermesh/docker-lab.git`, configuring your `.env`, generating secrets, and starting the foundation services so you can treat it as the single source of truth for onboarding the `docker-lab` public repository.
 
+```bash
+# Clone the repository
+git clone https://github.com/peermesh/docker-lab.git
+cd docker-lab
+
+# Initialize configuration
+./launch_peermesh.sh config init
+
+# Start services
+./launch_peermesh.sh up --profile=postgresql,redis
+
+# Check status
+./launch_peermesh.sh status
+```
+
+Your PeerMeshCore runtime is now running with Traefik reverse proxy at ports 80/443.
+
 ## Unified CLI
 
-The `launch_peermesh.sh` script provides a single entry point for all deployment operations:
+The `launch_peermesh.sh` script is the PeerMeshCore CLI and provides a single entry point for all deployment operations:
 
 ```bash
 # Interactive menu (run without arguments)

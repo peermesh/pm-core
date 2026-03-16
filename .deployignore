@@ -120,6 +120,9 @@ backups/*
 .*.swo
 #*#
 
+# OpenTofu state backups are not part of the public deployment tree
+infra/opentofu/state-backups/
+
 # -----------------------------------------------------------------------------
 # OS-SPECIFIC FILES
 # System metadata, not part of project

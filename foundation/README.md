@@ -1,6 +1,6 @@
 # PeerMesh Module Foundation
 
-The Foundation defines the contracts, schemas, and validation helpers that keep Docker Lab modules consistent. Every module author should follow the canonical module-authoring guide at [`docs/module-authoring-guide.md`](docs/module-authoring-guide.md). This README summarizes the foundation touchpoints around that guide but defers to the canonical document for workflow and template details.
+The Foundation defines the contracts, schemas, and validation helpers that keep Docker Lab modules consistent. Every module author should follow the canonical module-authoring guide at [`../docs/module-authoring-guide.md`](../docs/module-authoring-guide.md). This README summarizes the foundation touchpoints around that guide but defers to the canonical document for workflow and template details.
 
 ## Module Authoring at a Glance
 
@@ -91,7 +91,7 @@ foundation/
 
 ## Related Documentation
 
-- [`docs/module-authoring-guide.md`](docs/module-authoring-guide.md) – Canonical walk-through.
+- [`../docs/module-authoring-guide.md`](../docs/module-authoring-guide.md) – Canonical walk-through.
 - [`docs/ARCHITECTURE.md`](../docs/ARCHITECTURE.md) – System overview.
 - [`docs/decisions/INDEX.md`](../docs/decisions/INDEX.md) – ADR archive.
 

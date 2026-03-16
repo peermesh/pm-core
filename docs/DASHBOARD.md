@@ -1,6 +1,6 @@
 # Dashboard
 
-The Peer Mesh Docker Lab dashboard provides a web-based interface for monitoring and managing your Docker infrastructure.
+The PeerMeshCore dashboard provides a web-based interface for monitoring and managing your Docker infrastructure.
 
 ## Technology Stack
 
@@ -89,7 +89,7 @@ This frontend stack requires **zero build step** - everything loads via CDN.
 Add to your `.env` file:
 
 ```bash
-# Docker Lab Dashboard credentials (REQUIRED for local dev with auth)
+# PeerMeshCore dashboard credentials (REQUIRED for local dev with auth)
 DOCKERLAB_USERNAME=admin
 DOCKERLAB_PASSWORD=your-local-dev-password
 
@@ -114,10 +114,10 @@ export DOCKERLAB_PASSWORD=$(openssl rand -base64 24)
 echo "DOCKERLAB_PASSWORD=$DOCKERLAB_PASSWORD" >> .env
 
 # Save this password somewhere secure!
-echo "Docker Lab Dashboard login: admin / $DOCKERLAB_PASSWORD"
+echo "PeerMeshCore dashboard login: admin / $DOCKERLAB_PASSWORD"
 ```
 
-### Current VPS Credentials (dockerlab.example.com)
+### Current VPS Credentials (peermeshcore.example.com)
 
 See `AGENTS.md` for current production credentials. These are only documented in the private repo, not committed to the public repo.
 
@@ -142,7 +142,7 @@ Set the following environment variable in your `.env` file:
 DOCKERLAB_DEMO_MODE=true
 ```
 
-For production deployment at dockerlab.example.com, this should be set to true to enable public access.
+For production deployment at peermeshcore.example.com, this should be set to true to enable public access.
 
 > **Backwards Compatibility**: `DEMO_MODE=true` still works but is deprecated.
 

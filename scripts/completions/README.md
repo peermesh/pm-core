@@ -1,6 +1,6 @@
 # Shell Completions for launch_peermesh.sh
 
-This directory contains shell completion scripts for the PeerMesh Docker Lab CLI.
+This directory contains shell completion scripts for the PeerMeshCore CLI.
 
 ## Bash
 

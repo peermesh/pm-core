@@ -60,7 +60,8 @@ services:
     # Mount the static HTML content into nginx
     # CUSTOMIZE: Replace with your application's volume mounts
     volumes:
-      - ./html:/usr/share/nginx/html:ro
+      - ./html:/usr/share/nginx/html
+    command: /bin/sh -c '/usr/share/nginx/html/render-html.sh && exec nginx -g "daemon off;"'
 
     # Health check using wget (available in Alpine images)
     # CUSTOMIZE: Adjust the health check for your application's endpoint
@@ -122,17 +123,17 @@ services:
 #    image: postgres:17-alpine@sha256:REPLACE_WITH_ACTUAL_DIGEST
 #    container_name: hello-custom-db
 #    environment:
-#      POSTGRES_DB: hello_module
-#      POSTGRES_USER: hello_module
-#      POSTGRES_PASSWORD_FILE: /run/secrets/hello_module_db_password
+#      POSTGRES_DB: hello_custom
+#      POSTGRES_USER: hello_custom
+#      POSTGRES_PASSWORD_FILE: /run/secrets/hello_custom_db_password
 #    secrets:
-#      - hello_module_db_password
+#      - hello_custom_db_password
 #    volumes:
 #      - hello-custom-db-data:/var/lib/postgresql/data
 #    networks:
 #      - db-internal
 #    healthcheck:
-#      test: ["CMD-SHELL", "pg_isready -U hello_module"]
+#      test: ["CMD-SHELL", "pg_isready -U hello_custom"]
 #      interval: 10s
 #      timeout: 5s
 #      retries: 5
@@ -153,8 +154,8 @@ services:
 # Uncomment to use file-based secrets (recommended over env vars).
 #
 # secrets:
-#   hello_module_db_password:
-#     file: ./secrets/hello_module_db_password
+#   hello_custom_db_password:
+#     file: ./secrets/hello_custom_db_password
 
 # ==============================================================
 # Volumes (Optional)

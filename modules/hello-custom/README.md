@@ -4,7 +4,7 @@
 
 ## What Is This?
 
-The Hello Module is a reference implementation that demonstrates every integration point in the Docker Lab module system. It serves a static "Hello from PeerMesh" greeting page via nginx, but the real value is in the structure: the annotated manifest, the lifecycle hooks, the Traefik routing, the health checks, and the dashboard widget.
+The Hello Custom Module is a reference implementation that demonstrates every integration point in the Docker Lab module system. It serves a static "Hello from PeerMesh" greeting page via nginx, but the real value is in the structure: the annotated manifest, the lifecycle hooks, the Traefik routing, the health checks, and the dashboard widget.
 
 Use this repository as a starting point when building your own Docker Lab modules. Copy the files, replace the placeholders (marked with `# CUSTOMIZE:` comments), and you have a working module.
 
@@ -31,6 +31,8 @@ docker compose up -d
 
 # 5. Visit
 # https://hello-custom.yourdomain.com/
+
+The `HELLO_CUSTOM_NOTE` environment variable drives the custom note card. The container command automatically reruns `html/render-html.sh` before nginx launches, so the value you put in `.env` (or pass via your environment) shows up when you use the documented `docker compose up -d` path. Running `./hooks/render-html.sh` manually or via the lifecycle hooks simply reuses the same renderer, which is written in portable shell/awk and does not require `python3`.
 ```
 
 ### Important: Directory Placement
@@ -66,10 +68,11 @@ hello-custom/
     stop.sh                     # Graceful shutdown
     uninstall.sh                # Cleanup (preserves data by default)
     health.sh                   # JSON/text health report
-    render-html.sh              # Renders the HELLO_CUSTOM_NOTE-driven HTML
+    render-html.sh              # Triggers the shared renderer before start
   dashboard/                    # Dashboard UI components
     HelloCustomStatusWidget.html # Status widget for dashboard
   html/                         # Static content served by nginx
+    render-html.sh              # Template renderer invoked by nginx startup
     index.tpl.html              # Template for HELLO_CUSTOM_NOTE
     index.html                  # Static page served by nginx
   tests/                        # Module-level tests
@@ -347,7 +350,7 @@ docker exec hello-custom wget -qO- http://127.0.0.1/
 
 ## Version Compatibility
 
-| Hello Module | Docker Lab | Foundation | Notes |
+| Hello Custom Module | Docker Lab | Foundation | Notes |
 |--------------|------------|------------|-------|
 | 1.0.0 | v7.39.0+ | 1.0.0+ | Initial release |
 

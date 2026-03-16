@@ -52,7 +52,7 @@
   },
 
   "dashboard": {
-    "displayName": "Hello Module",
+    "displayName": "Hello Custom Module",
     "icon": "hand-wave",
     "routes": [
       {

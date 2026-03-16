@@ -108,14 +108,19 @@ test_html_has_module_info() {
 
 test_custom_note_present() {
     run_test
+    local expected_note
+    expected_note=$(docker exec "${CONTAINER_NAME}" \
+        printenv HELLO_CUSTOM_NOTE 2>/dev/null || echo "Custom variant engaged")
+    expected_note="${expected_note%$'\n'}"
+
     local content
     content=$(docker exec "${CONTAINER_NAME}" \
         wget --quiet -O- "http://127.0.0.1/" 2>/dev/null) || true
 
-    if echo "$content" | grep -q "Custom variant engaged"; then
-        pass "Response exposes the custom note"
+    if echo "$content" | grep -Fq "$expected_note"; then
+        pass "Response exposes the configured note"
     else
-        fail "Response does not expose the custom note"
+        fail "Response missing configured note" "Expected: ${expected_note:-<empty>}"
     fi
 }
 

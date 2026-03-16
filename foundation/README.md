@@ -1,10 +1,10 @@
 # PeerMesh Module Foundation
 
-The Foundation defines the contracts, schemas, and validation helpers that keep Docker Lab modules consistent. Every module author should follow the canonical module-authoring guide at [`../../docs/module-authoring-guide.md`](../../docs/module-authoring-guide.md). This README summarizes the foundation touchpoints around that guide but defers to the canonical document for workflow and template details.
+The Foundation defines the contracts, schemas, and validation helpers that keep Docker Lab modules consistent. Every module author should follow the canonical module-authoring guide at [`docs/module-authoring-guide.md`](docs/module-authoring-guide.md). This README summarizes the foundation touchpoints around that guide but defers to the canonical document for workflow and template details.
 
 ## Module Authoring at a Glance
 
-- **Template-first workflow**: Copy `sub-repos/docker-lab/foundation/templates/module-template/` into `modules/<your-module>/`. That template already points at the foundation schema (`../../foundation/schemas/module.schema.json`), base Compose (`../../foundation/docker-compose.base.yml`), and empty hook scripts. Do not start from `hello-module`; it is reference-only.
+- **Template-first workflow**: Copy `foundation/templates/module-template/` into `modules/<your-module>/`. That template already points at the foundation schema (`../../foundation/schemas/module.schema.json`), base Compose (`../../foundation/docker-compose.base.yml`), and empty hook scripts. Do not start from `hello-module`; it is reference-only.
 - **Runtime behavior**: `launch_peermesh.sh module enable` resolves dependencies via `foundation/lib/dependency-resolve.sh` and then runs `docker compose -f modules/<module>/docker-compose.yml up -d` for each module. Hook scripts are not invoked by the launcher, so implement or invoke them manually as needed.
 - **Hook lifecycle**: Follow the lifecycle definitions in the canonical guide and `foundation/docs/LIFECYCLE-HOOKS.md`. The scripts (`install`, `start`, `stop`, `health`, `upgrade`, `validate`, `uninstall`) should stay within `hooks/`, be idempotent, and report structured status.
 - **Validation scope**: `module.json` is validated against `foundation/schemas/module.schema.json`, and dependency resolution enforces declared requirements and versions. Compose files, hook content, and dashboard assets remain the author’s responsibility; exercise them locally (e.g., `docker compose config`, `hooks/health.sh`) before enabling the module.
@@ -91,7 +91,7 @@ foundation/
 
 ## Related Documentation
 
-- [`docs/module-authoring-guide.md`](../../docs/module-authoring-guide.md) – Canonical walk-through.
+- [`docs/module-authoring-guide.md`](docs/module-authoring-guide.md) – Canonical walk-through.
 - [`docs/ARCHITECTURE.md`](../docs/ARCHITECTURE.md) – System overview.
 - [`docs/decisions/INDEX.md`](../docs/decisions/INDEX.md) – ADR archive.
 

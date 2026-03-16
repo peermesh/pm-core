@@ -1,6 +1,6 @@
-# PeerMesh Docker Lab CLI
+# PeerMeshCore CLI
 
-The `launch_peermesh.sh` script is the unified command-line interface for managing PeerMesh Docker Lab deployments.
+The `launch_peermesh.sh` script is the unified command-line interface for managing PeerMeshCore deployments.
 
 ## Installation
 

@@ -3,6 +3,8 @@
 ## Goal
 Bring up Docker Lab foundation services on a single VPS and verify dashboard availability.
 
+This tutorial follows the canonical public quick start in [docs/QUICKSTART.md](../QUICKSTART.md). Use that document as the single source of truth for cloning, configuration, and service startup; this lesson highlights a trimmed walkthrough of the same steps.
+
 ## Prerequisites
 - Docker Engine + Compose plugin.
 - Git.

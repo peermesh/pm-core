@@ -493,10 +493,12 @@ su - deploy
 
 # Clone to standard location
 cd /opt
-sudo git clone https://github.com/your-org/peer-mesh-docker-lab.git peermesh
+sudo git clone https://github.com/peermesh/docker-lab.git peermesh
 sudo chown -R deploy:deploy /opt/peermesh
 cd /opt/peermesh
 ```
+
+These commands mirror the canonical public quick start in [docs/QUICKSTART.md](../QUICKSTART.md), ensuring the same repository and directory layout are used across our public-facing documentation.
 
 ### Step 2: Configure Environment
 

@@ -1,0 +1,119 @@
+{
+  "$schema": "../../foundation/schemas/module.schema.json",
+
+  "id": "hello-core",
+  "version": "1.0.0",
+  "name": "Hello Core Module",
+  "description": "A near-stock adaptation of the standalone hello module, packaged as a runtime module to demonstrate Traefik routing, lifecycle hooks, health checks, and dashboard integration.",
+
+  "author": {
+    "name": "PeerMesh Team"
+  },
+  "license": "MIT",
+  "repository": "https://github.com/peermesh/docker-lab",
+  "tags": ["example", "hello-world", "core", "nginx", "tutorial"],
+
+  "foundation": {
+    "minVersion": "1.0.0"
+  },
+
+  "requires": {
+    "connections": [],
+    "modules": []
+  },
+
+  "provides": {
+    "connections": [],
+    "events": [
+      "hello-core.page.served",
+      "hello-core.health.checked"
+    ]
+  },
+
+  "security": {
+    "enforcementMode": "warn",
+    "identity": {
+      "required": false,
+      "credentialType": "any"
+    },
+    "encryption": {
+      "dataAtRest": "none",
+      "transitEncryption": "tls",
+      "keyPurposes": []
+    },
+    "contract": {
+      "network": {
+        "access": "proxy-external"
+      },
+      "filesystemAccess": {
+        "accessLevel": "own-directory-only"
+      }
+    }
+  },
+
+  "dashboard": {
+    "displayName": "Hello Core Module",
+    "icon": "hand-wave",
+    "routes": [
+      {
+        "path": "/hello-core",
+        "component": "./dashboard/HelloStatusWidget.html",
+        "nav": {
+          "label": "Hello Core",
+          "icon": "hand-wave",
+          "order": 200
+        }
+      }
+    ],
+    "statusWidget": {
+      "component": "./dashboard/HelloStatusWidget.html",
+      "size": "small",
+      "order": 200
+    }
+  },
+
+  "lifecycle": {
+    "install": {
+      "script": "./hooks/install.sh",
+      "timeout": 60,
+      "retries": 1
+    },
+    "start": {
+      "script": "./hooks/start.sh",
+      "timeout": 60
+    },
+    "stop": {
+      "script": "./hooks/stop.sh",
+      "timeout": 30
+    },
+    "uninstall": "./hooks/uninstall.sh",
+    "health": {
+      "script": "./hooks/health.sh",
+      "timeout": 15
+    }
+  },
+
+  "config": {
+    "version": "1.0",
+    "properties": {
+      "greeting": {
+        "type": "string",
+        "description": "The greeting message displayed on the page",
+        "default": "Hello from PeerMesh!",
+        "env": "HELLO_CORE_GREETING"
+      },
+      "domain": {
+        "type": "string",
+        "description": "The domain where Docker Lab is hosted",
+        "env": "DOMAIN"
+      },
+      "subdomain": {
+        "type": "string",
+        "description": "The subdomain prefix for this module",
+        "default": "hello-core",
+        "env": "HELLO_CORE_SUBDOMAIN"
+      }
+    },
+    "required": ["domain"]
+  }
+}

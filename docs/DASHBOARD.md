@@ -119,7 +119,7 @@ echo "PeerMeshCore dashboard login: admin / $DOCKERLAB_PASSWORD"
 
 ### Current VPS Credentials (peermeshcore.example.com)
 
-See `AGENTS.md` for current production credentials. These are only documented in the private repo, not committed to the public repo.
+Production credentials and operating rules are documented in the private PeerMeshCore repo and are not included here; contact the maintainers for access.
 
 ## Features
 

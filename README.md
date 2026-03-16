@@ -19,7 +19,7 @@ This is infrastructure boilerplate - a starting point you clone and customize fo
 
 ## Public Boundary
 
-`sub-repos/docker-lab/` is the PeerMeshCore public boundary and the contents of https://github.com/peermesh/docker-lab. This directory hosts the public documentation, automation, and runtime assets. Follow the canonical quick-start guide in `docs/QUICKSTART.md` whenever you need public install or onboarding instructions.
+This repository is the PeerMeshCore public boundary, exposed at https://github.com/peermesh/docker-lab. It hosts the public documentation, automation, and runtime assets, so follow the canonical quick-start guide in `docs/QUICKSTART.md` whenever you need public install or onboarding instructions.
 
 ## Canonical Deployment Model
 

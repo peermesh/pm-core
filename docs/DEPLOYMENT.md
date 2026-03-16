@@ -498,7 +498,7 @@ sudo chown -R deploy:deploy /opt/peermesh
 cd /opt/peermesh
 ```
 
-These commands mirror the canonical public quick start in [docs/QUICKSTART.md](../QUICKSTART.md), ensuring the same repository and directory layout are used across our public-facing documentation.
+These commands mirror the canonical public quick start in [docs/QUICKSTART.md](QUICKSTART.md), ensuring the same repository and directory layout are used across our public-facing documentation.
 
 ### Step 2: Configure Environment
 

@@ -165,9 +165,9 @@ Attack surfaces are the entry points where adversaries can interact with the sys
 - Zero-day vulnerabilities in Traefik possible
 
 **Evidence**:
-- Configuration: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/docker-compose.yml` (traefik service)
-- Hardening: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/docker-compose.hardening.yml`
-- ADR: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/docs/decisions/0001-traefik-reverse-proxy.md`
+- Configuration: `docker-compose.yml` (traefik service)
+- Hardening: `docker-compose.hardening.yml`
+- ADR: `docs/decisions/0001-traefik-reverse-proxy.md`
 
 ---
 
@@ -196,8 +196,8 @@ Attack surfaces are the entry points where adversaries can interact with the sys
 - Session management is application-implemented (not externally audited)
 
 **Evidence**:
-- Configuration: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/docker-compose.yml` (dashboard service)
-- Documentation: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/docs/DASHBOARD.md`
+- Configuration: `docker-compose.yml` (dashboard service)
+- Documentation: `docs/DASHBOARD.md`
 
 ---
 
@@ -223,8 +223,8 @@ Attack surfaces are the entry points where adversaries can interact with the sys
 - Requires attacker to compromise webhook secret on VPS or in GitHub repo settings
 
 **Evidence**:
-- Configuration: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/docker-compose.yml` (webhook service, if deployed)
-- Documentation: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/docs/WEBHOOK-DEPLOYMENT.md`
+- Configuration: `docker-compose.yml` (webhook service, if deployed)
+- Documentation: `docs/WEBHOOK-DEPLOYMENT.md`
 
 ---
 
@@ -249,8 +249,8 @@ Attack surfaces are the entry points where adversaries can interact with the sys
 - Cannot modify containers, exec into containers, or start new containers
 
 **Evidence**:
-- Configuration: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/docker-compose.yml` (socket-proxy service)
-- ADR: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/docs/decisions/0004-docker-socket-proxy.md`
+- Configuration: `docker-compose.yml` (socket-proxy service)
+- ADR: `docs/decisions/0004-docker-socket-proxy.md`
 
 ---
 
@@ -279,9 +279,9 @@ Attack surfaces are the entry points where adversaries can interact with the sys
 - Compromise of application grants database access (by design)
 
 **Evidence**:
-- Configuration: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/docker-compose.yml` (postgres, mysql, mongodb services)
-- Hardening rationale: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/docs/GOTCHAS.md` (entries #9, #10)
-- ADR: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/docs/decisions/0200-non-root-containers.md`
+- Configuration: `docker-compose.yml` (postgres, mysql, mongodb services)
+- Hardening rationale: `docs/GOTCHAS.md` (entries #9, #10)
+- ADR: `docs/decisions/0200-non-root-containers.md`
 
 ---
 
@@ -308,9 +308,9 @@ Attack surfaces are the entry points where adversaries can interact with the sys
 - Modules must explicitly set `enforcementMode: "fail-closed"` to require security
 
 **Evidence**:
-- Interfaces: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/foundation/interfaces/` (identity.py, encryption.py, contract.py)
-- Schemas: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/foundation/schemas/` (security.schema.json, contract-manifest.schema.json, security-event.schema.json)
-- Documentation: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/foundation/docs/SECURITY-FRAMEWORK.md`
+- Interfaces: `foundation/interfaces/` (identity.py, encryption.py, contract.py)
+- Schemas: `foundation/schemas/` (security.schema.json, contract-manifest.schema.json, security-event.schema.json)
+- Documentation: `foundation/docs/SECURITY-FRAMEWORK.md`
 
 ---
 
@@ -460,7 +460,7 @@ Attack surfaces are the entry points where adversaries can interact with the sys
 | No database public ports | Databases only on db-internal | docker-compose.yml (no ports exposed) |
 | TLS everywhere (external) | Traefik Let's Encrypt, HTTP→HTTPS redirect | Traefik command config |
 
-**File**: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/docs/decisions/0002-four-network-topology.md`
+**File**: `docs/decisions/0002-four-network-topology.md`
 
 ---
 
@@ -474,7 +474,7 @@ Attack surfaces are the entry points where adversaries can interact with the sys
 | Resource limits | Memory limits (64M-1G), CPU reservations | deploy.resources section |
 | Read-only filesystems | Applied to stateless services and databases via wrapper+tmpfs pattern | docker-compose.hardening.yml |
 
-**File**: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/docs/decisions/0201-security-anchors.md`
+**File**: `docs/decisions/0201-security-anchors.md`
 
 ---
 
@@ -488,7 +488,7 @@ Attack surfaces are the entry points where adversaries can interact with the sys
 | Directory permissions | 700 (owner only) | scripts/generate-secrets.sh |
 | Encrypted at rest (optional) | SOPS+age support | ADR-0202, docs/SECRETS-MANAGEMENT.md |
 
-**File**: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/docs/decisions/0003-file-based-secrets.md`
+**File**: `docs/decisions/0003-file-based-secrets.md`
 
 ---
 
@@ -501,7 +501,7 @@ Attack surfaces are the entry points where adversaries can interact with the sys
 | Blocked write operations | `POST=0, EXEC=0, IMAGES=0, VOLUMES=0, BUILD=0, COMMIT=0` | Environment variables |
 | Isolated network | `socket-proxy` network (internal: true) | docker-compose.yml networks |
 
-**File**: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/docs/decisions/0004-docker-socket-proxy.md`
+**File**: `docs/decisions/0004-docker-socket-proxy.md`
 
 ---
 
@@ -515,7 +515,7 @@ Attack surfaces are the entry points where adversaries can interact with the sys
 | Supply-chain gates | Image policy, SBOM, vulnerability threshold | scripts/security/validate-supply-chain.sh |
 | Fail-closed deployment | Deploy fails if supply-chain gate fails | scripts/deploy.sh |
 
-**File**: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/docs/SUPPLY-CHAIN-SECURITY.md`
+**File**: `docs/SUPPLY-CHAIN-SECURITY.md`
 
 ---
 
@@ -530,7 +530,7 @@ Attack surfaces are the entry points where adversaries can interact with the sys
 | Version pinning | Explicit tags (no `latest` in production) | ENTERPRISE-VERSION-IMMUTABILITY-STANDARD.md |
 | Digest pinning (external) | SHA256 digests for infrastructure images | IMAGE-DIGEST-BASELINE.md |
 
-**File**: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/docs/SUPPLY-CHAIN-SECURITY.md`
+**File**: `docs/SUPPLY-CHAIN-SECURITY.md`
 
 ---
 
@@ -548,7 +548,7 @@ Attack surfaces are the entry points where adversaries can interact with the sys
 
 **Rationale**: Documented in Gotcha #9 and #10. Read-only hardening is now achieved with wrapper+tmpfs, but initialization root requirement remains an upstream image behavior.
 
-**Evidence**: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/docs/GOTCHAS.md` (entries #9, #10)
+**Evidence**: `docs/GOTCHAS.md` (entries #9, #10)
 
 ---
 
@@ -564,7 +564,7 @@ Attack surfaces are the entry points where adversaries can interact with the sys
 
 **Rationale**: Documented in Gotcha #11. Traefik v3 supports non-root, but requires migration effort. Current hardening (capability dropping) reduces attack surface.
 
-**Evidence**: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/docs/GOTCHAS.md` (entry #11)
+**Evidence**: `docs/GOTCHAS.md` (entry #11)
 
 ---
 
@@ -580,7 +580,7 @@ Attack surfaces are the entry points where adversaries can interact with the sys
 
 **Rationale**: Documented in Gotcha #12. Alternative (custom image with pre-generated config) adds maintenance burden. Effective hardening via capabilities and network isolation.
 
-**Evidence**: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/docs/GOTCHAS.md` (entry #12)
+**Evidence**: `docs/GOTCHAS.md` (entry #12)
 
 ---
 
@@ -596,7 +596,7 @@ Attack surfaces are the entry points where adversaries can interact with the sys
 
 **Rationale**: All images from trusted registries, explicit version/digest pinning prevents tag mutation. Planned for production hardening phase.
 
-**Evidence**: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/.dev/ai/security/SECURITY-FINDINGS.md` (SEC-009)
+**Evidence**: `ai/security/SECURITY-FINDINGS.md` (SEC-009)
 
 ---
 
@@ -612,7 +612,7 @@ Attack surfaces are the entry points where adversaries can interact with the sys
 
 **Rationale**: User namespace remapping requires testing all services for compatibility. Documented in WO-062 for future evaluation.
 
-**Evidence**: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/.dev/ai/workorders/WO-PMDL-2026-02-22-062.md` (sovereign blueprint insight #3)
+**Evidence**: `ai/workorders/WO-PMDL-2026-02-22-062.md` (sovereign blueprint insight #3)
 
 ---
 
@@ -628,7 +628,7 @@ Attack surfaces are the entry points where adversaries can interact with the sys
 
 **Rationale**: Requires analysis of each service's syscall usage. Documented in WO-062 for OSS audit evaluation.
 
-**Evidence**: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/.dev/ai/workorders/WO-PMDL-2026-02-22-062.md` (sovereign blueprint insight #1)
+**Evidence**: `ai/workorders/WO-PMDL-2026-02-22-062.md` (sovereign blueprint insight #1)
 
 ---
 
@@ -644,7 +644,7 @@ Attack surfaces are the entry points where adversaries can interact with the sys
 
 **Rationale**: Observability-full profile (Loki/Grafana) created but held for resource review. Documented in MEMORY.md.
 
-**Evidence**: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/.dev/ai/security/SECURITY-FINDINGS.md` (SEC-006)
+**Evidence**: `ai/security/SECURITY-FINDINGS.md` (SEC-006)
 
 ---
 
@@ -660,7 +660,7 @@ Attack surfaces are the entry points where adversaries can interact with the sys
 
 **Rationale**: Self-hosted infrastructure requires trust in hosting provider. Bare-metal deployment eliminates this risk but adds operational burden.
 
-**Evidence**: Deployment model documented in `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/docs/DEPLOYMENT.md`
+**Evidence**: Deployment model documented in `docs/DEPLOYMENT.md`
 
 ---
 
@@ -685,11 +685,11 @@ The threat model makes the following security assumptions:
 
 ## Related Documentation
 
-- **Security Architecture**: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/docs/SECURITY-ARCHITECTURE.md`
-- **Security Checklist**: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/docs/SECURITY-CHECKLIST.md`
-- **Security Findings**: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/.dev/ai/security/SECURITY-FINDINGS.md`
-- **Evidence Inventory**: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/docs/security/EVIDENCE-INVENTORY.md`
-- **Audit Readiness Checklist**: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/docs/security/AUDIT-READINESS-CHECKLIST.md`
+- **Security Architecture**: `docs/SECURITY-ARCHITECTURE.md`
+- **Security Checklist**: `docs/SECURITY-CHECKLIST.md`
+- **Security Findings**: `ai/security/SECURITY-FINDINGS.md`
+- **Evidence Inventory**: `docs/security/EVIDENCE-INVENTORY.md`
+- **Audit Readiness Checklist**: `docs/security/AUDIT-READINESS-CHECKLIST.md`
 
 ---
 

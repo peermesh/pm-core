@@ -63,7 +63,7 @@ This document captures results from running open-source security audit tools aga
 
 **Latest Run**: 2026-02-17 23:26:36
 
-**Output**: `ai/security/docker-bench-2026-02-17-232636.log`
+**Output**: Logged in the private security archive (latest docker-bench log timestamped)
 
 ---
 
@@ -139,9 +139,7 @@ Scope executed on 2026-02-24:
 - Runtime image set on pilot host (`pgvector`, `dashboard`, `redis`, `socket-proxy`, `traefik`)
 - Profile image set not currently running (`mysql`, `mongo`, `minio`)
 
-Logs:
-- `ai/security/trivy-pilot-2026-02-24-073844Z.log`
-- `ai/security/trivy-pilot-profile-images-2026-02-24-073844Z.log`
+Logs: Stored in the private security archive for audit reference.
 
 #### Runtime Image Findings (CRITICAL/HIGH only)
 
@@ -264,8 +262,7 @@ Manual review checklist:
 
 - Date: 2026-02-24
 - Host: pilot VPS (`46.225.188.213`)
-- Log:
-  - `ai/security/lynis-pilot-2026-02-24-073844Z.log`
+- Log: Stored in the private security archive for host-level audit review
 
 ### Results Summary
 
@@ -289,8 +286,7 @@ Manual review checklist:
 
 - Date: 2026-02-24
 - Target: Traefik/dashboard endpoint on pilot host (`http://127.0.0.1`)
-- Log:
-  - `ai/security/zap-baseline-pilot-2026-02-24-073844Z.log`
+- Log: Stored in the private security archive for web scan review
 
 ### Results Summary
 
@@ -424,7 +420,7 @@ docker compose config | grep -A 3 "networks:"
 | **File-based secrets** | ✓ | ✗ | Partial | ✗ | ✗ |
 | **Supply-chain gates** | ✓ (SBOM + vuln) | ✗ | ✗ | ✗ | ✗ |
 
-**Source**: Sovereign computing security blueprint research (`ai/reports/2026-02-22-08-40-08Z-inbox-review-sovereign-security-blueprint.md`)
+**Source**: Sovereign computing security blueprint research (private workspace artifact)
 
 ---
 
@@ -531,7 +527,7 @@ docker compose config | grep -A 3 "networks:"
 
 **Evidence**:
 - User namespaces: `docs/security/THREAT-MODEL.md` (Limitation #5)
-- Content Trust: `ai/security/SECURITY-FINDINGS.md` (SEC-009)
+- Content Trust: documented in the private security findings ledger (SEC-009)
 
 ---
 
@@ -544,7 +540,7 @@ docker compose config | grep -A 3 "networks:"
 **Evidence**:
 - Root containers: `docs/GOTCHAS.md` (#9, #10, #11)
 - Read-only filesystems: `docs/GOTCHAS.md` (#10, #12)
-- Centralized logging: `ai/security/SECURITY-FINDINGS.md` (SEC-006)
+- Centralized logging: documented in the private security findings ledger (SEC-006)
 
 ---
 
@@ -589,11 +585,11 @@ docker compose config | grep -A 3 "networks:"
 ### Docker Bench for Security
 
 ```bash
-cd sub-repos/docker-lab
+# From repository root
 ./scripts/security/run-docker-bench.sh
 ```
 
-**Output**: `ai/security/docker-bench-<timestamp>.log`
+**Output**: Logged in the private security archive (latest docker-bench log timestamped)
 
 ---
 
@@ -621,7 +617,7 @@ done
 ### Supply-Chain Validation
 
 ```bash
-cd sub-repos/docker-lab
+# From repository root
 ./scripts/security/validate-supply-chain.sh --severity-threshold CRITICAL
 ```
 
@@ -632,7 +628,7 @@ cd sub-repos/docker-lab
 ### Network Internal Audit
 
 ```bash
-cd sub-repos/docker-lab
+# From repository root
 docker compose config | grep -A 3 "networks:"
 ```
 
@@ -645,7 +641,7 @@ docker compose config | grep -A 3 "networks:"
 - **Threat Model**: `docs/security/THREAT-MODEL.md`
 - **Evidence Inventory**: `docs/security/EVIDENCE-INVENTORY.md`
 - **Audit Readiness Checklist**: `docs/security/AUDIT-READINESS-CHECKLIST.md`
-- **Security Findings**: `ai/security/SECURITY-FINDINGS.md`
+- **Security Findings**: tracked in the private security findings ledger
 
 ---
 

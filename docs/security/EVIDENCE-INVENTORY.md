@@ -11,9 +11,9 @@
 
 This document provides a comprehensive index of all security evidence artifacts in the Docker Lab codebase. It is organized by security control category and maps to the CIS Docker Benchmark, OWASP Container Security, and threat model mitigations.
 
-**Base Path**: repository root (docker-lab sub-repo)
+**Base Path**: repository root
 
-All file paths in this document are repo-relative to that sub-repo root.
+All file paths in this document are repo-relative to this repository root.
 
 ---
 
@@ -110,7 +110,7 @@ All file paths in this document are repo-relative to that sub-repo root.
 
 | Script | Function | Output |
 |--------|---------|---------|
-| `scripts/security/run-docker-bench.sh` | Runs docker-bench-security (CIS Docker Benchmark scanner) | Timestamped log in `ai/security/` |
+| `scripts/security/run-docker-bench.sh` | Runs docker-bench-security (CIS Docker Benchmark scanner) | Timestamped log stored in the private security archive |
 
 **Path (repo relative)**:
 - `scripts/security/run-docker-bench.sh`
@@ -411,9 +411,9 @@ Standalone supply-chain runs (outside deployment) generate reports in:
 
 | Document | Content | Status |
 |----------|---------|--------|
-| `ai/security/SECURITY-FINDINGS.md` | Tracked security findings (SEC-001 through SEC-009) | 1 open, 8 mitigated |
+| Security findings ledger (private) | Tracked security findings (SEC-001 through SEC-009) | 1 open, 8 mitigated |
 
-**Path (repo relative)**: `ai/security/SECURITY-FINDINGS.md`
+**Location**: Maintained outside this repository in the private security archive
 
 **Findings Summary**:
 - **Open**: SEC-009 (Content Trust not enabled)
@@ -425,9 +425,9 @@ Standalone supply-chain runs (outside deployment) generate reports in:
 
 | Report | Run Date | Location |
 |--------|----------|----------|
-| Latest docker-bench run | 2026-02-17 | `ai/security/docker-bench-2026-02-17-232636.log` |
+| Latest docker-bench run | 2026-02-17 | Logged in the private security archive |
 
-**Path (repo relative)**: `ai/security/docker-bench-2026-02-17-232636.log`
+**Note**: Detailed docker-bench output is stored in the private security archive for audit reference
 
 **Note**: docker-bench-security runs are triggered manually via `scripts/security/run-docker-bench.sh` and logged with timestamps.
 

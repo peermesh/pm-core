@@ -127,7 +127,7 @@ This checklist maps Docker Lab's security implementation to industry-standard au
 - Non-root containers: `docs/decisions/0200-non-root-containers.md`
 - Secrets management: `docs/decisions/0003-file-based-secrets.md`
 - Supply-chain: `docs/SUPPLY-CHAIN-SECURITY.md`
-- Content Trust risk acceptance: `ai/security/SECURITY-FINDINGS.md` (SEC-009)
+- Content Trust risk acceptance: captured in the private security findings ledger (SEC-009)
 
 ---
 
@@ -481,7 +481,7 @@ This checklist maps Docker Lab's security implementation to industry-standard au
 5. **Check evidence artifacts**:
    - Deployment evidence bundles: `evidence/<timestamp>/`
    - Supply-chain reports: `reports/supply-chain/<timestamp>/`
-   - Security findings: `ai/security/SECURITY-FINDINGS.md`
+   - Security findings: tracked in the private security findings ledger
 
 ---
 

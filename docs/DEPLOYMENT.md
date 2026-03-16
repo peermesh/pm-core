@@ -831,13 +831,16 @@ verify_no_sensitive_files() {
 To verify your deployment doesn't contain sensitive files:
 
 ```bash
-# On VPS, check for files that shouldn't exist
-find /opt/peermesh -name "*.key" -o -type d -name "*workspace*"
+# On VPS, check for secrets and workspace directories that shouldn't exist
+find /opt/peermesh -name "*.key" -o -path "*/.dev/*"
 
 # Ensure .env is present but untracked
 cd /opt/peermesh
 test -f .env
 git ls-files --error-unmatch .env && echo "ERROR: .env is tracked"
+
+# Confirm .deployignore still excludes the workspace tree
+grep -n '^\\.dev/' .deployignore
 
 # Using rsync dry-run with .deployignore
 rsync -av --exclude-from='.deployignore' --dry-run ./ /tmp/deploy-test/

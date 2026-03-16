@@ -596,7 +596,7 @@ Attack surfaces are the entry points where adversaries can interact with the sys
 
 **Rationale**: All images from trusted registries, explicit version/digest pinning prevents tag mutation. Planned for production hardening phase.
 
-**Evidence**: `ai/security/SECURITY-FINDINGS.md` (SEC-009)
+**Evidence**: documented in the private security findings ledger (SEC-009)
 
 ---
 
@@ -612,7 +612,7 @@ Attack surfaces are the entry points where adversaries can interact with the sys
 
 **Rationale**: User namespace remapping requires testing all services for compatibility. Documented in WO-062 for future evaluation.
 
-**Evidence**: `ai/workorders/WO-PMDL-2026-02-22-062.md` (sovereign blueprint insight #3)
+**Evidence**: insights captured in the private sovereign blueprint work order tracker (WO-PMDL-2026-02-22-062)
 
 ---
 
@@ -628,7 +628,7 @@ Attack surfaces are the entry points where adversaries can interact with the sys
 
 **Rationale**: Requires analysis of each service's syscall usage. Documented in WO-062 for OSS audit evaluation.
 
-**Evidence**: `ai/workorders/WO-PMDL-2026-02-22-062.md` (sovereign blueprint insight #1)
+**Evidence**: insights captured in the private sovereign blueprint work order tracker (WO-PMDL-2026-02-22-062)
 
 ---
 
@@ -644,7 +644,7 @@ Attack surfaces are the entry points where adversaries can interact with the sys
 
 **Rationale**: Observability-full profile (Loki/Grafana) created but held for resource review. Documented in MEMORY.md.
 
-**Evidence**: `ai/security/SECURITY-FINDINGS.md` (SEC-006)
+**Evidence**: documented in the private security findings ledger (SEC-006)
 
 ---
 
@@ -687,7 +687,7 @@ The threat model makes the following security assumptions:
 
 - **Security Architecture**: `docs/SECURITY-ARCHITECTURE.md`
 - **Security Checklist**: `docs/SECURITY-CHECKLIST.md`
-- **Security Findings**: `ai/security/SECURITY-FINDINGS.md`
+- **Security Findings**: tracked in the private security findings ledger
 - **Evidence Inventory**: `docs/security/EVIDENCE-INVENTORY.md`
 - **Audit Readiness Checklist**: `docs/security/AUDIT-READINESS-CHECKLIST.md`
 

@@ -4,7 +4,7 @@
 **Last Updated**: 2026-01-23
 **Maintainer**: All contributors
 
-This document defines the authoritative terms, naming conventions, and namespaces used throughout the PeerMesh Docker Lab project. **All code, configuration, and documentation MUST use these terms consistently.**
+This document defines the authoritative terms, naming conventions, and namespaces used throughout the PeerMeshCore project (the runtime still uses the legacy Docker Lab identifiers for backward compatibility). **All code, configuration, and documentation MUST use these terms consistently.**
 
 ---
 
@@ -12,7 +12,7 @@ This document defines the authoritative terms, naming conventions, and namespace
 
 | Prefix | Scope | Example |
 |--------|-------|---------|
-| `DOCKERLAB_` | Docker Lab Dashboard (main UI) | `DOCKERLAB_USERNAME` |
+| `DOCKERLAB_` | PeerMeshCore Dashboard (main UI, internally known as the Docker Lab Dashboard) | `DOCKERLAB_USERNAME` |
 | `TRAEFIK_` | Traefik reverse proxy | `TRAEFIK_DASHBOARD_PORT` |
 | `POSTGRES_` | PostgreSQL database | `POSTGRES_PASSWORD` |
 | `REDIS_` | Redis cache/queue | `REDIS_PASSWORD` |
@@ -25,9 +25,10 @@ This document defines the authoritative terms, naming conventions, and namespace
 
 ## Core Components
 
-### Docker Lab Dashboard
+### PeerMeshCore Dashboard
 
-**Canonical Name**: Docker Lab Dashboard
+**Canonical Name**: PeerMeshCore Dashboard
+**Internal Alias**: Docker Lab Dashboard
 **Service Name**: `dashboard`
 **Config Prefix**: `DOCKERLAB_`
 **URL**: `https://${DOMAIN}/` (root)
@@ -42,7 +43,7 @@ The main web UI for monitoring and managing Docker infrastructure. Built with Go
 | `DOCKERLAB_SESSION_SECRET` | Session signing key | (generated) |
 | `DOCKERLAB_INSTANCE_NAME` | Multi-instance display name | `Production` |
 | `DOCKERLAB_INSTANCE_ID` | Unique instance identifier | `prod-001` |
-| `DOCKERLAB_INSTANCE_URL` | Instance URL for federation | `https://dockerlab.example.com` |
+| `DOCKERLAB_INSTANCE_URL` | Instance URL for federation | `https://dashboard.peermeshcore.example.com` |
 | `DOCKERLAB_INSTANCE_SECRET` | Inter-instance auth token | (generated) |
 
 **NOT to be confused with**: Traefik Dashboard (see below)
@@ -128,7 +129,7 @@ Security proxy for Docker socket access.
 
 ## Modules
 
-Modules are Docker Lab infrastructure extensions with formal lifecycle management. They follow the pattern: `modules/{name}/` and are governed by `module.json` manifests validated against `foundation/schemas/module.schema.json`. For the complete architecture, see [MODULE-ARCHITECTURE.md](MODULE-ARCHITECTURE.md).
+Modules are PeerMeshCore infrastructure extensions with formal lifecycle management. They follow the pattern: `modules/{name}/` and are governed by `module.json` manifests validated against `foundation/schemas/module.schema.json`. For the complete architecture, see [MODULE-ARCHITECTURE.md](MODULE-ARCHITECTURE.md).
 
 ### Backup Module
 
@@ -183,7 +184,7 @@ Modules are Docker Lab infrastructure extensions with formal lifecycle managemen
 {NAMESPACE}_{COMPONENT}_{SETTING}
 
 Examples:
-  DOCKERLAB_SESSION_SECRET     # Docker Lab Dashboard session secret
+  DOCKERLAB_SESSION_SECRET     # PeerMeshCore dashboard session secret (internal: Docker Lab Dashboard)
   TRAEFIK_DASHBOARD_PORT       # Traefik Dashboard port
   POSTGRES_SHARED_BUFFERS      # PostgreSQL memory setting
   MASTODON_DB_PASSWORD         # Mastodon's database password
@@ -215,7 +216,7 @@ Examples:
 {component}[-{qualifier}]
 
 Examples:
-  dashboard          # Main Docker Lab Dashboard
+  dashboard          # Main PeerMeshCore Dashboard (internal: Docker Lab Dashboard)
   traefik            # Reverse proxy
   postgres           # Database
   redis              # Cache
@@ -249,11 +250,13 @@ Examples:
 
 | Term | Refers To | NOT |
 |------|-----------|-----|
-| "Dashboard" (capitalized) | Docker Lab Dashboard | Traefik Dashboard |
-| "Traefik Dashboard" | Traefik's admin UI | Docker Lab Dashboard |
-| `dashboard` service | Docker Lab Dashboard | Any other dashboard |
+| "Dashboard" (capitalized) | PeerMeshCore Dashboard (internal: Docker Lab Dashboard) | Traefik Dashboard |
+| "Traefik Dashboard" | Traefik's admin UI | PeerMeshCore Dashboard (internal: Docker Lab Dashboard) |
+| `dashboard` service | PeerMeshCore Dashboard (internal alias: Docker Lab Dashboard) | Any other dashboard |
 | `DASHBOARD_*` vars | **DEPRECATED** - use `DOCKERLAB_*` | - |
 | "the dashboard" | Context-dependent - be specific | - |
+
+> NOTE: The DOCKERLAB_ prefix and the historical Docker Lab dashboard name remain the internal identifiers for the PeerMeshCore dashboard; use them for config but refer to the product externally as PeerMeshCore.
 
 ---
 

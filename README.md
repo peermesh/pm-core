@@ -17,6 +17,10 @@ Production-ready Docker Compose boilerplate for self-hosted applications. Clone 
 
 This is infrastructure boilerplate - a starting point you clone and customize for your specific application needs.
 
+## Public Boundary
+
+This repository is the PeerMeshCore public boundary, exposed at https://github.com/peermesh/docker-lab. It hosts the public documentation, automation, and runtime assets, so follow the canonical quick-start guide in `docs/QUICKSTART.md` whenever you need public install or onboarding instructions.
+
 ## Canonical Deployment Model
 
 Docker Lab uses a two-layer model:
@@ -43,22 +47,7 @@ See [Enterprise Version Immutability Standard](docs/ENTERPRISE-VERSION-IMMUTABIL
 
 ## Quick Start
 
-```bash
-# Clone the repository
-git clone https://github.com/peermesh/docker-lab.git
-cd docker-lab
-
-# Initialize configuration
-./launch_peermesh.sh config init
-
-# Start services
-./launch_peermesh.sh up --profile=postgresql,redis
-
-# Check status
-./launch_peermesh.sh status
-```
-
-Your services are now running with Traefik reverse proxy at ports 80/443.
+The canonical public install path is maintained in [docs/QUICKSTART.md](docs/QUICKSTART.md). That guide walks through cloning `https://github.com/peermesh/docker-lab.git`, configuring your `.env`, generating secrets, and starting the foundation services so you can treat it as the single source of truth for onboarding the `docker-lab` public repository.
 
 ## Unified CLI
 

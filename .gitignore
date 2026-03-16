@@ -44,6 +44,10 @@ secrets/audit.log
 .*.swo
 #*#
 
+# OpenTofu state backups (kept empty in the public tree)
+infra/opentofu/state-backups/*
+!infra/opentofu/state-backups/README.md
+
 # Logs
 *.log
 logs/

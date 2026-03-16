@@ -9,6 +9,8 @@ cp .env.example .env
 ./scripts/generate-secrets.sh
 ```
 
+Refer to the canonical public install path in [docs/QUICKSTART.md](docs/QUICKSTART.md); that guide mirrors the same clone path and runtime activation steps referenced here.
+
 ## Contributor Onboarding Path
 
 1. Read project scope and deployment model in `README.md` and `docs/OPENTOFU-DEPLOYMENT-MODEL.md`.

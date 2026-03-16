@@ -1,5 +1,7 @@
 # Quick Start Guide
 
+This document is the canonical public install path for PeerMeshCore's `docker-lab` repository, exposed at https://github.com/peermesh/docker-lab. Follow these steps when you need a public-facing quick start or want the referenced commands to match the public boundary.
+
 Get Peer Mesh Docker Lab running in 5 minutes.
 
 Note:
@@ -28,8 +30,8 @@ docker compose version
 ## Step 1: Clone the Repository
 
 ```bash
-git clone https://github.com/your-org/peer-mesh-docker-lab.git
-cd peer-mesh-docker-lab
+git clone https://github.com/peermesh/docker-lab.git
+cd docker-lab
 ```
 
 ## Step 2: Configure Environment
@@ -79,7 +81,7 @@ For development with PostgreSQL:
 
 ```bash
 docker compose -f docker-compose.yml \
-               -f .dev/profiles/postgresql/docker-compose.postgresql.yml \
+               -f profiles/postgresql/docker-compose.postgresql.yml \
                up -d
 ```
 
@@ -111,12 +113,12 @@ http://localhost:8080
 ```bash
 # PostgreSQL
 docker compose -f docker-compose.yml \
-               -f .dev/profiles/postgresql/docker-compose.postgresql.yml \
+               -f profiles/postgresql/docker-compose.postgresql.yml \
                up -d
 
 # MySQL
 docker compose -f docker-compose.yml \
-               -f .dev/profiles/mysql/docker-compose.mysql.yml \
+               -f profiles/mysql/docker-compose.mysql.yml \
                up -d
 ```
 
@@ -125,8 +127,8 @@ docker compose -f docker-compose.yml \
 ```bash
 # Ghost blogging platform
 docker compose -f docker-compose.yml \
-               -f .dev/profiles/mysql/docker-compose.mysql.yml \
-               -f .dev/examples/ghost/docker-compose.ghost.yml \
+               -f profiles/mysql/docker-compose.mysql.yml \
+               -f examples/ghost/docker-compose.ghost.yml \
                up -d
 ```
 

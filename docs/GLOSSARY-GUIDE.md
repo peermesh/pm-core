@@ -193,7 +193,7 @@ Example:
 
 - [GLOSSARY.md](./GLOSSARY.md) - The authoritative term reference
 - [CONFIGURATION.md](./CONFIGURATION.md) - Environment variable details
-- [AGENTS.md](../AGENTS.md) - Agent operating rules (references glossary)
+- AGENTS.md - Agent operating rules are maintained in the private PeerMeshCore repo and are not published in this repository.
 
 ---
 

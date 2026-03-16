@@ -1,7 +1,7 @@
 # ==============================================================
-# PeerMesh Docker Lab - Project Configuration
+# PeerMeshCore Project Configuration
 # ==============================================================
-# This is the primary configuration file for PeerMesh Docker Lab.
+# This is the primary configuration file for PeerMeshCore.
 #
 # Copy to .peermesh.yml and customize:
 #   cp .peermesh.yml.example .peermesh.yml

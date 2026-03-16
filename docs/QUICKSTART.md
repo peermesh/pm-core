@@ -71,7 +71,7 @@ This creates files in `secrets/` with randomly generated credentials.
 
 ## Step 4: Start Services
 
-Start the core infrastructure:
+Start the PeerMeshCore runtime foundation:
 
 ```bash
 docker compose up -d

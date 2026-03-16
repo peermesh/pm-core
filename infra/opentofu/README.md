@@ -15,11 +15,11 @@ Canonical deployment model:
 
 Reference:
 
-- `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/docs/OPENTOFU-DEPLOYMENT-MODEL.md`
+- `docs/OPENTOFU-DEPLOYMENT-MODEL.md`
 
 Authoritative planning/policy document:
 
-- `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/.dev/ai/research/opentofu-integration/OPENTOFU-PILOT-SCAFFOLD-AND-STATE-POLICY.md`
+- Maintained separately in the PeerMeshCore workspace; reach out to owners for access to the pilot state policy
 
 Current layout:
 
@@ -72,7 +72,7 @@ Operational contract:
 Quick start:
 
 ```bash
-# From sub-repos/docker-lab
+# From repository root
 ./infra/opentofu/scripts/tofu.sh version
 ./infra/opentofu/scripts/pilot-preflight.sh
 ./infra/opentofu/scripts/pilot-credentials.sh --help

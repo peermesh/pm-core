@@ -49,7 +49,7 @@ This checklist maps Docker Lab's security implementation to industry-standard au
 
 **Gap Summary**: Host-level controls (1.1.1, 1.1.2, 1.2.x) are VPS provider responsibility. Docker Lab deployment guide provides recommendations but cannot enforce.
 
-**Evidence**: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/docs/DEPLOYMENT.md`
+**Evidence**: `docs/DEPLOYMENT.md`
 
 ---
 
@@ -71,8 +71,8 @@ This checklist maps Docker Lab's security implementation to industry-standard au
 **Gap Summary**: User namespace remapping (2.8) not enabled; accepted risk with mitigation via capabilities, no-new-privileges, and non-root containers.
 
 **Evidence**:
-- Network isolation: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/docs/decisions/0002-four-network-topology.md`
-- User namespaces risk acceptance: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/docs/security/THREAT-MODEL.md` (Limitation #5)
+- Network isolation: `docs/decisions/0002-four-network-topology.md`
+- User namespaces risk acceptance: `docs/security/THREAT-MODEL.md` (Limitation #5)
 
 ---
 
@@ -124,10 +124,10 @@ This checklist maps Docker Lab's security implementation to industry-standard au
 **Gap Summary**: Content Trust (4.5) not enabled; accepted risk. Image scanning (4.4) is manual; automation planned.
 
 **Evidence**:
-- Non-root containers: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/docs/decisions/0200-non-root-containers.md`
-- Secrets management: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/docs/decisions/0003-file-based-secrets.md`
-- Supply-chain: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/docs/SUPPLY-CHAIN-SECURITY.md`
-- Content Trust risk acceptance: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/.dev/ai/security/SECURITY-FINDINGS.md` (SEC-009)
+- Non-root containers: `docs/decisions/0200-non-root-containers.md`
+- Secrets management: `docs/decisions/0003-file-based-secrets.md`
+- Supply-chain: `docs/SUPPLY-CHAIN-SECURITY.md`
+- Content Trust risk acceptance: captured in the private security findings ledger (SEC-009)
 
 ---
 
@@ -170,10 +170,10 @@ This checklist maps Docker Lab's security implementation to industry-standard au
 **Gap Summary**: Traefik uses host network (5.9) - required for port binding. CPU priority (5.11) not explicitly configured.
 
 **Evidence**:
-- Security anchors: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/docs/decisions/0201-security-anchors.md`
-- Socket proxy: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/docs/decisions/0004-docker-socket-proxy.md`
-- Hardening overlay: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/docker-compose.hardening.yml`
-- Database limitations: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/docs/GOTCHAS.md` (#9, #10, #11, #12)
+- Security anchors: `docs/decisions/0201-security-anchors.md`
+- Socket proxy: `docs/decisions/0004-docker-socket-proxy.md`
+- Hardening overlay: `docker-compose.hardening.yml`
+- Database limitations: `docs/GOTCHAS.md` (#9, #10, #11, #12)
 
 ---
 
@@ -190,8 +190,8 @@ This checklist maps Docker Lab's security implementation to industry-standard au
 **Gap Summary**: Centralized logging and monitoring (6.2) is basic; observability-full profile (Loki/Prometheus/Grafana) created but deferred. Security audits (6.1) are manual.
 
 **Evidence**:
-- Backup procedures: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/docs/BACKUP-RESTORE.md`
-- Observability profiles: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/docs/OBSERVABILITY-PROFILES.md`
+- Backup procedures: `docs/BACKUP-RESTORE.md`
+- Observability profiles: `docs/OBSERVABILITY-PROFILES.md`
 
 ---
 
@@ -220,9 +220,9 @@ This checklist maps Docker Lab's security implementation to industry-standard au
 **Gap Summary**: Image signature verification not enabled; scanning not automated.
 
 **Evidence**:
-- Supply-chain baseline: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/docs/SUPPLY-CHAIN-SECURITY.md`
-- Version immutability: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/docs/ENTERPRISE-VERSION-IMMUTABILITY-STANDARD.md`
-- Image baseline: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/docs/IMAGE-DIGEST-BASELINE.md`
+- Supply-chain baseline: `docs/SUPPLY-CHAIN-SECURITY.md`
+- Version immutability: `docs/ENTERPRISE-VERSION-IMMUTABILITY-STANDARD.md`
+- Image baseline: `docs/IMAGE-DIGEST-BASELINE.md`
 
 ---
 
@@ -239,9 +239,9 @@ This checklist maps Docker Lab's security implementation to industry-standard au
 **Gap Summary**: Vulnerability and misconfiguration scanning is manual; CI/CD integration planned.
 
 **Evidence**:
-- Supply-chain validation: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/scripts/security/validate-supply-chain.sh`
-- SBOM generation: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/scripts/security/generate-sbom.sh`
-- Docker Bench: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/scripts/security/run-docker-bench.sh`
+- Supply-chain validation: `scripts/security/validate-supply-chain.sh`
+- SBOM generation: `scripts/security/generate-sbom.sh`
+- Docker Bench: `scripts/security/run-docker-bench.sh`
 
 ---
 
@@ -258,9 +258,9 @@ This checklist maps Docker Lab's security implementation to industry-standard au
 **Gap Summary**: None. Secrets management is comprehensive with optional encryption at rest.
 
 **Evidence**:
-- File-based secrets ADR: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/docs/decisions/0003-file-based-secrets.md`
-- SOPS+age ADR: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/docs/decisions/0202-sops-age-secrets-encryption.md`
-- Secrets management guide: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/docs/SECRETS-MANAGEMENT.md`
+- File-based secrets ADR: `docs/decisions/0003-file-based-secrets.md`
+- SOPS+age ADR: `docs/decisions/0202-sops-age-secrets-encryption.md`
+- Secrets management guide: `docs/SECRETS-MANAGEMENT.md`
 
 ---
 
@@ -276,8 +276,8 @@ This checklist maps Docker Lab's security implementation to industry-standard au
 **Gap Summary**: Internal service-to-service communication is plaintext (encrypted at network layer via Docker overlay, but not application-layer TLS).
 
 **Evidence**:
-- Network topology ADR: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/docs/decisions/0002-four-network-topology.md`
-- Security architecture: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/docs/SECURITY-ARCHITECTURE.md`
+- Network topology ADR: `docs/decisions/0002-four-network-topology.md`
+- Security architecture: `docs/SECURITY-ARCHITECTURE.md`
 
 ---
 
@@ -295,9 +295,9 @@ This checklist maps Docker Lab's security implementation to industry-standard au
 **Gap Summary**: Some services start as root during initialization.
 
 **Evidence**:
-- Non-root containers ADR: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/docs/decisions/0200-non-root-containers.md`
-- Security anchors: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/docs/decisions/0201-security-anchors.md`
-- Hardening overlay: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/docker-compose.hardening.yml`
+- Non-root containers ADR: `docs/decisions/0200-non-root-containers.md`
+- Security anchors: `docs/decisions/0201-security-anchors.md`
+- Hardening overlay: `docker-compose.hardening.yml`
 
 ---
 
@@ -314,8 +314,8 @@ This checklist maps Docker Lab's security implementation to industry-standard au
 **Gap Summary**: Advanced anomaly detection not implemented; containers are not strictly immutable during runtime.
 
 **Evidence**:
-- Dashboard monitoring: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/docs/DASHBOARD.md`
-- Security controls: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/docs/SECURITY-ARCHITECTURE.md`
+- Dashboard monitoring: `docs/DASHBOARD.md`
+- Security controls: `docs/SECURITY-ARCHITECTURE.md`
 
 ---
 
@@ -332,8 +332,8 @@ This checklist maps Docker Lab's security implementation to industry-standard au
 **Gap Summary**: No centralized logging or automated alerting; observability-full profile created but deferred.
 
 **Evidence**:
-- Security architecture: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/docs/SECURITY-ARCHITECTURE.md` (Monitoring & Logging section)
-- Observability profiles: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/docs/OBSERVABILITY-PROFILES.md`
+- Security architecture: `docs/SECURITY-ARCHITECTURE.md` (Monitoring & Logging section)
+- Observability profiles: `docs/OBSERVABILITY-PROFILES.md`
 
 ---
 
@@ -481,16 +481,16 @@ This checklist maps Docker Lab's security implementation to industry-standard au
 5. **Check evidence artifacts**:
    - Deployment evidence bundles: `evidence/<timestamp>/`
    - Supply-chain reports: `reports/supply-chain/<timestamp>/`
-   - Security findings: `.dev/ai/security/SECURITY-FINDINGS.md`
+   - Security findings: tracked in the private security findings ledger
 
 ---
 
 ## Related Documentation
 
-- **Threat Model**: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/docs/security/THREAT-MODEL.md`
-- **Evidence Inventory**: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/docs/security/EVIDENCE-INVENTORY.md`
-- **OSS Audit Results**: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/docs/security/OSS-AUDIT-RESULTS.md`
-- **Security Architecture**: `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/sub-repos/docker-lab/docs/SECURITY-ARCHITECTURE.md`
+- **Threat Model**: `docs/security/THREAT-MODEL.md`
+- **Evidence Inventory**: `docs/security/EVIDENCE-INVENTORY.md`
+- **OSS Audit Results**: `docs/security/OSS-AUDIT-RESULTS.md`
+- **Security Architecture**: `docs/SECURITY-ARCHITECTURE.md`
 
 ---
 

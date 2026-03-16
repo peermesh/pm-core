@@ -1,15 +1,5 @@
 # State Backups
 
-Store timestamped state backup artifacts here (or references/metadata to secure storage).
+This directory previously held timestamped OpenTofu/Terraform state snapshots. Those artifacts are not part of the public PeerMeshCore boundary and have been removed from the shipped tree; keep any required backups outside the repository and under your own access controls.
 
-Rules:
-
-1. Backup before every apply/destroy.
-2. Use `pilot-single-vps-YYYYmmddTHHMMSSZ` naming.
-3. Do not commit sensitive state payloads.
-
-Helper command:
-
-```bash
-./infra/opentofu/scripts/state-backup.sh --allow-empty --suffix preflight
-```
+The README is retained as a reminder of why the directory is empty in this release.

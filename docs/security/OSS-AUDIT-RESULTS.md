@@ -1,9 +1,16 @@
 # Open-Source Security Audit Results
 
-**Version**: 1.1.0
-**Date**: 2026-02-24
+**Version**: 1.2.0
+**Date**: 2026-02-24 (refreshed 2026-03-20)
 **Status**: Pre-Audit Phase Complete (Phase 1 tool execution complete for WO-PMDL-2026-02-22-062)
 **Purpose**: Document results from open-source security audit tools before professional audit engagement
+
+> **2026-03-20 Refresh Note**: This document was updated after WO-119 and WO-122 merged
+> security hardening into the default compose path. All services now deploy with
+> `cap_drop: ALL` and `no-new-privileges` by default. Databases, Traefik, and Redis
+> have `read_only: true` with tmpfs mounts in the base compose file. OSS scan results
+> (Trivy, Lynis, ZAP) are from 2026-02-24 and should be re-run before professional
+> audit engagement to reflect the updated security posture.
 
 ---
 
@@ -98,8 +105,8 @@ This document captures results from running open-source security audit tools aga
 
 | Finding | CIS Control | Status | Remediation |
 |---------|-------------|--------|-------------|
-| Some containers run as root | 4.1 | **PARTIALLY MITIGATED** | Databases start as root then drop; network isolation mitigates |
-| Read-only filesystem not universal | 5.12 | **PARTIALLY MITIGATED** | Databases require writable; Traefik supports read-only |
+| Some containers run as root | 4.1 | **PARTIALLY MITIGATED** | Databases start as root then drop; all services have `cap_drop: ALL` + `no-new-privileges` |
+| Read-only filesystem not universal | 5.12 | **MOSTLY RESOLVED** | Databases, Traefik, Redis now have `read_only: true` + tmpfs in default compose. Exceptions: socket-proxy (Gotcha #12), MinIO (WO-070), dashboard |
 | Traefik uses host network | 5.9 | **ACCEPTED RISK** | Required for port binding (80/443) |
 
 ---
@@ -411,10 +418,10 @@ docker compose config | grep -A 3 "networks:"
 
 | Security Control | Docker Lab | QNAP | Synology | Umbrel | CasaOS |
 |-----------------|-----------|------|----------|--------|--------|
-| **cap_drop: ALL** | ✓ (most services) | ✗ | ✗ | ✗ | ✗ |
+| **cap_drop: ALL** | ✓ (all services) | ✗ | ✗ | ✗ | ✗ |
 | **no-new-privileges** | ✓ (all services) | ✗ | ✗ | Partial | ✗ |
 | **Non-root containers** | ✓ (most) | ✗ | Partial | Partial | ✗ |
-| **read_only filesystems** | Partial | ✗ | ✗ | ✗ | ✗ |
+| **read_only filesystems** | ✓ (most services) | ✗ | ✗ | ✗ | ✗ |
 | **Docker socket proxy** | ✓ (filtered) | ✗ | ✗ | ✗ | ✗ |
 | **Network isolation** | ✓ (4-tier) | Partial | Partial | ✗ | ✗ |
 | **File-based secrets** | ✓ | ✗ | Partial | ✗ | ✗ |
@@ -426,7 +433,7 @@ docker compose config | grep -A 3 "networks:"
 
 ### Key Differentiators
 
-1. **Capability Dropping**: Docker Lab applies `cap_drop: ALL` with selective `cap_add`; consumer NAS solutions run containers with default capabilities.
+1. **Capability Dropping**: Docker Lab applies `cap_drop: ALL` with selective `cap_add` on **all** services (including databases) by default; consumer NAS solutions run containers with default capabilities.
 
 2. **Socket Protection**: Docker Lab uses filtered socket proxy; NAS solutions often expose Docker socket directly to dashboard/apps.
 
@@ -476,8 +483,8 @@ docker compose config | grep -A 3 "networks:"
 
 | Finding | Tool | Status | Resolution |
 |---------|------|--------|-----------|
-| Some containers run as root | docker-bench | **PARTIALLY MITIGATED** | Network isolation + privilege drop after init |
-| Read-only filesystem not universal | docker-bench | **PARTIALLY MITIGATED** | Database limitation; Traefik supports read-only |
+| Some containers run as root | docker-bench | **PARTIALLY MITIGATED** | All services now have `cap_drop: ALL` + `no-new-privileges`; databases start as root then drop privileges |
+| Read-only filesystem not universal | docker-bench | **MOSTLY RESOLVED** | Databases, Traefik, Redis have `read_only: true` + tmpfs; exceptions: socket-proxy (Gotcha #12), MinIO (WO-070), dashboard |
 | No centralized logging | docker-bench | **KNOWN GAP** | Observability-full profile created but deferred |
 
 ---
@@ -646,7 +653,7 @@ docker compose config | grep -A 3 "networks:"
 ---
 
 **Document Prepared**: 2026-02-22
-**Last Updated**: 2026-02-24
+**Last Updated**: 2026-03-20
 **Audit Package**: Professional Security Firm Review (WO-PMDL-2026-02-22-062)
-**Revision**: 1.1.0
-**Status**: Pre-Audit Tool Execution Complete
+**Revision**: 1.2.0
+**Status**: Pre-Audit Tool Execution Complete (security posture refreshed after WO-119/WO-122 hardening merge)

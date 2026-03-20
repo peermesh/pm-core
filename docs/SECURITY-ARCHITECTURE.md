@@ -425,19 +425,17 @@ x-secured-service: &secured-service
 
 ### Container Hardening Matrix
 
-| Service | Non-Root | no-new-privs | cap_drop ALL | read_only | Memory Limit |
-|---------|----------|--------------|--------------|-----------|--------------|
-| socket-proxy | No* | - | - | No | 32MB |
-| traefik | Yes | Yes | Yes | Optional | 256MB |
-| dashboard | Yes | Yes | Yes | No | 64MB |
-| postgres | Partial** | No | No | No | 1GB |
-| mysql | Partial** | No | No | No | 1GB |
-| mongodb | Partial** | No | No | No | 1GB |
-| redis | Yes | Yes | Yes | No | 256MB |
-| minio | No | No | No | No | 512MB |
-
-*Socket-proxy requires root for Docker socket access
-**Databases start as root but drop privileges after init
+| Service | cap_drop ALL | no-new-privileges | read_only | non-root | Notes |
+|---------|-------------|-------------------|-----------|----------|-------|
+| socket-proxy | YES | YES | NO (Gotcha #12) | NO (root required) | haproxy template generation |
+| traefik | YES | YES | YES | NO (deferred, circular v2.11/API dep) | cap_add: NET_BIND_SERVICE; tmpfs /tmp |
+| dashboard | YES | YES | NO | YES (1000:1000) | |
+| postgres | YES | YES | YES | NO (entrypoint needs root) | cap_add: CHOWN,DAC_OVERRIDE,FOWNER,SETGID,SETUID; tmpfs /tmp,/run/postgresql |
+| mysql | YES | YES | YES | NO (entrypoint needs root) | cap_add: CHOWN,DAC_OVERRIDE,FOWNER,SETGID,SETUID; tmpfs /tmp,/run/mysqld |
+| mongodb | YES | YES | YES | NO (entrypoint needs root) | cap_add: CHOWN,DAC_OVERRIDE,FOWNER,SETGID,SETUID; tmpfs /tmp |
+| redis | YES | YES | YES | YES (999:999) | tmpfs /tmp |
+| minio | YES | YES | NO (WO-070) | NO (WO-070) | /data permissions prevent read_only and non-root |
+| catchall | YES | YES | NO | YES (65534:65534) | |
 
 ### Resource Limits
 

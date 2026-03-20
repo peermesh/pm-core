@@ -150,3 +150,33 @@ resource "cloudflare_record" "pilot_a" {
   ttl     = var.cloudflare_record_ttl
   proxied = var.cloudflare_proxied
 }
+
+resource "cloudflare_record" "core_a" {
+  count = (
+    local.use_hetzner
+    && local.use_cloudflare
+    && length(trimspace(var.cloudflare_zone_id)) > 0
+  ) ? 1 : 0
+
+  zone_id = var.cloudflare_zone_id
+  name    = "core"
+  content = hcloud_server.pilot[0].ipv4_address
+  type    = "A"
+  ttl     = var.cloudflare_record_ttl
+  proxied = false
+}
+
+resource "cloudflare_record" "core_wildcard" {
+  count = (
+    local.use_hetzner
+    && local.use_cloudflare
+    && length(trimspace(var.cloudflare_zone_id)) > 0
+  ) ? 1 : 0
+
+  zone_id = var.cloudflare_zone_id
+  name    = "*.core"
+  content = hcloud_server.pilot[0].ipv4_address
+  type    = "A"
+  ttl     = var.cloudflare_record_ttl
+  proxied = false
+}

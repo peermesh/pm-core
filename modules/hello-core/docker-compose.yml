@@ -98,7 +98,7 @@ services:
 
       # Router: HTTPS access at hello-core.${DOMAIN}
       # CUSTOMIZE: Change the Host rule to your module's subdomain
-      - "traefik.http.routers.hello-core.rule=Host(`${HELLO_CORE_SUBDOMAIN:-hello-core}.${DOMAIN}`)"
+      - "traefik.http.routers.hello-core.rule=Host(`core.peermesh.org`) || Host(`${HELLO_CORE_SUBDOMAIN:-hello-core}.core.peermesh.org`)"
       - "traefik.http.routers.hello-core.entrypoints=websecure"
       - "traefik.http.routers.hello-core.tls.certresolver=letsencrypt"
 

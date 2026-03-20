@@ -100,7 +100,7 @@ services:
 
       # Router: HTTPS access at hello-custom.${DOMAIN}
       # CUSTOMIZE: Change the Host rule to your module's subdomain
-      - "traefik.http.routers.hello-custom.rule=Host(`${HELLO_CUSTOM_SUBDOMAIN:-hello-custom}.${DOMAIN}`)"
+      - "traefik.http.routers.hello-custom.rule=Host(`${HELLO_CUSTOM_SUBDOMAIN:-hello-custom}.core.peermesh.org`)"
       - "traefik.http.routers.hello-custom.entrypoints=websecure"
       - "traefik.http.routers.hello-custom.tls.certresolver=letsencrypt"
 

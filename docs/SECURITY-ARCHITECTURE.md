@@ -2,8 +2,8 @@
 
 Comprehensive security architecture documentation for Peer Mesh Docker Lab.
 
-**Version**: 1.1.0
-**Last Updated**: 2026-02-21
+**Version**: 1.2.0
+**Last Updated**: 2026-03-20
 **Status**: Production-Ready
 
 ---
@@ -428,7 +428,7 @@ x-secured-service: &secured-service
 | Service | cap_drop ALL | no-new-privileges | read_only | non-root | Notes |
 |---------|-------------|-------------------|-----------|----------|-------|
 | socket-proxy | YES | YES | NO (Gotcha #12) | NO (root required) | haproxy template generation |
-| traefik | YES | YES | YES | NO (deferred, circular v2.11/API dep) | cap_add: NET_BIND_SERVICE; tmpfs /tmp |
+| traefik | YES | YES | YES | NO (accepted risk -- see note below) | cap_add: NET_BIND_SERVICE; tmpfs /tmp |
 | dashboard | YES | YES | NO | YES (1000:1000) | |
 | postgres | YES | YES | YES | NO (entrypoint needs root) | cap_add: CHOWN,DAC_OVERRIDE,FOWNER,SETGID,SETUID; tmpfs /tmp,/run/postgresql |
 | mysql | YES | YES | YES | NO (entrypoint needs root) | cap_add: CHOWN,DAC_OVERRIDE,FOWNER,SETGID,SETUID; tmpfs /tmp,/run/mysqld |
@@ -436,6 +436,15 @@ x-secured-service: &secured-service
 | redis | YES | YES | YES | YES (999:999) | tmpfs /tmp |
 | minio | YES | YES | NO (WO-070) | NO (WO-070) | /data permissions prevent read_only and non-root |
 | catchall | YES | YES | NO | YES (65534:65534) | |
+
+### Traefik Root User — Accepted Risk
+
+Traefik runs as root. This is a **known, accepted risk** with the following context:
+
+- **Why root is required**: Traefik v2.11 ACME certificate storage (`/acme/acme.json`) requires root ownership for file permissions.
+- **Mitigations in place**: `cap_drop: ALL`, `no-new-privileges:true`, `read_only: true`, `tmpfs` for `/tmp`. Only `NET_BIND_SERVICE` is added back.
+- **Why not fixed yet**: Traefik v3.2 ships a Docker API client pinned to v1.24, which is incompatible with Docker Engine 29.x (minimum API v1.44). Upgrading Traefik to v3 would break Docker socket proxy communication.
+- **Status**: Accepted risk with defense-in-depth mitigation. This is not a deferred task -- it is blocked by an upstream compatibility gap.
 
 ### Resource Limits
 
@@ -745,7 +754,7 @@ docker compose up -d --force-recreate
 | 5.4 Privileged containers | Pass | None privileged |
 | 5.9 Host network namespace | Pass | Only traefik for ports |
 | 5.10 Memory limits | Pass | All services limited |
-| 5.12 Root filesystem read-only | Partial | Where supported |
+| 5.12 Root filesystem read-only | Pass | Most services (exceptions: socket-proxy, MinIO, dashboard) |
 | 5.22 docker exec commands | Pass | Blocked via proxy |
 | 5.25 Restart policy | Pass | unless-stopped |
 | 5.31 Docker socket in containers | Mitigated | Via proxy only |
@@ -781,6 +790,6 @@ docker compose up -d --force-recreate
 
 ---
 
-*Document version: 1.1.0*
+*Document version: 1.2.0*
 *CIS Docker Benchmark version: 1.6.0*
 *OWASP Container Security version: 2023*

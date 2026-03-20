@@ -22,12 +22,26 @@ Use this checklist before deploying new applications or troubleshooting failed d
   # Expected: Docker Compose version v2.20.x or higher
   ```
 
-- [ ] **Required CLI tools installed**
+- [ ] **SSH access to your VPS**
   ```bash
-  # Check all required tools
-  command -v sops && command -v age && command -v just && command -v jq
-  # All should return paths; missing = install needed
+  ssh root@your-vps-ip 'echo ok'
+  # Expected: ok
   ```
+
+### Advanced Tools (Optional)
+
+These tools are only needed for advanced workflows (encrypted secrets, task runner, JSON processing). They are **not required** for basic deployment:
+
+- [ ] **sops** — encrypted secrets management (only if using SOPS+age workflow)
+- [ ] **age** — encryption key generation (only if using SOPS+age workflow)
+- [ ] **just** — command runner for convenience targets (alternative: run commands manually)
+- [ ] **jq** — JSON processing (only for advanced scripting/debugging)
+
+```bash
+# Check optional tools
+command -v sops && command -v age && command -v just && command -v jq
+# Missing tools are fine for basic deployment
+```
 
 ### Network Configuration
 

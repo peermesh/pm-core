@@ -1,9 +1,14 @@
 # Security Audit Readiness Checklist
 
-**Version**: 1.0.0
-**Date**: 2026-02-22
+**Version**: 1.1.0
+**Date**: 2026-02-22 (refreshed 2026-03-20)
 **Status**: Audit Preparation Package
 **Framework**: CIS Docker Benchmark v1.6.0 + OWASP Container Security + NIST Cybersecurity Framework
+
+> **2026-03-20 Refresh Note**: Updated after WO-119/WO-122 merged security hardening
+> into the default compose path. Controls previously marked as requiring the hardening
+> overlay are now enforced in the base `docker-compose.yml`. CIS 5.3 (capabilities)
+> and 5.12 (read-only filesystems) upgraded from Partial to full/mostly resolved.
 
 ---
 
@@ -137,7 +142,7 @@ This checklist maps Docker Lab's security implementation to industry-standard au
 |---|---------|--------|----------|-------|
 | 5.1 | Do not disable AppArmor profile | [✓] | Default enabled | AppArmor profile active (on supported hosts) |
 | 5.2 | Verify SELinux security options | [N/A] | Ubuntu uses AppArmor | SELinux not applicable on Ubuntu-based VPS |
-| 5.3 | Restrict Linux kernel capabilities within containers | [✓] | docker-compose.hardening.yml | `cap_drop: ALL` with selective `cap_add` |
+| 5.3 | Restrict Linux kernel capabilities within containers | [✓] | docker-compose.yml (default) | `cap_drop: ALL` with selective `cap_add` on all services (WO-119) |
 | 5.4 | Do not use privileged containers | [✓] | docker-compose.yml | No `privileged: true` on any service |
 | 5.5 | Do not mount sensitive host system directories | [~] | docker-compose.yml | Socket mounted via proxy only (read-only, filtered) |
 | 5.6 | Do not run ssh within containers | [✓] | Service definitions | No SSH daemons in containers |
@@ -146,7 +151,7 @@ This checklist maps Docker Lab's security implementation to industry-standard au
 | 5.9 | Do not share the host's network namespace | [~] | docker-compose.yml | Traefik uses host network (required for ports 80/443); others use custom networks |
 | 5.10 | Limit memory usage for container | [✓] | docker-compose.yml deploy.resources.limits | All services have memory limits (64M-1G) |
 | 5.11 | Set container CPU priority appropriately | [~] | docker-compose.yml deploy.resources.reservations | Memory limits set; CPU priority not explicitly configured |
-| 5.12 | Mount container's root filesystem as read-only | [✓] | docker-compose.hardening.yml | Applied to Traefik/dashboard/redis and DB services via wrapper+tmpfs pattern (see GOTCHAS #10) |
+| 5.12 | Mount container's root filesystem as read-only | [✓] | docker-compose.yml (default) | Applied to Traefik, databases, Redis via `read_only: true` + tmpfs in base compose (WO-119/WO-122). Exceptions: socket-proxy (Gotcha #12), MinIO (WO-070), dashboard |
 | 5.13 | Bind incoming container traffic to a specific host interface | [✓] | Traefik handles | Traefik binds to 0.0.0.0 (public), backend containers not exposed |
 | 5.14 | Set the 'on-failure' container restart policy to 5 | [✓] | docker-compose.yml | `restart: unless-stopped` on all services |
 | 5.15 | Do not share the host's process namespace | [✓] | docker-compose.yml | No `pid: host` |
@@ -172,7 +177,7 @@ This checklist maps Docker Lab's security implementation to industry-standard au
 **Evidence**:
 - Security anchors: `docs/decisions/0201-security-anchors.md`
 - Socket proxy: `docs/decisions/0004-docker-socket-proxy.md`
-- Hardening overlay: `docker-compose.hardening.yml`
+- Base compose (hardening merged): `docker-compose.yml` (WO-119/WO-122)
 - Database limitations: `docs/GOTCHAS.md` (#9, #10, #11, #12)
 
 ---
@@ -286,10 +291,10 @@ This checklist maps Docker Lab's security implementation to industry-standard au
 | Control | Status | Evidence | Notes |
 |---------|--------|----------|-------|
 | Non-root containers | [~] | docker-compose.yml user directives | Most services non-root; databases start as root then drop privileges |
-| Read-only filesystems | [✓] | docker-compose.hardening.yml | Databases now supported via wrapper+tmpfs runtime paths |
+| Read-only filesystems | [✓] | docker-compose.yml (default) | Databases, Traefik, Redis have `read_only: true` + tmpfs in base compose (WO-119/WO-122) |
 | No privileged containers | [✓] | docker-compose.yml | No `privileged: true` |
 | Resource limits | [✓] | docker-compose.yml deploy.resources | Memory limits (64M-1G), CPU reservations |
-| Capability restrictions | [✓] | docker-compose.hardening.yml | `cap_drop: ALL` with selective `cap_add` |
+| Capability restrictions | [✓] | docker-compose.yml (default) | `cap_drop: ALL` with selective `cap_add` on all services (WO-119) |
 | Security options (`no-new-privileges`) | [✓] | docker-compose.base.yml | `no-new-privileges: true` on all services |
 
 **Gap Summary**: Some services start as root during initialization.
@@ -297,7 +302,7 @@ This checklist maps Docker Lab's security implementation to industry-standard au
 **Evidence**:
 - Non-root containers ADR: `docs/decisions/0200-non-root-containers.md`
 - Security anchors: `docs/decisions/0201-security-anchors.md`
-- Hardening overlay: `docker-compose.hardening.yml`
+- Base compose (hardening merged): `docker-compose.yml` (WO-119/WO-122)
 
 ---
 
@@ -435,7 +440,7 @@ This checklist maps Docker Lab's security implementation to industry-standard au
 |----------|----------------------|
 | Network Isolation | `docker-compose.yml` (networks), `docs/decisions/0002-four-network-topology.md` |
 | Secrets Management | `docker-compose.yml` (secrets), `docs/decisions/0003-file-based-secrets.md`, `docs/SECRETS-MANAGEMENT.md` |
-| Container Hardening | `docker-compose.hardening.yml`, `docs/decisions/0201-security-anchors.md`, `foundation/docker-compose.base.yml` |
+| Container Hardening | `docker-compose.yml` (hardening merged, WO-119/WO-122), `docs/decisions/0201-security-anchors.md`, `foundation/docker-compose.base.yml` |
 | API Protection | `docker-compose.yml` (socket-proxy), `docs/decisions/0004-docker-socket-proxy.md` |
 | Supply-Chain | `scripts/security/validate-supply-chain.sh`, `docs/SUPPLY-CHAIN-SECURITY.md` |
 | Deployment Security | `scripts/deploy.sh`, `docs/WEBHOOK-DEPLOYMENT.md`, `docs/DEPLOYMENT.md` |
@@ -474,7 +479,7 @@ This checklist maps Docker Lab's security implementation to industry-standard au
    - Webhook deployment endpoint (if configured)
 
 4. **Review code**:
-   - Configuration: `docker-compose.yml`, `docker-compose.hardening.yml`
+   - Configuration: `docker-compose.yml` (all hardening merged by default)
    - Security scripts: `scripts/security/`
    - Security framework: `foundation/interfaces/`, `foundation/schemas/`
 
@@ -495,5 +500,6 @@ This checklist maps Docker Lab's security implementation to industry-standard au
 ---
 
 **Document Prepared**: 2026-02-22
+**Last Refreshed**: 2026-03-20
 **Audit Package**: Professional Security Firm Review (WO-PMDL-2026-02-22-062)
-**Revision**: 1.0.0
+**Revision**: 1.1.0

@@ -1,9 +1,14 @@
 # Docker Lab Threat Model
 
-**Version**: 1.0.0
-**Date**: 2026-02-22
+**Version**: 1.1.0
+**Date**: 2026-02-22 (refreshed 2026-03-20)
 **Status**: Active
 **Audit Preparation**: Professional Security Firm Review
+
+> **2026-03-20 Refresh Note**: Updated after WO-119/WO-122 merged security hardening
+> into the default compose path. All services now have `cap_drop: ALL` and
+> `no-new-privileges` by default. Database, Traefik, and Redis residual risks
+> updated to reflect improved hardening posture.
 
 ---
 
@@ -165,8 +170,7 @@ Attack surfaces are the entry points where adversaries can interact with the sys
 - Zero-day vulnerabilities in Traefik possible
 
 **Evidence**:
-- Configuration: `docker-compose.yml` (traefik service)
-- Hardening: `docker-compose.hardening.yml`
+- Configuration: `docker-compose.yml` (traefik service — hardening merged by default, WO-119/WO-122)
 - ADR: `docs/decisions/0001-traefik-reverse-proxy.md`
 
 ---
@@ -272,14 +276,14 @@ Attack surfaces are the entry points where adversaries can interact with the sys
 - Resource limits (1 GiB memory per database)
 - Official images from trusted registries
 
-**Residual Risk**: **MEDIUM**
+**Residual Risk**: **LOW-MEDIUM**
 - Databases start as root during initialization (entrypoint drops privileges after init)
-- `cap_drop: ALL` not applied (breaks database initialization; see Gotcha #9)
-- `read_only: true` requires wrapper+tmpfs maintenance (see Gotcha #10)
+- `cap_drop: ALL` now applied to all databases with selective `cap_add` (CHOWN, DAC_OVERRIDE, FOWNER, SETGID, SETUID) for init (WO-119)
+- `read_only: true` + tmpfs now applied to all databases in base compose (WO-119)
 - Compromise of application grants database access (by design)
 
 **Evidence**:
-- Configuration: `docker-compose.yml` (postgres, mysql, mongodb services)
+- Configuration: `docker-compose.yml` (postgres, mysql, mongodb services — hardening merged by default)
 - Hardening rationale: `docs/GOTCHAS.md` (entries #9, #10)
 - ADR: `docs/decisions/0200-non-root-containers.md`
 
@@ -468,11 +472,11 @@ Attack surfaces are the entry points where adversaries can interact with the sys
 
 | Mitigation | Implementation | Evidence |
 |-----------|----------------|----------|
-| Capability dropping | `cap_drop: ALL` (except databases, Traefik) | docker-compose.hardening.yml |
-| Privilege escalation prevention | `no-new-privileges: true` | Security anchor in docker-compose.base.yml |
+| Capability dropping | `cap_drop: ALL` on **all** services (with selective `cap_add` where needed) | docker-compose.yml (merged by default, WO-119) |
+| Privilege escalation prevention | `no-new-privileges: true` on all services | docker-compose.yml + security anchor in docker-compose.base.yml |
 | Non-root execution | `user: 65534:65534` (dashboard, redis, others) | docker-compose.yml service definitions |
 | Resource limits | Memory limits (64M-1G), CPU reservations | deploy.resources section |
-| Read-only filesystems | Applied to stateless services and databases via wrapper+tmpfs pattern | docker-compose.hardening.yml |
+| Read-only filesystems | `read_only: true` + tmpfs on Traefik, databases, Redis in base compose | docker-compose.yml (merged by default, WO-119/WO-122) |
 
 **File**: `docs/decisions/0201-security-anchors.md`
 
@@ -538,15 +542,15 @@ Attack surfaces are the entry points where adversaries can interact with the sys
 
 ### Limitation 1: Database Containers Run as Root During Init
 
-**Description**: PostgreSQL, MySQL, MongoDB official images require root for initialization (chown data directories, create PID files), now wrapped for read_only mode.
+**Description**: PostgreSQL, MySQL, MongoDB official images require root for initialization (chown data directories, create PID files).
 
 **Impact**: Brief window of root execution during first startup.
 
-**Mitigation**: Network isolation (no internet egress), official images (assumed secure), privilege drop after init.
+**Mitigation**: `cap_drop: ALL` with selective `cap_add` (CHOWN, DAC_OVERRIDE, FOWNER, SETGID, SETUID), `no-new-privileges: true`, `read_only: true` + tmpfs, network isolation (no internet egress), official images (assumed secure), privilege drop after init. All hardening applied in default compose path (WO-119).
 
 **Accepted Risk**: **YES** (technical limitation of database entrypoints)
 
-**Rationale**: Documented in Gotcha #9 and #10. Read-only hardening is now achieved with wrapper+tmpfs, but initialization root requirement remains an upstream image behavior.
+**Rationale**: Documented in Gotcha #9 and #10. Root during init is upstream behavior, but attack surface is significantly reduced by capability dropping and read-only filesystem.
 
 **Evidence**: `docs/GOTCHAS.md` (entries #9, #10)
 
@@ -694,5 +698,6 @@ The threat model makes the following security assumptions:
 ---
 
 **Document Prepared**: 2026-02-22
+**Last Refreshed**: 2026-03-20
 **Audit Package**: Professional Security Firm Review (WO-PMDL-2026-02-22-062)
-**Revision**: 1.0.0
+**Revision**: 1.1.0

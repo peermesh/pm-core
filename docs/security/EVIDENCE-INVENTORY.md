@@ -1,9 +1,14 @@
 # Security Evidence Inventory
 
-**Version**: 1.0.0
-**Date**: 2026-02-22
+**Version**: 1.1.0
+**Date**: 2026-02-22 (refreshed 2026-03-20)
 **Status**: Audit Preparation Package
 **Purpose**: Index of all security-related artifacts for professional security audit
+
+> **2026-03-20 Refresh Note**: Updated after WO-119/WO-122 merged security hardening
+> into the default compose path. The hardening overlay (`docker-compose.hardening.yml`)
+> is now redundant for merged properties; all `cap_drop: ALL`, `no-new-privileges`,
+> `read_only`, and tmpfs settings are in the base `docker-compose.yml`.
 
 ---
 
@@ -37,8 +42,8 @@ All file paths in this document are repo-relative to this repository root.
 
 | File | Security Controls | Description |
 |------|------------------|-------------|
-| `docker-compose.yml` | Network segmentation, secrets, resource limits, security anchors | Main service definitions with four-tier network topology |
-| `docker-compose.hardening.yml` | Capability restrictions, read-only filesystems, security overlays | Hardening overlay with cap_drop/cap_add, read_only where supported |
+| `docker-compose.yml` | Network segmentation, secrets, resource limits, security anchors, cap_drop ALL, no-new-privileges, read_only + tmpfs | Main service definitions with full hardening applied by default (WO-119/WO-122) |
+| `docker-compose.hardening.yml` | Legacy reference overlay | Retained as reference; merged properties now in base compose (WO-119/WO-122) |
 | `foundation/docker-compose.base.yml` | Security anchors (x-secured-service), logging defaults, restart policies | Reusable YAML anchors for consistent security configuration |
 
 **Paths (repo relative)**:
@@ -389,15 +394,18 @@ Standalone supply-chain runs (outside deployment) generate reports in:
 
 ### docker-compose.hardening.yml
 
-**Purpose**: Overlay file that applies maximum hardening to all services
+**Purpose**: Legacy reference overlay (superseded by WO-119/WO-122)
 
-**Controls Implemented**:
-- `cap_drop: ALL` on all services (except databases during init)
+**Status**: As of 2026-03-20, all hardening controls have been merged into the base `docker-compose.yml`. This overlay is retained as a reference artifact but is no longer required for secure deployment.
+
+**Controls Now in Base Compose**:
+- `cap_drop: ALL` on **all** services (databases get selective `cap_add` for init)
 - `cap_add` selectively for required capabilities (NET_BIND_SERVICE for Traefik, CHOWN/DAC_OVERRIDE/FOWNER/SETGID/SETUID for databases)
-- `read_only: true` on Traefik (optional, with tmpfs mounts)
-- Documented exceptions (socket-proxy, databases)
+- `read_only: true` on Traefik, databases, and Redis (with tmpfs mounts)
+- `no-new-privileges: true` on all services
+- Documented exceptions: socket-proxy (no read_only, Gotcha #12), MinIO (no read_only, WO-070), dashboard (no read_only)
 
-**Usage**: `docker compose -f docker-compose.yml -f docker-compose.hardening.yml up -d`
+**Usage**: `docker compose up -d` (no overlay needed)
 
 **Path (repo relative)**: `docker-compose.hardening.yml`
 
@@ -447,7 +455,7 @@ Standalone supply-chain runs (outside deployment) generate reports in:
 - **Docs**: `docs/SECRETS-MANAGEMENT.md`
 
 ### Container Hardening
-- **Config**: `docker-compose.hardening.yml`, `foundation/docker-compose.base.yml` (x-secured-service anchor)
+- **Config**: `docker-compose.yml` (hardening merged by default, WO-119/WO-122), `foundation/docker-compose.base.yml` (x-secured-service anchor)
 - **ADR**: `docs/decisions/0201-security-anchors.md`, `docs/decisions/0200-non-root-containers.md`
 - **Gotchas**: `docs/GOTCHAS.md` (entries #9-12)
 
@@ -474,8 +482,8 @@ Standalone supply-chain runs (outside deployment) generate reports in:
 ## Artifact Maintenance
 
 ### Last Updated
-- Inventory: 2026-02-22 (WO-PMDL-2026-02-22-062)
-- Security Architecture: 2026-02-21
+- Inventory: 2026-03-20 (refreshed after WO-119/WO-122 hardening merge)
+- Security Architecture: 2026-03-20 (hardening matrix updated)
 - Security Findings: 2026-01-21
 - ADRs: Ongoing (versioned individually)
 
@@ -495,5 +503,6 @@ Standalone supply-chain runs (outside deployment) generate reports in:
 ---
 
 **Document Prepared**: 2026-02-22
+**Last Refreshed**: 2026-03-20
 **Audit Package**: Professional Security Firm Review (WO-PMDL-2026-02-22-062)
-**Revision**: 1.0.0
+**Revision**: 1.1.0

@@ -9,6 +9,50 @@ Note:
 1. This quick start is the fastest runtime-first path.
 2. If you want API-driven VPS provisioning first (recommended for production reproducibility), start with [OpenTofu Deployment Model](OPENTOFU-DEPLOYMENT-MODEL.md) and then return here for runtime deployment.
 
+---
+
+## Production Quick Start (10 Steps)
+
+A condensed path for operators who want the shortest route to a running instance:
+
+1. **Clone the repo**
+   ```bash
+   git clone https://github.com/peermesh/docker-lab.git && cd docker-lab
+   ```
+2. **Copy `.env.example` to `.env`**, set `DOMAIN` and `ADMIN_EMAIL`
+   ```bash
+   cp .env.example .env
+   # Edit .env: set DOMAIN=yourdomain.com and ADMIN_EMAIL=you@example.com
+   ```
+3. **Generate secrets**
+   ```bash
+   ./scripts/generate-secrets.sh
+   ```
+4. **Build the dashboard image** (required -- not in any registry)
+   ```bash
+   docker compose build dashboard
+   ```
+5. **Start services**
+   ```bash
+   ./launch_peermesh.sh up
+   ```
+6. **Verify all services are healthy**
+   ```bash
+   docker compose ps
+   # All services should show "healthy"
+   ```
+7. **Access your dashboard** at `https://your-domain`
+8. **Enable modules**
+   ```bash
+   ./launch_peermesh.sh module enable hello-core
+   ```
+9. **Add database profiles** as needed (see [Profiles Guide](PROFILES.md))
+10. **Review** the [Security Guide](SECURITY.md) and [Deployment Guide](DEPLOYMENT.md) for hardening
+
+For a detailed walkthrough with explanations, continue with the step-by-step guide below.
+
+---
+
 ## Prerequisites
 
 Before you begin, ensure you have:
@@ -69,23 +113,44 @@ chmod +x scripts/generate-secrets.sh
 
 This creates files in `secrets/` with randomly generated credentials.
 
-## Step 4: Start Services
+## Step 4: Build the Dashboard
+
+The dashboard image must be built locally (it is not published to any registry):
+
+```bash
+docker compose build dashboard
+```
+
+## Step 5: Start Services
 
 Start the PeerMeshCore runtime foundation:
 
 ```bash
-docker compose up -d
+./launch_peermesh.sh up
 ```
 
 For development with PostgreSQL:
 
 ```bash
+./launch_peermesh.sh up --profile=postgresql
+```
+
+<details>
+<summary>Advanced / Manual: raw Docker Compose commands</summary>
+
+```bash
+# Foundation only
+docker compose up -d
+
+# With PostgreSQL profile
 docker compose -f docker-compose.yml \
                -f profiles/postgresql/docker-compose.postgresql.yml \
                up -d
 ```
 
-## Step 5: Verify It's Working
+</details>
+
+## Step 6: Verify It's Working
 
 Check that all services are running:
 
@@ -112,6 +177,30 @@ http://localhost:8080
 
 ```bash
 # PostgreSQL
+./launch_peermesh.sh up --profile=postgresql
+
+# MySQL
+./launch_peermesh.sh up --profile=mysql
+```
+
+### Deploy an Example Application
+
+```bash
+# Ghost blogging platform
+./launch_peermesh.sh up --profile=mysql --example=ghost
+```
+
+### Enable a Module
+
+```bash
+./launch_peermesh.sh module enable hello-core
+```
+
+<details>
+<summary>Advanced / Manual: raw Docker Compose commands</summary>
+
+```bash
+# PostgreSQL
 docker compose -f docker-compose.yml \
                -f profiles/postgresql/docker-compose.postgresql.yml \
                up -d
@@ -120,17 +209,15 @@ docker compose -f docker-compose.yml \
 docker compose -f docker-compose.yml \
                -f profiles/mysql/docker-compose.mysql.yml \
                up -d
-```
 
-### Deploy an Example Application
-
-```bash
-# Ghost blogging platform
+# Ghost example
 docker compose -f docker-compose.yml \
                -f profiles/mysql/docker-compose.mysql.yml \
                -f examples/ghost/docker-compose.ghost.yml \
                up -d
 ```
+
+</details>
 
 ### Configure for Production
 
@@ -144,7 +231,7 @@ docker compose -f docker-compose.yml \
 Stop all services:
 
 ```bash
-docker compose down
+./launch_peermesh.sh down
 ```
 
 Stop and remove volumes (WARNING: deletes data):

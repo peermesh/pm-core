@@ -194,11 +194,10 @@ setup_networks() {
     if docker network inspect "$network" &> /dev/null; then
         log_success "Network exists: $network"
     else
-        if docker network create --internal "$network" &> /dev/null; then
-            log_success "Created network: $network"
-        else
-            log_warn "Could not create network: $network (may be created at startup)"
-        fi
+        # Do NOT create the network manually — docker compose must own it
+        # to set the com.docker.compose.network label correctly.
+        # The network will be created automatically by docker compose up.
+        log_success "Network $network will be created by docker compose"
     fi
 }
 

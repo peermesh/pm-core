@@ -131,6 +131,12 @@ services:
     networks:
       - socket-proxy
     logging: *default-logging
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z localhost 2375 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     deploy:
       resources:
         limits:

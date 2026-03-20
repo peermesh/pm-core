@@ -28,7 +28,10 @@ services:
       file: ../../foundation/docker-compose.base.yml
       service: _service-standard
 
-    image: restic/restic@sha256:63e86f6726e2afcd49c882d2fc67ae483a38a1ffcb50cbf5f474bd11f5129217
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: pmdl/backup:latest
     container_name: pmdl_backup
 
     # Entrypoint runs cron in foreground
@@ -41,9 +44,8 @@ services:
         echo "PeerMesh Backup Module Starting"
         echo "================================================"
 
-        # Install dependencies
-        echo "Installing dependencies..."
-        apk add --no-cache docker-cli postgresql16-client gzip bash curl jq > /dev/null 2>&1
+        # Dependencies pre-installed via Dockerfile (apk add at runtime
+        # fails on internal networks with no internet egress).
 
         # Copy backup scripts from mounted volume
         echo "Setting up backup scripts..."

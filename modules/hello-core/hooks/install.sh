@@ -21,6 +21,12 @@ set -euo pipefail
 MODULE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 MODULE_NAME="hello-core"
 
+# Auto-create .env from .env.example if not present
+if [[ -f "${MODULE_DIR}/.env.example" ]] && [[ ! -f "${MODULE_DIR}/.env" ]]; then
+    cp "${MODULE_DIR}/.env.example" "${MODULE_DIR}/.env"
+    echo "Created .env from .env.example"
+fi
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'

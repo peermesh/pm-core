@@ -1118,7 +1118,7 @@ cmd_module() {
             ;;
 
         status)
-            local module="$1"
+            local module="${1:-}"
             if [[ -z "$module" ]]; then
                 log_error "Module name required"
                 echo "Usage: $SCRIPT_NAME module status <name>"
@@ -1218,9 +1218,216 @@ cmd_module() {
             return $overall_pass
             ;;
 
+        validate)
+            local module="${1:-}"
+            local errors=0
+            local checked=0
+            local schema="$project_dir/foundation/schemas/module.schema.json"
+
+            _validate_module() {
+                local mod_name="$1"
+                local mod_dir="$project_dir/modules/$mod_name"
+                local manifest="$mod_dir/module.json"
+                local mod_errors=0
+
+                if [[ ! -d "$mod_dir" ]]; then
+                    log_error "Module directory not found: $mod_name"
+                    return 1
+                fi
+
+                if [[ ! -f "$manifest" ]]; then
+                    log_error "[$mod_name] module.json not found"
+                    return 1
+                fi
+
+                # Deep validation with jq if available
+                if cmd_exists jq && [[ -f "$schema" ]]; then
+                    # Check valid JSON
+                    if ! jq empty "$manifest" 2>/dev/null; then
+                        log_error "[$mod_name] module.json is not valid JSON"
+                        return 1
+                    fi
+
+                    # Required field: id
+                    local val
+                    val=$(jq -r '.id // empty' "$manifest" 2>/dev/null)
+                    if [[ -z "$val" ]]; then
+                        log_error "[$mod_name] Missing required field: id"
+                        ((mod_errors++)) || true
+                    elif [[ ! "$val" =~ ^[a-z0-9]([a-z0-9-]*[a-z0-9])?$ ]]; then
+                        log_error "[$mod_name] Invalid id format: $val (must be lowercase alphanumeric with hyphens)"
+                        ((mod_errors++)) || true
+                    else
+                        log_debug "[$mod_name] id=$val"
+                    fi
+
+                    # Required field: version
+                    val=$(jq -r '.version // empty' "$manifest" 2>/dev/null)
+                    if [[ -z "$val" ]]; then
+                        log_error "[$mod_name] Missing required field: version"
+                        ((mod_errors++)) || true
+                    elif [[ ! "$val" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]]; then
+                        log_error "[$mod_name] Invalid version format: $val (expected semver)"
+                        ((mod_errors++)) || true
+                    else
+                        log_debug "[$mod_name] version=$val"
+                    fi
+
+                    # Required field: name
+                    val=$(jq -r '.name // empty' "$manifest" 2>/dev/null)
+                    if [[ -z "$val" ]]; then
+                        log_error "[$mod_name] Missing required field: name"
+                        ((mod_errors++)) || true
+                    else
+                        log_debug "[$mod_name] name=$val"
+                    fi
+
+                    # Required field: foundation.minVersion
+                    val=$(jq -r '.foundation.minVersion // empty' "$manifest" 2>/dev/null)
+                    if [[ -z "$val" ]]; then
+                        log_error "[$mod_name] Missing required field: foundation.minVersion"
+                        ((mod_errors++)) || true
+                    elif [[ ! "$val" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+                        log_error "[$mod_name] Invalid foundation.minVersion format: $val"
+                        ((mod_errors++)) || true
+                    else
+                        log_debug "[$mod_name] foundation.minVersion=$val"
+                    fi
+                else
+                    # Basic check: valid JSON only
+                    if cmd_exists jq; then
+                        if ! jq empty "$manifest" 2>/dev/null; then
+                            log_error "[$mod_name] module.json is not valid JSON"
+                            return 1
+                        fi
+                    fi
+                    log_info "[$mod_name] module.json exists (jq or schema unavailable for deep validation)"
+                fi
+
+                if [[ $mod_errors -eq 0 ]]; then
+                    log_success "[$mod_name] Valid"
+                    return 0
+                else
+                    log_error "[$mod_name] $mod_errors validation error(s)"
+                    return 1
+                fi
+            }
+
+            if [[ -n "$module" ]]; then
+                # Validate a single module
+                if _validate_module "$module"; then
+                    ((checked++)) || true
+                else
+                    ((errors++)) || true
+                    ((checked++)) || true
+                fi
+            else
+                # Validate all modules
+                for mod_dir in "$project_dir/modules"/*/; do
+                    local mod_name
+                    mod_name=$(basename "$mod_dir")
+                    if _validate_module "$mod_name"; then
+                        ((checked++)) || true
+                    else
+                        ((errors++)) || true
+                        ((checked++)) || true
+                    fi
+                done
+            fi
+
+            echo ""
+            if [[ $checked -eq 0 ]]; then
+                log_warn "No modules found to validate"
+                return 0
+            elif [[ $errors -eq 0 ]]; then
+                log_success "All $checked module(s) passed validation"
+                return 0
+            else
+                log_error "$errors of $checked module(s) failed validation"
+                return 1
+            fi
+            ;;
+
+        create)
+            local module="${1:-}"
+            if [[ -z "$module" ]]; then
+                log_error "Module name required"
+                echo "Usage: $SCRIPT_NAME module create <name>"
+                return 1
+            fi
+
+            # Validate module name format (lowercase alphanumeric with hyphens)
+            if [[ ! "$module" =~ ^[a-z0-9]([a-z0-9-]*[a-z0-9])?$ ]]; then
+                log_error "Invalid module name: $module"
+                log_info "Name must be lowercase alphanumeric with hyphens (e.g., my-module)"
+                return 1
+            fi
+
+            local module_dir="$project_dir/modules/$module"
+            local template_dir="$project_dir/foundation/templates/module-template"
+
+            if [[ -d "$module_dir" ]]; then
+                log_error "Module already exists: $module_dir"
+                return 1
+            fi
+
+            if [[ ! -d "$template_dir" ]]; then
+                log_error "Module template not found: $template_dir"
+                return 1
+            fi
+
+            # Copy template
+            log_info "Creating module from template..."
+            cp -r "$template_dir" "$module_dir"
+
+            # Titlecase the module name: my-module -> My Module
+            local title_name
+            title_name=$(echo "$module" | sed 's/-/ /g' | awk '{for(i=1;i<=NF;i++) $i=toupper(substr($i,1,1)) substr($i,2)}1')
+
+            # Replace placeholder values in copied files
+            local upper_name
+            upper_name=$(echo "$module" | tr '[:lower:]-' '[:upper:]_')
+
+            # Replace placeholders in all text files
+            local underscore_name
+            underscore_name=$(echo "$module" | tr '-' '_')
+            local tpl_file
+            for tpl_file in \
+                "$module_dir/module.json" \
+                "$module_dir/docker-compose.yml" \
+                "$module_dir/.env.example" \
+                "$module_dir/README.md" \
+                "$module_dir/secrets-required.txt" \
+                "$module_dir/hooks/install.sh" \
+                "$module_dir/hooks/start.sh" \
+                "$module_dir/hooks/stop.sh" \
+                "$module_dir/hooks/health.sh" \
+                "$module_dir/hooks/uninstall.sh"; do
+                if [[ -f "$tpl_file" ]]; then
+                    sed -i '' \
+                        -e "s|my-module|$module|g" \
+                        -e "s|my_module|${underscore_name}|g" \
+                        -e "s|My Module|$title_name|g" \
+                        -e "s|MY_MODULE|${upper_name}|g" \
+                        "$tpl_file"
+                fi
+            done
+
+            # Make hook scripts executable
+            chmod +x "$module_dir/hooks/"*.sh 2>/dev/null || true
+
+            log_success "Module created: $module_dir"
+            echo ""
+            log_info "Next steps:"
+            log_info "  1. Edit modules/$module/module.json with your module details"
+            log_info "  2. Edit modules/$module/docker-compose.yml with your services"
+            log_info "  3. Copy .env.example to .env: cd modules/$module && cp .env.example .env"
+            log_info "  4. Enable the module: ./$SCRIPT_NAME module enable $module"
+            ;;
+
         *)
             log_error "Unknown module action: $action"
-            echo "Usage: $SCRIPT_NAME module [list|enable|disable|status|health] [name]"
+            echo "Usage: $SCRIPT_NAME module [list|enable|disable|status|health|validate|create] [name]"
             return 1
             ;;
     esac
@@ -1484,6 +1691,8 @@ COMMAND OPTIONS:
         disable NAME        Disable a module (reverse order, teardown hooks)
         status NAME         Show module status
         health [NAME]       Run health check (specific module or all enabled)
+        validate [NAME]     Validate module.json (specific module or all)
+        create NAME         Scaffold a new module from template
 
     config [ACTION]
         show                Show current configuration

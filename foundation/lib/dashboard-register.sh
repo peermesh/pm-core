@@ -212,8 +212,15 @@ check_dashboard_available() {
     fi
 
     # Method 2: Try to reach dashboard API (if running)
+    # FIX: Previously, any HTTP server responding on port 3000 would cause a
+    # false positive (e.g., an unrelated app). Now we derive the base URL from
+    # DASHBOARD_API_URL (stripping the /api/registry path) and hit the real
+    # /health endpoint, validating the PeerMesh-specific JSON response body.
     if command -v curl &>/dev/null; then
-        if curl -s --connect-timeout 2 "$DASHBOARD_API_URL/health" >/dev/null 2>&1; then
+        local base_url="${DASHBOARD_API_URL%/api/registry*}"
+        local health_response
+        health_response=$(curl -s --connect-timeout 2 "$base_url/health" 2>/dev/null) || true
+        if echo "$health_response" | grep -q '"status"[[:space:]]*:[[:space:]]*"healthy"'; then
             return 0
         fi
     fi

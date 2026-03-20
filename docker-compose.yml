@@ -153,6 +153,11 @@ services:
     # Mitigation: cap_drop ALL + no-new-privileges limits blast radius.
     # See: .dev/ai/reports/2026-03-20-architectural-audit-and-gap-synthesis.md
     # user: "65534:65534"
+    read_only: true
+    tmpfs:
+      - /tmp:size=32m
+    cap_add:
+      - NET_BIND_SERVICE
     depends_on:
       socket-proxy:
         condition: service_started
@@ -446,6 +451,9 @@ services:
       - redis
     <<: *secured-service
     user: "999:999"
+    read_only: true
+    tmpfs:
+      - /tmp:size=32m
     command:
       - redis-server
       - --maxmemory

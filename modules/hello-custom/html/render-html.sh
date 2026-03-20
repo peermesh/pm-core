@@ -1,11 +1,10 @@
-#!/usr/bin/env sh
+#!/usr/bin/env bash
 # ==============================================================
 # Hello Custom Module - HTML Renderer (Template)
 # ==============================================================
 # Purpose: Replace the HELLO_CUSTOM_NOTE placeholder so the
 # configured note appears in the served page.
-# This script is intentionally POSIX-compatible so it can run inside
-# both the host hooks and the nginx container at startup.
+# Uses bash because set -o pipefail is not POSIX.
 # ==============================================================
 
 set -euo pipefail

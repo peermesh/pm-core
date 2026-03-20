@@ -95,6 +95,13 @@ services:
     restart: unless-stopped
     # Exception: Must run as root to access Docker socket
     user: "0:0"
+    # Security: cap_drop + no-new-privileges but NOT read_only.
+    # Gotcha #12: haproxy entrypoint generates config from template at startup;
+    # mounting tmpfs or enabling read_only wipes the baked-in template.
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     environment:
       # Read-only access for service discovery
       CONTAINERS: 1
@@ -140,7 +147,12 @@ services:
     image: traefik@sha256:05ff868caaf67ef937b3228d4fe734ef8a353eab2123ac54f2a7b622d1d4b270
     container_name: pmdl_traefik
     <<: *secured-service
-    # user: "65534:65534"  # nobody user - disabled for initial testing
+    # Non-root disabled: Traefik v2.11 ACME certificate storage requires root.
+    # Blocked by circular dependency: non-root needs v3, v3.2 requires Docker API v1.44+
+    # but Docker 29.x minimum is v1.44 while Traefik v3.2 client sends v1.24.
+    # Mitigation: cap_drop ALL + no-new-privileges limits blast radius.
+    # See: .dev/ai/reports/2026-03-20-architectural-audit-and-gap-synthesis.md
+    # user: "65534:65534"
     depends_on:
       socket-proxy:
         condition: service_started
@@ -286,6 +298,20 @@ services:
     profiles:
       - postgresql
     restart: unless-stopped  # PostgreSQL needs to run its entrypoint as root initially
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+      - SETGID
+      - SETUID
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m
+      - /run/postgresql:size=16m
     secrets:
       - postgres_password
     environment:
@@ -333,6 +359,20 @@ services:
     profiles:
       - mysql
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+      - SETGID
+      - SETUID
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m
+      - /run/mysqld:size=16m
     secrets:
       - mysql_root_password
     environment:
@@ -363,6 +403,19 @@ services:
     profiles:
       - mongodb
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+      - SETGID
+      - SETUID
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m
     secrets:
       - mongodb_root_password
     environment:
@@ -424,6 +477,12 @@ services:
     profiles:
       - minio
     restart: unless-stopped
+    # Security: cap_drop + no-new-privileges but NOT read_only.
+    # WO-070 attempted non-root/read_only and failed due to /data permissions.
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     command: server /data --console-address ":9001"
     secrets:
       - minio_root_user

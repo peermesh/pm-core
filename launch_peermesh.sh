@@ -964,6 +964,18 @@ cmd_module() {
                 return 1
             fi
 
+            # Validate module.json
+            local manifest="$module_dir/module.json"
+            if [[ -f "$manifest" ]]; then
+                if ! jq empty "$manifest" 2>/dev/null; then
+                    log_error "Invalid module.json for $module (malformed JSON)"
+                    return 1
+                fi
+                log_debug "module.json validated for $module"
+            else
+                log_warn "No module.json found for $module — skipping manifest validation"
+            fi
+
             resolver="$project_dir/foundation/lib/dependency-resolve.sh"
             resolver_modules_dir="$project_dir/modules"
 
@@ -988,22 +1000,50 @@ cmd_module() {
                 return 1
             fi
 
+            log_info "Resolved enable order: ${module_order[*]}"
+
             for dep_module in "${module_order[@]}"; do
                 local dep_module_dir="$project_dir/modules/$dep_module"
-                if [[ ! -f "$dep_module_dir/docker-compose.yml" ]]; then
-                    log_error "No docker-compose.yml found in module: $dep_module"
-                    return 1
-                fi
+                local dep_hooks_dir="$dep_module_dir/hooks"
 
                 log_info "Enabling module: $dep_module"
-                docker compose -f "$dep_module_dir/docker-compose.yml" up -d
+
+                # Run install hook (pre-flight checks, directory creation)
+                if [[ -x "$dep_hooks_dir/install.sh" ]]; then
+                    log_info "  Running install hook for $dep_module..."
+                    if ! (cd "$dep_module_dir" && "$dep_hooks_dir/install.sh"); then
+                        log_error "Install hook failed for module: $dep_module"
+                        return 1
+                    fi
+                    log_success "  Install hook completed for $dep_module"
+                fi
+
+                # Run start hook (compose up + health-wait) or fall back to compose up
+                if [[ -x "$dep_hooks_dir/start.sh" ]]; then
+                    log_info "  Running start hook for $dep_module..."
+                    if ! (cd "$dep_module_dir" && "$dep_hooks_dir/start.sh"); then
+                        log_error "Start hook failed for module: $dep_module"
+                        return 1
+                    fi
+                    log_success "  Start hook completed for $dep_module"
+                elif [[ -f "$dep_module_dir/docker-compose.yml" ]]; then
+                    log_info "  No start hook — running docker compose up for $dep_module..."
+                    if ! docker compose -f "$dep_module_dir/docker-compose.yml" up -d; then
+                        log_error "Docker compose up failed for module: $dep_module"
+                        return 1
+                    fi
+                    log_success "  Compose up completed for $dep_module"
+                else
+                    log_error "No start hook or docker-compose.yml found in module: $dep_module"
+                    return 1
+                fi
             done
 
-            log_success "Module $module enabled with dependency order"
+            log_success "Module $module enabled (${#module_order[@]} module(s) in dependency order)"
             ;;
 
         disable|uninstall)
-            local module="$1"
+            local module="${1:-}"
             if [[ -z "$module" ]]; then
                 log_error "Module name required"
                 echo "Usage: $SCRIPT_NAME module disable <name>"
@@ -1011,14 +1051,70 @@ cmd_module() {
             fi
 
             local module_dir="$project_dir/modules/$module"
-            if [[ -f "$module_dir/docker-compose.yml" ]]; then
-                log_info "Disabling module: $module"
-                docker compose -f "$module_dir/docker-compose.yml" down
-                log_success "Module $module disabled"
-            else
+            if [[ ! -d "$module_dir" ]]; then
                 log_error "Module not found: $module"
                 return 1
             fi
+
+            local resolver="$project_dir/foundation/lib/dependency-resolve.sh"
+            local resolver_modules_dir="$project_dir/modules"
+            local module_order=()
+            local reversed_order=()
+            local dep_module=""
+
+            if [[ -x "$resolver" ]]; then
+                if ! mapfile -t module_order < <("$resolver" "$module" --modules-dir "$resolver_modules_dir" --order-only 2>/dev/null); then
+                    log_warn "Dependency resolution failed — disabling $module only"
+                    module_order=("$module")
+                fi
+            else
+                log_warn "Dependency resolver not available — disabling $module only"
+                module_order=("$module")
+            fi
+
+            # Reverse the topological order for teardown
+            local i
+            for ((i = ${#module_order[@]} - 1; i >= 0; i--)); do
+                reversed_order+=("${module_order[$i]}")
+            done
+
+            log_info "Resolved disable order (reverse): ${reversed_order[*]}"
+
+            for dep_module in "${reversed_order[@]}"; do
+                local dep_module_dir="$project_dir/modules/$dep_module"
+                local dep_hooks_dir="$dep_module_dir/hooks"
+
+                log_info "Disabling module: $dep_module"
+
+                # Run stop hook (graceful compose down) or fall back to compose down
+                if [[ -x "$dep_hooks_dir/stop.sh" ]]; then
+                    log_info "  Running stop hook for $dep_module..."
+                    if ! (cd "$dep_module_dir" && "$dep_hooks_dir/stop.sh"); then
+                        log_error "Stop hook failed for module: $dep_module"
+                        return 1
+                    fi
+                    log_success "  Stop hook completed for $dep_module"
+                elif [[ -f "$dep_module_dir/docker-compose.yml" ]]; then
+                    log_info "  No stop hook — running docker compose down for $dep_module..."
+                    if ! docker compose -f "$dep_module_dir/docker-compose.yml" down; then
+                        log_error "Docker compose down failed for module: $dep_module"
+                        return 1
+                    fi
+                    log_success "  Compose down completed for $dep_module"
+                fi
+
+                # Run uninstall hook (cleanup)
+                if [[ -x "$dep_hooks_dir/uninstall.sh" ]]; then
+                    log_info "  Running uninstall hook for $dep_module..."
+                    if ! (cd "$dep_module_dir" && "$dep_hooks_dir/uninstall.sh"); then
+                        log_error "Uninstall hook failed for module: $dep_module"
+                        return 1
+                    fi
+                    log_success "  Uninstall hook completed for $dep_module"
+                fi
+            done
+
+            log_success "Module $module disabled (${#reversed_order[@]} module(s) in reverse dependency order)"
             ;;
 
         status)
@@ -1038,9 +1134,93 @@ cmd_module() {
             fi
             ;;
 
+        health)
+            local module="${1:-}"
+            local overall_pass=0
+
+            if [[ -n "$module" ]]; then
+                # Health check for a specific module
+                local module_dir="$project_dir/modules/$module"
+                if [[ ! -d "$module_dir" ]]; then
+                    log_error "Module not found: $module"
+                    return 1
+                fi
+
+                local health_hook="$module_dir/hooks/health.sh"
+                if [[ -x "$health_hook" ]]; then
+                    log_info "Running health check for $module..."
+                    if (cd "$module_dir" && "$health_hook"); then
+                        log_success "Module $module: healthy"
+                    else
+                        local exit_code=$?
+                        if [[ $exit_code -eq 2 ]]; then
+                            log_warn "Module $module: degraded"
+                        else
+                            log_error "Module $module: unhealthy"
+                        fi
+                        overall_pass=1
+                    fi
+                else
+                    log_warn "No health hook found for module: $module"
+                    # Fall back to checking if compose services are running
+                    if [[ -f "$module_dir/docker-compose.yml" ]]; then
+                        if docker compose -f "$module_dir/docker-compose.yml" ps --format '{{.Name}}' 2>/dev/null | grep -q .; then
+                            log_success "Module $module: running (no health hook)"
+                        else
+                            log_warn "Module $module: not running (no health hook)"
+                            overall_pass=1
+                        fi
+                    fi
+                fi
+            else
+                # Health check for all enabled modules (those with running containers)
+                log_info "Running health checks for all enabled modules..."
+                echo ""
+
+                local found_any=false
+                for mod_dir in "$project_dir/modules"/*/; do
+                    local mod_name
+                    mod_name=$(basename "$mod_dir")
+
+                    # Skip modules that are not running
+                    if [[ -f "$mod_dir/docker-compose.yml" ]]; then
+                        if ! docker compose -f "$mod_dir/docker-compose.yml" ps --format '{{.Name}}' 2>/dev/null | grep -q .; then
+                            continue
+                        fi
+                    else
+                        continue
+                    fi
+
+                    found_any=true
+                    local health_hook="$mod_dir/hooks/health.sh"
+                    if [[ -x "$health_hook" ]]; then
+                        if (cd "$mod_dir" && "$health_hook"); then
+                            log_success "Module $mod_name: healthy"
+                        else
+                            local exit_code=$?
+                            if [[ $exit_code -eq 2 ]]; then
+                                log_warn "Module $mod_name: degraded"
+                            else
+                                log_error "Module $mod_name: unhealthy"
+                            fi
+                            overall_pass=1
+                        fi
+                    else
+                        log_success "Module $mod_name: running (no health hook)"
+                    fi
+                done
+
+                if [[ "$found_any" == false ]]; then
+                    log_info "No enabled modules found"
+                fi
+            fi
+
+            return $overall_pass
+            ;;
+
         *)
             log_error "Unknown module action: $action"
-            echo "Usage: $SCRIPT_NAME module [list|enable|disable|status] [name]"
+            echo "Usage: $SCRIPT_NAME module [list|enable|disable|status|health] [name]"
             return 1
             ;;
     esac
@@ -1300,9 +1480,10 @@ COMMAND OPTIONS:
 
     module [ACTION] [NAME]
         list                List available modules
-        enable NAME         Enable a module
-        disable NAME        Disable a module
+        enable NAME         Enable a module (with dependency resolution and lifecycle hooks)
+        disable NAME        Disable a module (reverse order, teardown hooks)
         status NAME         Show module status
+        health [NAME]       Run health check (specific module or all enabled)
 
     config [ACTION]
         show                Show current configuration

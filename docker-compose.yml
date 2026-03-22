@@ -239,7 +239,9 @@ services:
       - "traefik.http.routers.traefik-dashboard.tls.certresolver=letsencrypt"
       - "traefik.http.routers.traefik-dashboard.service=api@internal"
       - "traefik.http.routers.traefik-dashboard.middlewares=dashboard-auth"
-      - "traefik.http.middlewares.dashboard-auth.basicauth.users=${TRAEFIK_DASHBOARD_AUTH:-}"
+      # SECURITY: No default — compose will fail if TRAEFIK_DASHBOARD_AUTH is unset,
+      # preventing an unauthenticated dashboard from being exposed.
+      - "traefik.http.middlewares.dashboard-auth.basicauth.users=${TRAEFIK_DASHBOARD_AUTH}"
 
   # Dashboard - System monitoring and module registry
   dashboard:
@@ -460,6 +462,8 @@ services:
     read_only: true
     tmpfs:
       - /tmp:size=32m
+    secrets:
+      - redis_password
     command:
       - redis-server
       - --maxmemory
@@ -468,11 +472,13 @@ services:
       - allkeys-lru
       - --appendonly
       - "yes"
+      - --requirepass
+      - ${REDIS_PASSWORD:-changeme}
     volumes:
       - pmdl_redis_data:/data
     healthcheck:
       <<: *healthcheck-defaults
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-changeme}", "ping"]
       start_period: 30s
     networks:
       - app-internal
@@ -544,6 +550,8 @@ secrets:
     file: ./secrets/mysql_root_password
   mongodb_root_password:
     file: ./secrets/mongodb_root_password
+  redis_password:
+    file: ./secrets/redis_password
   minio_root_user:
     file: ./secrets/minio_root_user
   minio_root_password:

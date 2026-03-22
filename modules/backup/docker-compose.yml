@@ -34,6 +34,14 @@ services:
     image: pmdl/backup:latest
     container_name: pmdl_backup
 
+    # Security hardening (cap_drop ALL + no-new-privileges)
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - DAC_READ_SEARCH  # needed to read Docker volumes for backup
+
     # Entrypoint runs cron in foreground
     entrypoint: ["/bin/sh", "-c"]
     command:

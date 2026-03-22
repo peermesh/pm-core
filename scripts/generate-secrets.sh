@@ -324,6 +324,7 @@ build_required_secrets() {
             "mysql_root_password:secret:32"
             "mysql_app_password:secret:32"
             "mongodb_root_password:secret:32"
+            "redis_password:secret:32"
             "minio_root_user:username:4"
             "minio_root_password:secret:32"
             "ghost_db_password:secret:32"
@@ -351,6 +352,9 @@ build_required_secrets() {
     fi
     if has_profile "mongodb"; then
         REQUIRED_SECRETS+=("mongodb_root_password:secret:32")
+    fi
+    if has_profile "redis"; then
+        REQUIRED_SECRETS+=("redis_password:secret:32")
     fi
     if has_profile "minio"; then
         REQUIRED_SECRETS+=("minio_root_user:username:4")

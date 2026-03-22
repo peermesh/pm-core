@@ -2,9 +2,11 @@ package handlers
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -344,14 +346,48 @@ func getVersion() string {
 	return "0.1.0-mvp"
 }
 
+// validateSyncScript validates the SYNC_SCRIPT environment variable to prevent
+// command injection. Returns the validated path and true if valid, or empty
+// string and false if invalid.
+func validateSyncScript() (string, bool) {
+	syncScript := os.Getenv("SYNC_SCRIPT")
+	if syncScript == "" {
+		return "", false
+	}
+
+	// Must be an absolute path
+	if !filepath.IsAbs(syncScript) {
+		log.Printf("SYNC_SCRIPT rejected: not an absolute path: %s", syncScript)
+		return "", false
+	}
+
+	// Must not contain shell metacharacters
+	if strings.ContainsAny(syncScript, ";|&$`\\\"'(){}[]<>!~") {
+		log.Printf("SYNC_SCRIPT rejected: contains shell metacharacters: %s", syncScript)
+		return "", false
+	}
+
+	// Must be a regular file that exists
+	info, err := os.Stat(syncScript)
+	if err != nil || info.IsDir() {
+		log.Printf("SYNC_SCRIPT rejected: not a regular file: %s", syncScript)
+		return "", false
+	}
+
+	// Must be executable
+	if info.Mode()&0111 == 0 {
+		log.Printf("SYNC_SCRIPT rejected: not executable: %s", syncScript)
+		return "", false
+	}
+
+	return syncScript, true
+}
+
 // canUserSync returns true if sync capability is available
 func canUserSync() bool {
 	// Check if sync script or command is available
-	syncScript := os.Getenv("SYNC_SCRIPT")
-	if syncScript != "" {
-		if _, err := os.Stat(syncScript); err == nil {
-			return true
-		}
+	if _, ok := validateSyncScript(); ok {
+		return true
 	}
 
 	// Check for docker-compose availability
@@ -367,9 +403,8 @@ func canUserSync() bool {
 
 // triggerSync executes a sync operation
 func triggerSync() (bool, string) {
-	// Check for custom sync script first
-	syncScript := os.Getenv("SYNC_SCRIPT")
-	if syncScript != "" {
+	// Check for custom sync script first (validated against command injection)
+	if syncScript, ok := validateSyncScript(); ok {
 		cmd := exec.Command(syncScript)
 		output, err := cmd.CombinedOutput()
 		if err != nil {

@@ -2,7 +2,69 @@
 
 Scripts for security testing and auditing Peer Mesh Docker Lab.
 
+## Quick Start: Full Audit
+
+The single entry point for all scriptable security tests:
+
+```bash
+# Local-only audit (codebase + compose analysis, no VPS)
+./scripts/security/run-full-audit.sh --local
+
+# Full audit including remote VPS scans
+./scripts/security/run-full-audit.sh --remote root@46.225.188.213
+
+# With custom target and markdown report output
+./scripts/security/run-full-audit.sh --local --target https://dockerlab.peermesh.org --output audit-report.md
+```
+
+Exit code 0 = no CRITICAL/HIGH findings. Exit code 1 = remediation needed.
+
 ## Available Scripts
+
+### run-full-audit.sh (comprehensive, start here)
+
+Runs ALL scriptable security tests in one command. Covers static analysis (gosec, shellcheck, pattern search), compose hardening audit, endpoint security tests (auth bypass, CRLF, XSS, security headers, timing), and optionally remote VPS scans (trivy, container hardening, network isolation, open ports, firewall).
+
+```bash
+# Codebase-only checks
+./scripts/security/run-full-audit.sh --local
+
+# Include remote VPS scans via SSH
+./scripts/security/run-full-audit.sh --remote root@46.225.188.213
+
+# Override target URL
+./scripts/security/run-full-audit.sh --local --target http://localhost:8080
+
+# Write markdown report
+./scripts/security/run-full-audit.sh --local --output /tmp/security-audit.md
+```
+
+**Sections covered**:
+1. Static Analysis: gosec, shellcheck, vulnerability pattern search
+2. Compose Security: service hardening (cap_drop, no-new-privileges, memory limits, healthchecks), image pinning
+3. Endpoint Security: auth bypass, CRLF injection, XSS reflection, security headers, request timing
+4. Remote VPS (--remote only): trivy image scans, container hardening, network isolation, open ports, firewall, Docker daemon config
+5. Summary with CRITICAL/HIGH/MEDIUM/LOW/PASS/SKIP counts and PASS/FAIL verdict
+
+**Safety**: Read-only, no mutations. Safe to run against production.
+
+### run-sqlmap-scan.sh
+
+SQL injection scanner. Discovers API endpoints from Go source and runs sqlmap against each with safe defaults.
+
+```bash
+# Scan local dashboard
+./scripts/security/run-sqlmap-scan.sh http://localhost:8080
+
+# Scan with authentication cookie
+./scripts/security/run-sqlmap-scan.sh https://dockerlab.peermesh.org --cookie "session=abc123"
+
+# Custom output directory
+./scripts/security/run-sqlmap-scan.sh http://localhost:8080 --output /tmp/sqlmap-report
+```
+
+**Requires**: sqlmap (`brew install sqlmap` / `pip install sqlmap`)
+**Safety**: Uses `--batch --level=1 --risk=1` (lowest settings). No data exfiltration.
 
 ### run-docker-bench.sh
 
@@ -107,6 +169,15 @@ Validates runtime container ownership, capabilities, and security settings again
 ## Quick Commands
 
 ```bash
+# Run the full security audit (single command, start here)
+./scripts/security/run-full-audit.sh --local
+
+# Run full audit with remote VPS scans
+./scripts/security/run-full-audit.sh --remote root@46.225.188.213
+
+# SQL injection scan
+./scripts/security/run-sqlmap-scan.sh http://localhost:8080
+
 # Validate secrets exist and have correct permissions
 ./scripts/generate-secrets.sh --validate
 

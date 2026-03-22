@@ -24,7 +24,7 @@ x-wordpress-logging: &wordpress-logging
 
 services:
   wordpress:
-    image: wordpress@sha256:1e6215749283955d5c9ffea6c297651ed23cdfdbb91677ad7abd705b2682f2cf
+    image: wordpress@sha256:ee74dc0ebbe7ec43b7f473c0fb4f1dfb6b211d7785f0a95bcdfa10e628c2e67f
     container_name: pmdl_wordpress
 
     profiles:

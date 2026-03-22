@@ -64,7 +64,7 @@ services:
   # directories when a file path is missing on the host.
   # =============================================================
   matrix-config-init:
-    image: alpine@sha256:a4f4213abb84c497377b8544c81b3564f313746700372ec4fe84653e4fb03805
+    image: alpine@sha256:25109184c71bdad752c8312a8623239686a9a2071e8825f20acb8f2198c3f659
     container_name: pmdl_matrix_config_init
     profiles:
       - matrix
@@ -90,7 +90,7 @@ services:
   # - PostgreSQL for data storage
   # =============================================================
   synapse:
-    image: matrixdotorg/synapse@sha256:657cfa115c71701d188f227feb9d1c0fcd2213b26fcc1afd6c647ba333582634
+    image: matrixdotorg/synapse@sha256:339b18c57de915e0746d0ae1d4e425e914e4ee034763a37bd5c4e63723582c8c
     container_name: pmdl_synapse
 
     # ---------------------------------------------------------
@@ -226,7 +226,7 @@ services:
   # - Full Matrix feature support
   # =============================================================
   element-web:
-    image: vectorim/element-web@sha256:827ae9ebea5ec0eeb487660f4f04e5789b666667f17a0d63b5c0e4ad8b9b9ca1
+    image: vectorim/element-web@sha256:3f031bba174a062d21dcb506662031ce717586c05c03d018063c19470941ac70
     container_name: pmdl_element
 
     # ---------------------------------------------------------

@@ -52,7 +52,7 @@ services:
   # - OIDC authentication via Authelia
   # =============================================================
   librechat:
-    image: ghcr.io/danny-avila/librechat-dev@sha256:3db851096c0a7fbc3f2b3e41f7baed03203cd4a8c4cdde6e2c8ff0fa49efab9c
+    image: ghcr.io/danny-avila/librechat-dev@sha256:2cca5314474da68ef6366acf692dfe4993d9b83316c737085e4abdd2c1927239
     container_name: pmdl_librechat
 
     # ---------------------------------------------------------

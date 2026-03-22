@@ -19,7 +19,7 @@
 
 services:
   mongodb:
-    image: mongo@sha256:81ed620b45935fb49704010b75d3fa73df547f71323cfdba49323a64412253a4
+    image: mongo@sha256:f2b40853c0f796b105e672e04045d2b3e127bd54782dfe7e9b08aebbd9f602ce
     container_name: pmdl-mongodb
     restart: unless-stopped
 

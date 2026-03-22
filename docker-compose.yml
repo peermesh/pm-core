@@ -90,7 +90,7 @@ services:
 
   # Docker Socket Proxy - Secure Docker API access for Traefik
   socket-proxy:
-    image: tecnativa/docker-socket-proxy@sha256:083bd0ed8783e366d745f332f0e4489816dd35d984bef8f16e6d89484a22c082
+    image: tecnativa/docker-socket-proxy@sha256:1f3a6f303320723d199d2316a3e82b2e2685d86c275d5e3deeaf182573b47476
     container_name: pmdl_socket-proxy
     restart: unless-stopped
     # Exception: Must run as root to access Docker socket
@@ -150,7 +150,7 @@ services:
   # Error: "client version 1.24 is too old. Minimum supported API version is 1.44"
   # See: docs/decisions/0001-traefik-reverse-proxy.md
   traefik:
-    image: traefik@sha256:05ff868caaf67ef937b3228d4fe734ef8a353eab2123ac54f2a7b622d1d4b270
+    image: traefik@sha256:a6e718e8f84d4e45282a53a8e7338ab74372abac3ff78f9261a015bc8b45be95
     container_name: pmdl_traefik
     <<: *secured-service
     # Non-root disabled: Traefik v2.11 ACME certificate storage requires root.
@@ -306,7 +306,7 @@ services:
 
   # PostgreSQL with pgvector
   postgres:
-    image: pgvector/pgvector@sha256:33198da2828a14c30348d2ccb4750833d5ed9a44c88d840a0e523d7417120337
+    image: pgvector/pgvector@sha256:7d400e340efb42f4d8c9c12c6427adb253f726881a9985d2a471bf0eed824dff
     container_name: pmdl_postgres
     profiles:
       - postgresql
@@ -367,7 +367,7 @@ services:
 
   # MySQL 8.0
   mysql:
-    image: mysql@sha256:a3dff78d876222746a0bacc36dd7e4bf9e673c85fb7ee0d12ed25bd32c43c19b
+    image: mysql@sha256:64756cc92f707eb504496d774353990bcb0f6999ddf598b6ad188f2da66bd000
     container_name: pmdl_mysql
     profiles:
       - mysql
@@ -453,7 +453,7 @@ services:
 
   # Redis 7
   redis:
-    image: redis@sha256:02f2cc4882f8bf87c79a220ac958f58c700bdec0dfb9b9ea61b62fb0e8f1bfcf
+    image: redis@sha256:8b81dd37ff027bec4e516d41acfbe9fe2460070dc6d4a4570a2ac5b9d59df065
     container_name: pmdl_redis
     profiles:
       - redis

@@ -119,7 +119,7 @@ services:
   # Elasticsearch-compatible search for Mastodon
   # Used for: hashtag search, account search, post search
   opensearch:
-    image: opensearchproject/opensearch@sha256:cbca8e35fb333af938289ac0f370abdcbde46dbe7629acc1af0cd4219da85b62
+    image: opensearchproject/opensearch@sha256:b35ccb8fbda049fe1cf4a935907365fc2009c41453c0e28597aed3b31d046c4f
     container_name: pmdl_mastodon_opensearch
     restart: unless-stopped
 

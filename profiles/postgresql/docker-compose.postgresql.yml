@@ -5,7 +5,7 @@
 #
 # Profile Version: 1.0
 # Documentation: profiles/postgresql/PROFILE-SPEC.md
-# Image: pgvector/pgvector@sha256:33198da2828a14c30348d2ccb4750833d5ed9a44c88d840a0e523d7417120337 (PostgreSQL 16 + pgvector extension)
+# Image: pgvector/pgvector@sha256:7d400e340efb42f4d8c9c12c6427adb253f726881a9985d2a471bf0eed824dff (PostgreSQL 16 + pgvector extension)
 #
 # Usage:
 #   docker compose -f docker-compose.yml -f docker-compose.postgresql.yml up -d
@@ -46,7 +46,7 @@ services:
   # - Any application requiring SQL + vectors
   # =============================================================
   postgres:
-    image: pgvector/pgvector@sha256:33198da2828a14c30348d2ccb4750833d5ed9a44c88d840a0e523d7417120337
+    image: pgvector/pgvector@sha256:7d400e340efb42f4d8c9c12c6427adb253f726881a9985d2a471bf0eed824dff
     container_name: pmdl_postgres
 
     # ---------------------------------------------------------

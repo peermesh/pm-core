@@ -27,7 +27,7 @@ services:
       file: ../../foundation/docker-compose.base.yml
       service: _service-standard
 
-    image: smallstep/step-ca@sha256:de5d0c3fa983b27a7ec09f1fa403b4fb90932f011840a191b1283b90d24edf11
+    image: smallstep/step-ca@sha256:56e4b440afaf243c43c25112204b5433edfcc2581971ff3c90c2af630015fd7a
     container_name: pmdl_step_ca
 
     environment:
@@ -83,7 +83,7 @@ services:
       file: ../../foundation/docker-compose.base.yml
       service: _service-lite
 
-    image: smallstep/step-ca@sha256:de5d0c3fa983b27a7ec09f1fa403b4fb90932f011840a191b1283b90d24edf11
+    image: smallstep/step-ca@sha256:56e4b440afaf243c43c25112204b5433edfcc2581971ff3c90c2af630015fd7a
     container_name: pmdl_cert_renewer
     depends_on:
       step-ca:

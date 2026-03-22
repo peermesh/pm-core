@@ -24,6 +24,9 @@ help:
     @echo "  just script-tests"
     @echo "  just smoke-example-app <app> <base_url>"
     @echo "  just deploy-log [file] [tail_lines] [log_dir]"
+    @echo "  just security-audit-local"
+    @echo "  just security-audit-full"
+    @echo "  just security-sqlmap <target>"
     @echo "  just rotate-drill <key> <environment>"
     @echo "  just tofu-version"
     @echo "  just tofu-preflight"
@@ -36,6 +39,9 @@ help:
     @echo "  just tofu-apply-readiness-dryrun [summary_file]"
     @echo ""
     @echo "Examples:"
+    @echo "  just security-audit-local"
+    @echo "  just security-audit-full"
+    @echo "  just security-sqlmap https://dockerlab.peermesh.org"
     @echo "  just validate ghost production"
     @echo "  just validate matrix staging"
     @echo "  just validate-secrets production"
@@ -229,3 +235,15 @@ deploy-log file="" tail_lines="200" log_dir="/tmp/deploy-logs":
     else \
         ./scripts/view-deploy-log.sh --log-dir "{{log_dir}}" --tail "{{tail_lines}}"; \
     fi
+
+# Run local security audit
+security-audit-local:
+    ./scripts/security/run-full-audit.sh --local
+
+# Run full security audit including VPS
+security-audit-full:
+    ./scripts/security/run-full-audit.sh --remote root@46.225.188.213
+
+# Run sqlmap endpoint scan
+security-sqlmap TARGET:
+    ./scripts/security/run-sqlmap-scan.sh {{TARGET}}

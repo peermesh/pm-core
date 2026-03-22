@@ -490,6 +490,33 @@ This checklist maps Docker Lab's security implementation to industry-standard au
 
 ---
 
+## Recommended Testing Tools
+
+The following tools are recommended based on an external security reviewer's methodology (see `.dev/ai/findings/2026-03-21-external-reviewer-security-methodology.md`). These are real tools from a real reviewer — not theoretical recommendations.
+
+**mitmproxy** — Request/response proxy inspection
+- Purpose: Intercept and inspect HTTP/HTTPS traffic between Traefik and backend services
+- Integration: Recommended for dev profile; insert as a proxy container for request inspection during development and pre-audit testing
+
+**Burp Suite** — Web vulnerability scanning and proxy
+- Purpose: Spider application routes, identify web vulnerabilities, inspect request/response timing
+- Integration: Manual testing; configure as proxy for Traefik-based applications during security review sessions
+
+**sqlmap** — Automated SQL injection testing
+- Purpose: Automated detection and exploitation of SQL injection vulnerabilities across all database-connected endpoints
+- Integration: CI/CD pipeline (for database-connected modules) and manual testing; point at module HTTP endpoints in dev environment
+
+**Globstar** — Multi-language static analysis
+- Purpose: Code-level vulnerability detection; design verification for ID schemes, cryptographic functions, and overflow-sensitive code
+- Integration: CI/CD pre-commit hook or pipeline gate; supports Go, shell, Python, and other Docker Lab languages
+- Reference: https://github.com/DeepSourceCorp/globstar
+
+**Metasploit** — Penetration testing framework
+- Purpose: Web-based attack simulation; application-specific attack surface testing
+- Integration: Controlled environment only — never against production; used during pre-audit and periodic security reviews
+
+---
+
 ## Related Documentation
 
 - **Threat Model**: `docs/security/THREAT-MODEL.md`

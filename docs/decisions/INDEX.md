@@ -39,6 +39,8 @@ Security architecture and hardening decisions.
 | [0200](./0200-non-root-containers.md) | Non-Root Container Execution | **accepted** | 2026-01-02 |
 | [0201](./0201-security-anchors.md) | Security Anchors Pattern | **accepted** | 2026-01-02 |
 | [0202](./0202-sops-age-secrets-encryption.md) | SOPS and Age Secrets Encryption | **accepted** | 2026-01-03 |
+| [0203](./0203-security-framework-core-interfaces.md) | Security Framework Core Interfaces | **accepted** | 2026-02-23 |
+| [0204](./0204-noop-security-fallback.md) | No-Op Security Fallback Strategy | **accepted** | 2026-02-23 |
 
 ---
 
@@ -89,8 +91,8 @@ Decisions about module architecture, templates, and extension patterns.
 
 ## Statistics
 
-- **Total Decisions**: 14 accepted, 1 pending
-- **Last Updated**: 2026-02-27
+- **Total Decisions**: 16 accepted, 1 pending
+- **Last Updated**: 2026-03-21
 
 ---
 
@@ -118,6 +120,8 @@ Decisions about module architecture, templates, and extension patterns.
 ### What security measures are in place?
 - [ADR-0200](./0200-non-root-containers.md) covers non-root execution and security baselines.
 - [ADR-0201](./0201-security-anchors.md) explains the YAML anchor pattern for consistent security.
+- [ADR-0203](./0203-security-framework-core-interfaces.md) documents the interface-based security contracts (identity, encryption, contract) for the module system.
+- [ADR-0204](./0204-noop-security-fallback.md) explains the no-op fallback strategy that lets modules work without real security providers during Phase 1A.
 
 ### How do health checks work?
 - [ADR-0300](./0300-health-check-strategy.md) describes the shallow health check approach.

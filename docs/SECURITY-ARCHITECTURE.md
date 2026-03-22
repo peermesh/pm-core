@@ -35,10 +35,11 @@ Peer Mesh Docker Lab implements defense-in-depth security with:
 7. [Docker Socket Protection](#docker-socket-protection)
 8. [Provisioning Security Boundary](#provisioning-security-boundary)
 9. [Supply-Chain Security Controls](#supply-chain-security-controls)
-10. [Deployment Security](#deployment-security)
-11. [Monitoring & Logging](#monitoring--logging)
-12. [Incident Response](#incident-response)
-13. [Compliance Mapping](#compliance-mapping)
+10. [Security Testing Strategy](#security-testing-strategy)
+11. [Deployment Security](#deployment-security)
+12. [Monitoring & Logging](#monitoring--logging)
+13. [Incident Response](#incident-response)
+14. [Compliance Mapping](#compliance-mapping)
 
 ---
 
@@ -601,6 +602,48 @@ Primary policy references:
 - [ENTERPRISE-VERSION-IMMUTABILITY-STANDARD.md](ENTERPRISE-VERSION-IMMUTABILITY-STANDARD.md)
 - [IMAGE-DIGEST-BASELINE.md](IMAGE-DIGEST-BASELINE.md)
 - [DEPLOYMENT-PROMOTION-RUNBOOK.md](DEPLOYMENT-PROMOTION-RUNBOOK.md)
+
+---
+
+## Security Testing Strategy
+
+Security testing operates in four layers, from automated gates to expert-driven analysis. The guiding principle, from an external security reviewer: "Low-hanging fruit in CI/CD pipelines, but focus on where your application logic is unique and what you're actually protecting."
+
+For full reviewer methodology and tool rationale, see `.dev/ai/findings/2026-03-21-external-reviewer-security-methodology.md`.
+
+### Layer 1: CI/CD (Automated, Every Deploy)
+
+These controls run automatically and catch supply-chain and configuration issues before code reaches production:
+
+- **Image scanning** (Trivy/Docker Scout) — detect known CVEs in container images
+- **SBOM generation** (CycloneDX) — maintain a component inventory for every deployment
+- **Image policy validation** — enforce digest pinning and reject `latest` tags
+- **Static analysis** (Globstar or equivalent) — detect code-level vulnerability patterns in Go, shell, and application code
+
+### Layer 2: Integration Testing (Module-Specific)
+
+These tests validate application-level security for modules that handle user data or database access:
+
+- **SQL injection testing** via sqlmap against database-connected endpoints
+- **Endpoint sanitization validation** — integration tests that submit known-malicious input and verify rejection
+- **Auth flow integration tests** — exercise login, session creation, token handling, and session expiration to confirm no bypass paths exist
+
+### Layer 3: Manual/Expert (Pre-Audit, Periodic)
+
+These activities require human judgment and are performed before external audits or when significant application logic changes:
+
+- **MitM proxy testing** (mitmproxy/Burp Suite) — inspect request/response traffic between Traefik and backend services for token leakage, session handling issues, and unencrypted sensitive data
+- **Application-specific attack surface analysis** — identify what is unique about the application and what it is actually protecting, then tailor testing to those areas
+- **Penetration testing** (Metasploit for web-based attacks) — execute in controlled environments only, never against production
+- **Timing analysis** — check for side-channel vulnerabilities in authentication and cryptographic operations
+
+### Layer 4: Design Verification (Architecture-Level)
+
+These controls validate that the design itself is sound, before runtime testing:
+
+- **Function-level assertions** — for ID schemes, cryptographic functions, and overflow-sensitive code, prove correctness at the unit level
+- **Static analysis** (Globstar) — scan for design-level vulnerability patterns that runtime testing may miss
+- **Threat modeling updates** — revisit the threat model (`docs/security/THREAT-MODEL.md`) whenever application logic changes significantly
 
 ---
 

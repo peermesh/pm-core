@@ -1,0 +1,41 @@
+# Development Security Testing Profile
+# Inserts mitmproxy between Traefik and backend services for request inspection.
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f profiles/dev-security/docker-compose.dev-security.yml up -d
+#
+# Access mitmproxy web interface at http://localhost:8081
+# Proxy intercepts traffic on port 8082
+#
+# WARNING: Development only. Never use in production.
+
+services:
+  mitmproxy:
+    image: mitmproxy/mitmproxy:latest
+    container_name: pmdl_mitmproxy
+    command: mitmweb --web-host 0.0.0.0 --web-port 8081 --listen-port 8082 --set block_global=false
+    ports:
+      - "127.0.0.1:8081:8081"  # Web UI (localhost only)
+      - "127.0.0.1:8082:8082"  # Proxy port (localhost only)
+    networks:
+      - proxy-external
+      - app-internal
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+    profiles:
+      - dev-security
+
+networks:
+  proxy-external:
+    external: true
+    name: pmdl_proxy-external
+  app-internal:
+    external: true
+    name: pmdl_app-internal

@@ -1,0 +1,142 @@
+// =============================================================================
+// Social Lab Module - HTTP Server
+// =============================================================================
+// Minimal Node.js HTTP server using built-in http module.
+// No framework dependencies -- keeps the scaffold lightweight.
+//
+// Route modules register their handlers via registerRoutes(routes).
+// The router matches exact string paths, then regex patterns.
+
+import { createServer } from 'node:http';
+import { json, parseUrl, VERSION, MODULE } from './lib/helpers.js';
+
+// Import route registration functions
+import registerHealthRoutes from './routes/health.js';
+import registerLandingRoutes from './routes/landing.js';
+import registerProfileRoutes from './routes/profile.js';
+import registerLinksRoutes from './routes/links.js';
+import registerMediaRoutes from './routes/media.js';
+import registerFeedsRoutes from './routes/feeds.js';
+import registerActivityPubRoutes from './routes/activitypub.js';
+import registerNostrRoutes from './routes/nostr.js';
+import registerIndieWebRoutes from './routes/indieweb.js';
+import registerAtProtocolRoutes from './routes/atprotocol.js';
+import registerDsnpRoutes from './routes/dsnp.js';
+import registerZotRoutes from './routes/zot.js';
+import registerMatrixRoutes from './routes/matrix.js';
+import registerXmtpRoutes from './routes/xmtp.js';
+import registerBlockchainRoutes from './routes/blockchain.js';
+import registerDatasyncRoutes from './routes/datasync.js';
+import registerPostsRoutes from './routes/posts.js';
+import registerTimelineRoutes from './routes/timeline.js';
+import registerAuthRoutes from './routes/auth.js';
+import registerStudioRoutes from './routes/studio.js';
+import registerPageRoutes from './routes/page.js';
+
+const PORT = parseInt(process.env.SOCIAL_LAB_PORT || '3000', 10);
+
+// =============================================================================
+// Route Registration
+// =============================================================================
+// Each route module pushes { method, pattern, handler } objects into this array.
+// pattern can be:
+//   - a string for exact match (e.g., '/health')
+//   - a RegExp for parameterized paths (e.g., /^\/api\/profile\/([^/]+)$/)
+// handler signature: (req, res, matches?) where matches is the regex match array.
+
+const routes = [];
+
+// Register all route modules.
+// ORDER MATTERS: more specific patterns (feeds, AT Protocol DID) must be
+// registered before less specific ones (profile page /@handle, AP actor).
+registerHealthRoutes(routes);
+registerLandingRoutes(routes);
+registerFeedsRoutes(routes);
+registerMediaRoutes(routes);
+registerLinksRoutes(routes);
+registerProfileRoutes(routes);
+registerAtProtocolRoutes(routes);
+registerDsnpRoutes(routes);
+registerZotRoutes(routes);
+registerMatrixRoutes(routes);
+registerXmtpRoutes(routes);
+registerBlockchainRoutes(routes);
+registerDatasyncRoutes(routes);
+registerPostsRoutes(routes);
+registerTimelineRoutes(routes);
+registerNostrRoutes(routes);
+registerIndieWebRoutes(routes);
+registerActivityPubRoutes(routes);
+registerAuthRoutes(routes);
+registerStudioRoutes(routes);
+registerPageRoutes(routes);
+
+// =============================================================================
+// Router
+// =============================================================================
+
+async function route(req, res) {
+  const { pathname } = parseUrl(req);
+  const method = req.method;
+
+  for (const r of routes) {
+    if (r.method !== method) continue;
+
+    if (typeof r.pattern === 'string') {
+      if (pathname === r.pattern) {
+        return r.handler(req, res, null);
+      }
+    } else if (r.pattern instanceof RegExp) {
+      const match = pathname.match(r.pattern);
+      if (match) {
+        return r.handler(req, res, match);
+      }
+    }
+  }
+
+  // 404 — no matching route
+  json(res, 404, {
+    error: 'Not Found',
+    module: MODULE,
+    version: VERSION,
+  });
+}
+
+// =============================================================================
+// Server lifecycle
+// =============================================================================
+
+const server = createServer(async (req, res) => {
+  try {
+    await route(req, res);
+  } catch (err) {
+    console.error('[server] Unhandled error:', err);
+    if (!res.headersSent) {
+      json(res, 500, { error: 'Internal Server Error' });
+    }
+  }
+});
+
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`[social-lab] Server listening on port ${PORT}`);
+  console.log(`[social-lab] Module: ${MODULE} v${VERSION}`);
+  console.log(`[social-lab] Landing page: http://0.0.0.0:${PORT}/`);
+  console.log(`[social-lab] Health endpoint: http://0.0.0.0:${PORT}/health`);
+});
+
+// Graceful shutdown
+function shutdown(signal) {
+  console.log(`[social-lab] Received ${signal}, shutting down gracefully...`);
+  server.close(() => {
+    console.log('[social-lab] HTTP server closed');
+    process.exit(0);
+  });
+  // Force exit after 10 seconds if graceful shutdown stalls
+  setTimeout(() => {
+    console.error('[social-lab] Forced shutdown after timeout');
+    process.exit(1);
+  }, 10000).unref();
+}
+
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));

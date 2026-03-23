@@ -20,6 +20,7 @@
 #   backup   - Run backup operations
 #   module   - Module management
 #   config   - Configuration management
+#   env      - Switch environment (local/staging/production)
 #
 # Documentation: docs/cli.md
 # ==============================================================
@@ -976,6 +977,27 @@ cmd_module() {
                 log_warn "No module.json found for $module — skipping manifest validation"
             fi
 
+            # Propagate foundation DOMAIN to module .env if not already set
+            load_env
+            if [[ -n "${DOMAIN:-}" ]] && [[ "${DOMAIN}" != "example.com" ]]; then
+                local mod_env="$module_dir/.env"
+                if [[ -f "$mod_env" ]]; then
+                    if ! grep -q "^DOMAIN=" "$mod_env" 2>/dev/null; then
+                        echo "" >> "$mod_env"
+                        echo "# Foundation variable (auto-propagated by module enable)" >> "$mod_env"
+                        echo "DOMAIN=${DOMAIN}" >> "$mod_env"
+                        log_info "Propagated DOMAIN=${DOMAIN} to module .env"
+                    else
+                        log_debug "DOMAIN already set in module .env"
+                    fi
+                elif [[ -f "$module_dir/.env.example" ]]; then
+                    cp "$module_dir/.env.example" "$mod_env"
+                    sed -i '' "s/^DOMAIN=.*/DOMAIN=${DOMAIN}/" "$mod_env" 2>/dev/null || \
+                        sed -i "s/^DOMAIN=.*/DOMAIN=${DOMAIN}/" "$mod_env" 2>/dev/null || true
+                    log_info "Created module .env from .env.example with DOMAIN=${DOMAIN}"
+                fi
+            fi
+
             resolver="$project_dir/foundation/lib/dependency-resolve.sh"
             resolver_modules_dir="$project_dir/modules"
 
@@ -1001,6 +1023,69 @@ cmd_module() {
             fi
 
             log_info "Resolved enable order: ${module_order[*]}"
+
+            # --- Connection resolution (after deps, before hooks) ---
+            for dep_module in "${module_order[@]}"; do
+                local dep_manifest="$project_dir/modules/$dep_module/module.json"
+                if [[ -f "$dep_manifest" ]] && cmd_exists jq; then
+                    local conn_count
+                    conn_count=$(jq -r '.requires.connections // [] | length' "$dep_manifest" 2>/dev/null)
+                    if [[ "$conn_count" -gt 0 ]]; then
+                        log_info "Resolving connections for module: $dep_module"
+                        local conn_resolver="$project_dir/foundation/lib/connection-resolve.sh"
+                        if [[ -x "$conn_resolver" ]]; then
+                            if ! MODULES_DIR="$project_dir/modules" "$conn_resolver" "$dep_module" --quiet; then
+                                # Resolver failed — check which connections are required vs optional
+                                local conn_result
+                                conn_result=$(MODULES_DIR="$project_dir/modules" "$conn_resolver" "$dep_module" --json 2>/dev/null) || true
+                                local has_required_fail=false
+                                # Parse unresolved connections
+                                local unresolved
+                                unresolved=$(echo "$conn_result" | jq -c '.unresolved[]?' 2>/dev/null) || true
+                                while IFS= read -r ur; do
+                                    [[ -z "$ur" ]] && continue
+                                    local ur_name ur_providers
+                                    ur_name=$(echo "$ur" | jq -r '.requirement.name // .requirement.type' 2>/dev/null)
+                                    ur_providers=$(echo "$ur" | jq -r '.requirement.providers | join(", ")' 2>/dev/null)
+                                    # Check if this connection is required in the original manifest
+                                    local ur_required
+                                    ur_required=$(jq -r --arg name "$ur_name" \
+                                        '.requires.connections[] | select(.name == $name or .type == $name or .alias == $name) | .required // true' \
+                                        "$dep_manifest" 2>/dev/null)
+                                    if [[ "$ur_required" == "false" ]]; then
+                                        log_warn "Module $dep_module: optional connection '$ur_name' has no provider ($ur_providers) — continuing"
+                                    else
+                                        log_error "Module $dep_module requires a $ur_name provider ($ur_providers). Enable the appropriate profile first."
+                                        has_required_fail=true
+                                    fi
+                                done <<< "$unresolved"
+                                if [[ "$has_required_fail" == "true" ]]; then
+                                    return 1
+                                fi
+                            else
+                                log_success "All connections resolved for $dep_module"
+                            fi
+                        else
+                            # No resolver script — fall back to inline jq check
+                            log_debug "Connection resolver not found at $conn_resolver — checking inline"
+                            local conn_idx=0
+                            while IFS= read -r conn; do
+                                [[ -z "$conn" ]] && continue
+                                local c_providers c_required c_alias
+                                c_providers=$(echo "$conn" | jq -r '.providers | join(", ")')
+                                c_required=$(echo "$conn" | jq -r '.required // true')
+                                c_alias=$(echo "$conn" | jq -r '.alias // .type')
+                                if [[ "$c_required" == "false" ]]; then
+                                    log_warn "Module $dep_module: optional connection '$c_alias' ($c_providers) — no provider check available"
+                                else
+                                    log_warn "Module $dep_module: required connection '$c_alias' ($c_providers) — no provider check available (resolver missing)"
+                                fi
+                                ((conn_idx++)) || true
+                            done < <(jq -c '.requires.connections[]' "$dep_manifest" 2>/dev/null)
+                        fi
+                    fi
+                fi
+            done
 
             for dep_module in "${module_order[@]}"; do
                 local dep_module_dir="$project_dir/modules/$dep_module"
@@ -1293,6 +1378,55 @@ cmd_module() {
                     else
                         log_debug "[$mod_name] foundation.minVersion=$val"
                     fi
+
+                    # Config property validation
+                    local has_config_props
+                    has_config_props=$(jq -r '.config.properties // empty | length' "$manifest" 2>/dev/null)
+                    if [[ -n "$has_config_props" && "$has_config_props" -gt 0 ]]; then
+                        log_debug "[$mod_name] Checking config properties ($has_config_props declared)"
+                        local mod_env_file="$mod_dir/.env"
+                        local config_required_keys
+                        config_required_keys=$(jq -r '.config.required // [] | .[]' "$manifest" 2>/dev/null)
+
+                        while IFS= read -r prop_key; do
+                            [[ -z "$prop_key" ]] && continue
+                            local prop_env prop_default
+                            prop_env=$(jq -r --arg k "$prop_key" '.config.properties[$k].env // empty' "$manifest" 2>/dev/null)
+                            prop_default=$(jq -r --arg k "$prop_key" '.config.properties[$k].default // empty' "$manifest" 2>/dev/null)
+
+                            if [[ -z "$prop_env" ]]; then
+                                log_debug "[$mod_name] Config property '$prop_key' has no env mapping — skipping"
+                                continue
+                            fi
+
+                            # Check if this property is in the required list
+                            local is_required=false
+                            for rk in $config_required_keys; do
+                                if [[ "$rk" == "$prop_key" ]]; then
+                                    is_required=true
+                                    break
+                                fi
+                            done
+
+                            # Check if env var is present in .env file
+                            local env_present=false
+                            if [[ -f "$mod_env_file" ]]; then
+                                if grep -q "^${prop_env}=" "$mod_env_file" 2>/dev/null; then
+                                    env_present=true
+                                fi
+                            fi
+
+                            if [[ "$env_present" == "false" ]]; then
+                                if [[ "$is_required" == "true" && -z "$prop_default" ]]; then
+                                    log_warn "[$mod_name] Required config '$prop_key' (env: $prop_env) not found in .env"
+                                elif [[ -n "$prop_default" ]]; then
+                                    log_info "[$mod_name] Config '$prop_key' (env: $prop_env) not in .env — default '$prop_default' will be used"
+                                fi
+                            else
+                                log_debug "[$mod_name] Config '$prop_key' (env: $prop_env) present in .env"
+                            fi
+                        done < <(jq -r '.config.properties | keys[]' "$manifest" 2>/dev/null)
+                    fi
                 else
                     # Basic check: valid JSON only
                     if cmd_exists jq; then
@@ -1416,6 +1550,16 @@ cmd_module() {
             # Make hook scripts executable
             chmod +x "$module_dir/hooks/"*.sh 2>/dev/null || true
 
+            # Auto-propagate DOMAIN from foundation .env into created module
+            load_env
+            if [[ -n "${DOMAIN:-}" ]] && [[ "${DOMAIN}" != "example.com" ]]; then
+                if [[ -f "$module_dir/.env.example" ]]; then
+                    sed -i '' "s/^DOMAIN=.*/DOMAIN=${DOMAIN}/" "$module_dir/.env.example" 2>/dev/null || \
+                        sed -i "s/^DOMAIN=.*/DOMAIN=${DOMAIN}/" "$module_dir/.env.example" 2>/dev/null || true
+                    log_info "Set DOMAIN=${DOMAIN} in module .env.example"
+                fi
+            fi
+
             log_success "Module created: $module_dir"
             echo ""
             log_info "Next steps:"
@@ -1431,6 +1575,51 @@ cmd_module() {
             return 1
             ;;
     esac
+}
+
+# ==============================================================
+# Env Command (Environment Switcher)
+# ==============================================================
+
+cmd_env() {
+    local env_name="${1:-}"
+    local project_dir
+    project_dir="$(get_project_dir)"
+
+    if [[ -z "$env_name" ]]; then
+        echo "${BOLD}Available environments:${NC}"
+        echo ""
+        for f in "$project_dir"/.env.*.example; do
+            [[ -f "$f" ]] || continue
+            local name
+            name=$(basename "$f" | sed 's/^\.env\.\(.*\)\.example$/\1/')
+            local desc
+            desc=$(head -3 "$f" | grep -o '# .*Environment' | sed 's/^# //' || true)
+            printf "  %-15s %s\n" "$name" "$desc"
+        done
+        echo ""
+        echo "Usage: $SCRIPT_NAME env <local|staging|production>"
+        return 0
+    fi
+
+    local env_file="$project_dir/.env.${env_name}.example"
+    if [[ ! -f "$env_file" ]]; then
+        log_error "Environment file not found: .env.${env_name}.example"
+        log_info "Available: $(ls "$project_dir"/.env.*.example 2>/dev/null | xargs -I{} basename {} | sed 's/\.env\.\(.*\)\.example/\1/' | tr '\n' ' ')"
+        return 1
+    fi
+
+    # Back up existing .env if present
+    if [[ -f "$project_dir/.env" ]]; then
+        cp "$project_dir/.env" "$project_dir/.env.backup"
+        log_info "Backed up current .env to .env.backup"
+    fi
+
+    cp "$env_file" "$project_dir/.env"
+    log_success "Switched to ${BOLD}${env_name}${NC} environment"
+    echo ""
+    log_info "Source: .env.${env_name}.example"
+    log_warn "Review .env and set secrets before starting services"
 }
 
 # ==============================================================
@@ -1647,6 +1836,7 @@ COMMANDS:
     backup              Run backup operations
     module              Module management
     config              Configuration management
+    env                 Switch environment (local/staging/production)
 
 COMMAND OPTIONS:
 
@@ -1700,6 +1890,11 @@ COMMAND OPTIONS:
         validate            Validate configuration
         edit [FILE]         Edit configuration file
 
+    env [NAME]
+        local               Switch to local development environment
+        staging             Switch to staging environment
+        production          Switch to production environment
+
 EXAMPLES:
     # Start with PostgreSQL and Redis profiles
     ./launch_peermesh.sh up --profile=postgresql,redis
@@ -1715,6 +1910,9 @@ EXAMPLES:
 
     # Enable backup module
     ./launch_peermesh.sh module enable backup
+
+    # Switch to staging environment
+    ./launch_peermesh.sh env staging
 
     # Initialize and validate configuration
     ./launch_peermesh.sh config init
@@ -1805,6 +2003,7 @@ main() {
         backup)    cmd_backup "${args[@]:-}" ;;
         module|mod) cmd_module "${args[@]:-}" ;;
         config|cfg) cmd_config "${args[@]:-}" ;;
+        env)        cmd_env "${args[@]:-}" ;;
         *)
             log_error "Unknown command: $command"
             echo ""

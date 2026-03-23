@@ -41,8 +41,10 @@ services:
       DOCKER_STEPCA_INIT_PROVISIONER_NAME: ${PKI_PROVISIONER_NAME:-pmdl-provisioner}
 
     secrets:
-      - ca_password
-      - provisioner_password
+      - source: ca_password
+        mode: 0444  # step-ca runs as non-root user 'step'
+      - source: provisioner_password
+        mode: 0444  # step-ca runs as non-root user 'step'
 
     volumes:
       # CA data persistence

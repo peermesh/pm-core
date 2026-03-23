@@ -84,6 +84,27 @@ volumes:
     name: my-module-data
 
 # =============================================================================
+# Secrets (Optional)
+# =============================================================================
+# File-based secrets following BYOK (Bring Your Own Keys) principle.
+#
+# Top-level defines the source:
+#   secrets:
+#     my-secret:
+#       file: ./secrets/my-secret
+#
+# Service-level controls permissions. Use mode: 0444 for non-root containers:
+#   services:
+#     my-module-app:
+#       secrets:
+#         - source: my-secret
+#           mode: 0444  # Required for non-root container access
+#
+# Root services (postgres, mysql, mongodb) can use short form (default 0444):
+#       secrets:
+#         - my-secret
+
+# =============================================================================
 # Networks (Optional)
 # =============================================================================
 # Uncomment to use foundation's shared networks for cross-module communication.

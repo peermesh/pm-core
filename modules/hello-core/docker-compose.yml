@@ -150,6 +150,8 @@ services:
 # Secrets (Optional)
 # ==============================================================
 # Uncomment to use file-based secrets (recommended over env vars).
+# Top-level defines the source; service-level sets mode: 0444
+# for non-root containers. See module-template for full pattern.
 #
 # secrets:
 #   hello_core_db_password:

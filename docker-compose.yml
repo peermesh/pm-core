@@ -189,6 +189,7 @@ services:
       - "--certificatesresolvers.letsencrypt.acme.email=${ADMIN_EMAIL}"
       - "--certificatesresolvers.letsencrypt.acme.storage=/acme/acme.json"
       - "--certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web"
+      - "--certificatesresolvers.letsencrypt.acme.caserver=${TRAEFIK_ACME_CASERVER:-}"
 
       # Dashboard (localhost only by default)
       - "--api.dashboard=true"
@@ -463,7 +464,8 @@ services:
     tmpfs:
       - /tmp:size=32m
     secrets:
-      - redis_password
+      - source: redis_password
+        mode: 0444  # Redis runs as non-root user 999
     command:
       - redis-server
       - --maxmemory

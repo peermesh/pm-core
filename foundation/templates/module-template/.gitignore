@@ -1,0 +1,33 @@
+# Module .gitignore
+# Exclude build artifacts and runtime files that should not be deployed via SCP
+# or committed to version control. The Dockerfile handles dependency installation.
+#
+# Learned from peers.social deployment: SCP'ing node_modules from dev to VPS
+# caused build failures (native bindings compiled for wrong architecture).
+# Let the Dockerfile's npm install / pip install run on the target.
+
+# Node.js
+node_modules/
+.npm/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Build output
+dist/
+build/
+.cache/
+
+# Environment and secrets (use .env.example and secrets-required.txt instead)
+.env
+secrets/
+
+# Logs
+*.log
+
+# OS artifacts
+.DS_Store
+Thumbs.db

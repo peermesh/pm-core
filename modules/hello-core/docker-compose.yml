@@ -93,11 +93,17 @@ services:
 
     # Traefik routing labels
     # CUSTOMIZE: Replace 'hello-core' with your module name throughout
+    #
+    # NOTE: hello-core uses a subdomain pattern (hello-core.${DOMAIN}).
+    # For a module that IS the primary app (e.g., peers.social serving its
+    # root domain), use Host(`${DOMAIN}`) instead. See the module template
+    # for both patterns side by side.
     labels:
       - "traefik.enable=true"
 
       # Router: HTTPS access at hello-core.${DOMAIN}
       # CUSTOMIZE: Change the Host rule to your module's subdomain
+      # For root-domain routing, replace with: Host(`${DOMAIN}`)
       - "traefik.http.routers.hello-core.rule=Host(`core.peermesh.org`) || Host(`${HELLO_CORE_SUBDOMAIN:-hello-core}.core.peermesh.org`)"
       - "traefik.http.routers.hello-core.entrypoints=websecure"
       - "traefik.http.routers.hello-core.tls.certresolver=letsencrypt"

@@ -268,7 +268,7 @@ resolve_connections() {
         local matched_provider=""
         local matched_module=""
 
-        # Try to find a matching provider
+        # Try to find a matching provider from module manifests
         while IFS=: read -r provider module; do
             if [[ -n "$provider" ]] && provider_satisfies "$provider" "$req_providers"; then
                 found=true
@@ -277,6 +277,20 @@ resolve_connections() {
                 break
             fi
         done <<< "$available_providers"
+
+        # Fallback: check if any provider is running as a Docker container (handles profiles)
+        # Profiles (postgres, redis, mongodb, minio, etc.) run as containers with pmdl_ prefix
+        if [[ "$found" == "false" ]]; then
+            for provider_name in $req_providers; do
+                if docker ps --filter "name=pmdl_${provider_name}" --format "{{.Names}}" 2>/dev/null | grep -q "${provider_name}"; then
+                    found=true
+                    matched_provider="$provider_name"
+                    matched_module="profile-container"
+                    log_info "  (resolved via running container pmdl_${provider_name})"
+                    break
+                fi
+            done
+        fi
 
         if [[ "$found" == "true" ]]; then
             log_success "$req_name -> $matched_provider ($matched_module)"

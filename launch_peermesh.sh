@@ -1047,6 +1047,18 @@ cmd_module() {
                                     local ur_name ur_providers
                                     ur_name=$(echo "$ur" | jq -r '.requirement.name // .requirement.type' 2>/dev/null)
                                     ur_providers=$(echo "$ur" | jq -r '.requirement.providers | join(", ")' 2>/dev/null)
+                                    # Fallback: check if provider is running as a Docker container (handles profiles)
+                                    local ur_container_found=false
+                                    for ur_prov in $(echo "$ur" | jq -r '.requirement.providers[]?' 2>/dev/null); do
+                                        if docker ps --filter "name=pmdl_${ur_prov}" --format "{{.Names}}" 2>/dev/null | grep -q "${ur_prov}"; then
+                                            log_success "Connection provider '${ur_prov}' found as running container (pmdl_${ur_prov})"
+                                            ur_container_found=true
+                                            break
+                                        fi
+                                    done
+                                    if [[ "$ur_container_found" == "true" ]]; then
+                                        continue
+                                    fi
                                     # Check if this connection is required in the original manifest
                                     local ur_required
                                     ur_required=$(jq -r --arg name "$ur_name" \
@@ -1066,19 +1078,30 @@ cmd_module() {
                                 log_success "All connections resolved for $dep_module"
                             fi
                         else
-                            # No resolver script — fall back to inline jq check
+                            # No resolver script — fall back to inline jq check with container fallback
                             log_debug "Connection resolver not found at $conn_resolver — checking inline"
                             local conn_idx=0
                             while IFS= read -r conn; do
                                 [[ -z "$conn" ]] && continue
-                                local c_providers c_required c_alias
+                                local c_providers c_required c_alias c_provider_found
                                 c_providers=$(echo "$conn" | jq -r '.providers | join(", ")')
                                 c_required=$(echo "$conn" | jq -r '.required // true')
                                 c_alias=$(echo "$conn" | jq -r '.alias // .type')
-                                if [[ "$c_required" == "false" ]]; then
-                                    log_warn "Module $dep_module: optional connection '$c_alias' ($c_providers) — no provider check available"
-                                else
-                                    log_warn "Module $dep_module: required connection '$c_alias' ($c_providers) — no provider check available (resolver missing)"
+                                c_provider_found=false
+                                # Fallback: check if provider is running as a Docker container (handles profiles)
+                                for c_prov in $(echo "$conn" | jq -r '.providers[]?' 2>/dev/null); do
+                                    if docker ps --filter "name=pmdl_${c_prov}" --format "{{.Names}}" 2>/dev/null | grep -q "${c_prov}"; then
+                                        log_success "Connection provider '${c_prov}' found as running container (pmdl_${c_prov})"
+                                        c_provider_found=true
+                                        break
+                                    fi
+                                done
+                                if [[ "$c_provider_found" == "false" ]]; then
+                                    if [[ "$c_required" == "false" ]]; then
+                                        log_warn "Module $dep_module: optional connection '$c_alias' ($c_providers) — no provider available"
+                                    else
+                                        log_warn "Module $dep_module: required connection '$c_alias' ($c_providers) — no provider check available (resolver missing)"
+                                    fi
                                 fi
                                 ((conn_idx++)) || true
                             done < <(jq -c '.requires.connections[]' "$dep_manifest" 2>/dev/null)

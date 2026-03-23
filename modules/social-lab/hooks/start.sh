@@ -114,15 +114,21 @@ show_status() {
 
     # Try to read DOMAIN and subdomain from .env
     local domain=""
-    local subdomain="social"
+    local subdomain=""
     if [[ -f "${MODULE_DIR}/.env" ]]; then
         domain=$(grep "^DOMAIN=" "${MODULE_DIR}/.env" 2>/dev/null | cut -d= -f2- || printf "")
-        subdomain=$(grep "^SOCIAL_LAB_SUBDOMAIN=" "${MODULE_DIR}/.env" 2>/dev/null | cut -d= -f2- || printf "social")
+        subdomain=$(grep "^SOCIAL_LAB_SUBDOMAIN=" "${MODULE_DIR}/.env" 2>/dev/null | cut -d= -f2- || printf "")
     fi
 
     if [[ -n "$domain" && "$domain" != "example.com" ]]; then
-        log "  https://${subdomain}.${domain}/"
-        log "  https://${subdomain}.${domain}/health"
+        local instance_domain
+        if [[ -n "$subdomain" ]]; then
+            instance_domain="${subdomain}.${domain}"
+        else
+            instance_domain="${domain}"
+        fi
+        log "  https://${instance_domain}/"
+        log "  https://${instance_domain}/health"
     fi
     log "  docker exec ${CONTAINER_NAME} wget -qO- http://127.0.0.1:3000/health"
     log ""

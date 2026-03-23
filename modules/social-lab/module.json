@@ -131,8 +131,8 @@
       },
       "subdomain": {
         "type": "string",
-        "description": "The subdomain prefix for Social Lab",
-        "default": "social",
+        "description": "The subdomain prefix for Social Lab. Empty string for root-domain deployment (e.g. peers.social).",
+        "default": "",
         "env": "SOCIAL_LAB_SUBDOMAIN"
       },
       "dbHost": {

@@ -52,6 +52,31 @@ services:
       # For cross-module communication, use internal networks:
       # - module-internal
 
+    # -----------------------------------------------------------------------
+    # Traefik routing labels (uncomment and customize for web-facing modules)
+    # -----------------------------------------------------------------------
+    # Choose ONE of the two routing patterns below.
+    #
+    # Pattern A — Subdomain routing (e.g., mymodule.example.com):
+    #   Use when your module is one of several services under a shared domain.
+    #   labels:
+    #     - "traefik.enable=true"
+    #     - "traefik.http.routers.my-module.rule=Host(`${MY_MODULE_SUBDOMAIN:-mymodule}.${DOMAIN}`)"
+    #     - "traefik.http.routers.my-module.entrypoints=websecure"
+    #     - "traefik.http.routers.my-module.tls.certresolver=letsencrypt"
+    #     - "traefik.http.services.my-module.loadbalancer.server.port=8080"
+    #
+    # Pattern B — Root domain routing (e.g., example.com):
+    #   Use when your module IS the primary app for the domain.
+    #   Learned from the peers.social deployment where the social-lab module
+    #   serves the root domain directly, not a subdomain.
+    #   labels:
+    #     - "traefik.enable=true"
+    #     - "traefik.http.routers.my-module.rule=Host(`${DOMAIN}`)"
+    #     - "traefik.http.routers.my-module.entrypoints=websecure"
+    #     - "traefik.http.routers.my-module.tls.certresolver=letsencrypt"
+    #     - "traefik.http.services.my-module.loadbalancer.server.port=8080"
+
   # ==========================================================================
   # Example: Sidecar Service
   # ==========================================================================
@@ -103,6 +128,13 @@ volumes:
 # Root services (postgres, mysql, mongodb) can use short form (default 0444):
 #       secrets:
 #         - my-secret
+#
+# IMPORTANT (learned from peers.social deployment):
+# If mounting secret files from the host (not Docker secrets), ensure the
+# HOST file permissions allow the container's non-root user to read them.
+# Set chmod 644 or 0444 on the host file BEFORE starting the container.
+# Docker secrets handle permissions via the mode: directive above, but
+# bind-mounted config/secret files inherit host permissions directly.
 
 # =============================================================================
 # Networks (Optional)

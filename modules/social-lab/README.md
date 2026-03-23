@@ -48,7 +48,7 @@ cd ../..
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `DOMAIN` | Root domain for Traefik routing | required |
-| `SOCIAL_LAB_SUBDOMAIN` | Subdomain prefix | `social` |
+| `SOCIAL_LAB_SUBDOMAIN` | Subdomain prefix (empty for root-domain deployment) | `` (empty) |
 | `SOCIAL_LAB_PORT` | HTTP port inside container | `3000` |
 | `SOCIAL_LAB_DB_HOST` | PostgreSQL hostname | `postgres` |
 | `SOCIAL_LAB_DB_PORT` | PostgreSQL port | `5432` |
@@ -70,7 +70,7 @@ See `secrets-required.txt` for creation instructions.
 ./hooks/health.sh
 
 # Via HTTP (once deployed)
-curl https://social.core.peermesh.org/health
+curl https://peers.social/health
 ```
 
 ### Lifecycle Hooks

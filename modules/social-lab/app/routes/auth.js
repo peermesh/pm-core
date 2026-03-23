@@ -1,11 +1,13 @@
 // =============================================================================
-// Auth Routes — Login, Signup, Logout
+// Auth Routes — Login, Signup, Logout, SSO
 // =============================================================================
 // GET  /login   — Login page (HTML form, dark theme)
 // POST /login   — Validate credentials, set session, redirect to /studio
 // GET  /signup  — Signup page (create account + profile)
 // POST /signup  — Create profile + auth record, set session, redirect to /studio
 // POST /logout  — Clear session, redirect to /
+// GET  /sso/authorize?target=domain&callback=url — SSO authorization page
+// POST /sso/verify — Verify an SSO token from another instance
 //
 // Security: HttpOnly cookies, CSRF check, rate limiting, scrypt hashing.
 // Design: Matches Studio dark theme (slate palette, cyan accents).
@@ -13,17 +15,22 @@
 import { randomUUID, createHash } from 'node:crypto';
 import { pool } from '../db.js';
 import {
-  html, json, readFormBody, escapeHtml,
+  html, json, readFormBody, readJsonBody, escapeHtml, parseUrl,
   BASE_URL, SUBDOMAIN, DOMAIN,
 } from '../lib/helpers.js';
 import {
-  setSessionCookie, clearSessionCookie,
+  getSession, setSessionCookie, clearSessionCookie,
   hashPassword, verifyPassword,
   checkRateLimit, getClientIp, checkCsrf,
 } from '../lib/session.js';
 import { generateNostrKeypair } from '../lib/nostr-crypto.js';
 import { provisionEd25519Identity } from '../lib/identity-keys.js';
 import { generateAndStoreManifest } from '../lib/manifest.js';
+import {
+  generateSSOToken, verifySSOToken,
+  getInstanceByDomain, getInstancePublicKey,
+  INSTANCE_DOMAIN,
+} from '../lib/sso.js';
 
 // =============================================================================
 // Shared Auth Page CSS (matches Studio dark theme)
@@ -325,6 +332,114 @@ function redirect(res, location, cookie = null) {
   }
   res.writeHead(302, headers);
   res.end();
+}
+
+// =============================================================================
+// SSO Authorization Page HTML
+// =============================================================================
+
+function ssoAuthorizePage({ profile, targetDomain, callbackUrl, instanceKnown, instanceName }) {
+  const trustBadge = instanceKnown
+    ? '<span style="color: var(--color-success); font-size: 0.85rem;">Known instance</span>'
+    : '<span style="color: var(--color-warning, #f59e0b); font-size: 0.85rem;">Unknown instance</span>';
+
+  return `<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SSO Authorization - PeerMesh Social Lab</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="stylesheet" href="/static/tokens.css">
+  <style>${AUTH_CSS}
+    .sso-info {
+      background: var(--color-bg-tertiary);
+      border: var(--border-width-default) solid var(--color-border);
+      border-radius: var(--radius-sm);
+      padding: 1rem;
+      margin-bottom: 1.25rem;
+      font-size: 0.875rem;
+    }
+    .sso-info dt {
+      color: var(--color-text-secondary);
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.25rem;
+    }
+    .sso-info dd {
+      color: var(--color-text-primary);
+      margin-bottom: 0.75rem;
+      margin-left: 0;
+      word-break: break-all;
+    }
+    .sso-info dd:last-child { margin-bottom: 0; }
+    .btn-row {
+      display: flex;
+      gap: 0.75rem;
+      margin-top: 1rem;
+    }
+    .btn-deny {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-family-primary);
+      font-size: 1rem;
+      font-weight: 600;
+      border: var(--border-width-default) solid var(--color-border);
+      border-radius: var(--radius-pill);
+      cursor: pointer;
+      min-height: 48px;
+      padding: 0.75rem 1.5rem;
+      background: transparent;
+      color: var(--color-text-secondary);
+    }
+    .btn-deny:hover {
+      background: var(--color-bg-tertiary);
+      color: var(--color-text-primary);
+    }
+    .btn-approve {
+      flex: 2;
+    }
+  </style>
+</head>
+<body>
+  <div class="auth-container">
+    <div class="auth-logo">PeerMesh Social Lab</div>
+    <div class="auth-subtitle">Cross-Instance Single Sign-On</div>
+
+    <div class="auth-card">
+      <h1 class="auth-title">Authorize SSO</h1>
+
+      <p style="text-align: center; margin-bottom: 1.25rem; font-size: 0.9375rem; color: var(--color-text-secondary);">
+        <strong style="color: var(--color-text-primary);">${escapeHtml(instanceName)}</strong>
+        wants to verify your identity.
+      </p>
+
+      <dl class="sso-info">
+        <dt>Your Identity</dt>
+        <dd>${escapeHtml(profile.display_name || profile.username)} (@${escapeHtml(profile.username)})</dd>
+        <dt>Target Instance</dt>
+        <dd>${escapeHtml(targetDomain)} ${trustBadge}</dd>
+        <dt>WebID</dt>
+        <dd style="font-size: 0.8125rem; color: var(--color-text-tertiary);">${escapeHtml(profile.webid)}</dd>
+      </dl>
+
+      <form method="POST" action="/sso/authorize">
+        <input type="hidden" name="target" value="${escapeHtml(targetDomain)}">
+        <input type="hidden" name="callback" value="${escapeHtml(callbackUrl)}">
+        <div class="btn-row">
+          <button class="btn-deny" type="submit" name="action" value="deny">Deny</button>
+          <button class="btn-submit btn-approve" type="submit" name="action" value="approve">Approve</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="back-link"><a href="/studio">Back to Studio</a></div>
+  </div>
+</body>
+</html>`;
 }
 
 // =============================================================================
@@ -640,6 +755,225 @@ export default function registerRoutes(routes) {
     handler: async (req, res) => {
       const cookie = clearSessionCookie();
       redirect(res, '/', cookie);
+    },
+  });
+
+  // ===========================================================================
+  // SSO Endpoints (WO-008: Ecosystem SSO Phase 1)
+  // ===========================================================================
+
+  // GET /sso/authorize?target=domain&callback=url — SSO authorization page
+  // Shows: "Instance X wants to verify your identity. Allow?"
+  // User must be logged in. On approve: generates SSO token, redirects to callback.
+  routes.push({
+    method: 'GET',
+    pattern: /^\/sso\/authorize$/,
+    handler: async (req, res) => {
+      const { searchParams } = parseUrl(req);
+      const targetDomain = searchParams.get('target');
+      const callbackUrl = searchParams.get('callback');
+
+      if (!targetDomain || !callbackUrl) {
+        return json(res, 400, {
+          error: 'Missing required parameters: target, callback',
+          usage: 'GET /sso/authorize?target=other.instance.com&callback=https://other.instance.com/sso/callback',
+        });
+      }
+
+      // Validate callback URL
+      let callbackParsed;
+      try {
+        callbackParsed = new URL(callbackUrl);
+      } catch {
+        return json(res, 400, { error: 'Invalid callback URL' });
+      }
+
+      // Require authentication
+      const session = getSession(req);
+      if (!session) {
+        // Redirect to login with return URL
+        const returnUrl = `/sso/authorize?target=${encodeURIComponent(targetDomain)}&callback=${encodeURIComponent(callbackUrl)}`;
+        return redirect(res, `/login?return=${encodeURIComponent(returnUrl)}`);
+      }
+
+      // Look up the target instance
+      const targetInstance = await getInstanceByDomain(targetDomain);
+
+      // Fetch user profile
+      const profileResult = await pool.query(
+        `SELECT id, webid, omni_account_id, display_name, username,
+                ap_actor_uri, at_did, nostr_npub
+         FROM social_profiles.profile_index
+         WHERE id = $1
+         LIMIT 1`,
+        [session.profileId]
+      );
+
+      if (profileResult.rowCount === 0) {
+        return json(res, 404, { error: 'Profile not found' });
+      }
+
+      const profile = profileResult.rows[0];
+      const instanceKnown = !!targetInstance;
+
+      // Render authorization page
+      html(res, 200, ssoAuthorizePage({
+        profile,
+        targetDomain,
+        callbackUrl,
+        instanceKnown,
+        instanceName: targetInstance ? targetInstance.name : targetDomain,
+      }));
+    },
+  });
+
+  // POST /sso/authorize — Process SSO authorization (form submission)
+  routes.push({
+    method: 'POST',
+    pattern: /^\/sso\/authorize$/,
+    handler: async (req, res) => {
+      // CSRF check
+      if (!checkCsrf(req)) {
+        return json(res, 403, { error: 'Invalid request origin' });
+      }
+
+      const session = getSession(req);
+      if (!session) {
+        return json(res, 401, { error: 'Not authenticated' });
+      }
+
+      const body = await readFormBody(req);
+      const targetDomain = body.target;
+      const callbackUrl = body.callback;
+      const action = body.action;
+
+      if (!targetDomain || !callbackUrl) {
+        return json(res, 400, { error: 'Missing target or callback' });
+      }
+
+      // User denied
+      if (action !== 'approve') {
+        let callbackParsed;
+        try {
+          callbackParsed = new URL(callbackUrl);
+        } catch {
+          return json(res, 400, { error: 'Invalid callback URL' });
+        }
+        const deniedUrl = new URL(callbackUrl);
+        deniedUrl.searchParams.set('error', 'access_denied');
+        return redirect(res, deniedUrl.toString());
+      }
+
+      // Fetch profile
+      const profileResult = await pool.query(
+        `SELECT id, webid, omni_account_id, display_name, username,
+                ap_actor_uri, at_did, nostr_npub
+         FROM social_profiles.profile_index
+         WHERE id = $1
+         LIMIT 1`,
+        [session.profileId]
+      );
+
+      if (profileResult.rowCount === 0) {
+        return json(res, 404, { error: 'Profile not found' });
+      }
+
+      const profile = profileResult.rows[0];
+
+      // Generate SSO token
+      try {
+        const token = await generateSSOToken(profile, targetDomain);
+
+        // Redirect to callback with token
+        const redirectUrl = new URL(callbackUrl);
+        redirectUrl.searchParams.set('sso_token', token);
+        redirectUrl.searchParams.set('source', INSTANCE_DOMAIN);
+        redirect(res, redirectUrl.toString());
+      } catch (err) {
+        console.error(`[sso] Token generation failed:`, err.message);
+        json(res, 500, { error: 'SSO token generation failed' });
+      }
+    },
+  });
+
+  // POST /sso/verify — Verify an SSO token (called by receiving instance)
+  routes.push({
+    method: 'POST',
+    pattern: '/sso/verify',
+    handler: async (req, res) => {
+      let body;
+      try {
+        const { parsed } = await readJsonBody(req);
+        body = parsed;
+      } catch {
+        return json(res, 400, { error: 'Invalid JSON body' });
+      }
+
+      if (!body || !body.token || !body.source_domain) {
+        return json(res, 400, {
+          error: 'Missing required fields: token, source_domain',
+          usage: {
+            token: 'The SSO token string',
+            source_domain: 'Domain of the instance that issued the token',
+          },
+        });
+      }
+
+      // Look up the source instance to get its public key
+      const sourceInstance = await getInstanceByDomain(body.source_domain);
+      if (!sourceInstance) {
+        return json(res, 404, {
+          error: `Unknown source instance: ${body.source_domain}`,
+          hint: 'Register the source instance first via POST /api/instances/register',
+        });
+      }
+
+      if (!sourceInstance.public_key) {
+        return json(res, 400, {
+          error: `Source instance ${body.source_domain} has no public key registered`,
+        });
+      }
+
+      if (sourceInstance.trust_level === 'blocked') {
+        return json(res, 403, {
+          error: `Instance ${body.source_domain} is blocked`,
+        });
+      }
+
+      // Verify the token
+      const result = verifySSOToken(body.token, sourceInstance.public_key);
+
+      if (!result.valid) {
+        return json(res, 401, {
+          verified: false,
+          error: result.error,
+        });
+      }
+
+      // Verify the token was intended for us
+      if (result.payload.target_domain && result.payload.target_domain !== INSTANCE_DOMAIN) {
+        return json(res, 401, {
+          verified: false,
+          error: `Token target_domain mismatch: expected ${INSTANCE_DOMAIN}, got ${result.payload.target_domain}`,
+        });
+      }
+
+      // Return the verified identity
+      json(res, 200, {
+        verified: true,
+        identity: {
+          webid: result.payload.webid,
+          handle: result.payload.handle,
+          display_name: result.payload.display_name,
+          protocol_ids: result.payload.protocol_ids,
+          source_domain: result.payload.source_domain,
+        },
+        token_metadata: {
+          issued_at: new Date(result.payload.issued_at).toISOString(),
+          expires_at: new Date(result.payload.expires_at).toISOString(),
+          token_id: result.payload.token_id,
+        },
+      });
     },
   });
 }

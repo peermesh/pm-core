@@ -350,16 +350,28 @@ export default function registerRoutes(routes) {
       const mediaUrls = body.mediaUrls || [];
       const visibility = body.visibility || 'public';
       const inReplyTo = body.inReplyTo || null;
+      const groupId = body.group_id || body.groupId || null;
+
+      // Validate group_id if provided
+      if (groupId) {
+        const groupCheck = await pool.query(
+          'SELECT id FROM social_profiles.groups WHERE id = $1',
+          [groupId]
+        );
+        if (groupCheck.rowCount === 0) {
+          return json(res, 400, { error: 'Bad Request', message: `Group not found: ${groupId}` });
+        }
+      }
 
       const insertResult = await pool.query(
-        `INSERT INTO social_profiles.posts (id, webid, content_text, content_html, media_urls, visibility, in_reply_to)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)
-         RETURNING id, webid, content_text, content_html, media_urls, visibility, in_reply_to, created_at, updated_at`,
-        [postId, profile.webid, contentText, contentHtml, mediaUrls, visibility, inReplyTo]
+        `INSERT INTO social_profiles.posts (id, webid, content_text, content_html, media_urls, visibility, in_reply_to, group_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+         RETURNING id, webid, content_text, content_html, media_urls, visibility, in_reply_to, group_id, created_at, updated_at`,
+        [postId, profile.webid, contentText, contentHtml, mediaUrls, visibility, inReplyTo, groupId]
       );
 
       const post = insertResult.rows[0];
-      console.log(`[posts] Created post ${post.id} by @${profile.username}`);
+      console.log(`[posts] Created post ${post.id} by @${profile.username}${groupId ? ` in group ${groupId}` : ''}`);
 
       // Distribute to all active protocols
       const distributions = await distributePost(post, profile);
@@ -374,6 +386,7 @@ export default function registerRoutes(routes) {
           mediaUrls: post.media_urls,
           visibility: post.visibility,
           inReplyTo: post.in_reply_to,
+          groupId: post.group_id || null,
           createdAt: post.created_at,
           updatedAt: post.updated_at,
           url: `${BASE_URL}/@${profile.username}/post/${post.id}`,
@@ -398,7 +411,7 @@ export default function registerRoutes(routes) {
       const limit = Math.min(parseInt(searchParams.get('limit') || '20', 10), 100);
       const before = searchParams.get('before');
 
-      let query = `SELECT id, webid, content_text, content_html, media_urls, visibility, in_reply_to, created_at, updated_at
+      let query = `SELECT id, webid, content_text, content_html, media_urls, visibility, in_reply_to, group_id, created_at, updated_at
                    FROM social_profiles.posts
                    WHERE webid = $1`;
       const params = [profile.webid];
@@ -421,6 +434,7 @@ export default function registerRoutes(routes) {
         mediaUrls: row.media_urls,
         visibility: row.visibility,
         inReplyTo: row.in_reply_to,
+        groupId: row.group_id || null,
         createdAt: row.created_at,
         updatedAt: row.updated_at,
         url: `${BASE_URL}/@${handle}/post/${row.id}`,
@@ -447,7 +461,7 @@ export default function registerRoutes(routes) {
 
       const postResult = await pool.query(
         `SELECT p.id, p.webid, p.content_text, p.content_html, p.media_urls,
-                p.visibility, p.in_reply_to, p.created_at, p.updated_at,
+                p.visibility, p.in_reply_to, p.group_id, p.created_at, p.updated_at,
                 pi.username AS handle, pi.display_name
          FROM social_profiles.posts p
          JOIN social_profiles.profile_index pi ON pi.webid = p.webid
@@ -481,6 +495,7 @@ export default function registerRoutes(routes) {
           mediaUrls: post.media_urls,
           visibility: post.visibility,
           inReplyTo: post.in_reply_to,
+          groupId: post.group_id || null,
           createdAt: post.created_at,
           updatedAt: post.updated_at,
           url: `${BASE_URL}/@${post.handle}/post/${post.id}`,

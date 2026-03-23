@@ -18,8 +18,10 @@ import {
 async function getRecentPosts(webid) {
   try {
     const result = await pool.query(
-      `SELECT p.id, p.content_text, p.content_html, p.media_urls, p.created_at
+      `SELECT p.id, p.content_text, p.content_html, p.media_urls, p.created_at,
+              p.group_id, g.name AS group_name
        FROM social_profiles.posts p
+       LEFT JOIN social_profiles.groups g ON g.id = p.group_id
        WHERE p.webid = $1
        ORDER BY p.created_at DESC
        LIMIT 20`,
@@ -162,10 +164,16 @@ ${hEntries}
         badgesHtml = `<span class="post-dist-badges">${badges}</span>`;
       }
 
+      // Group context badge
+      const groupBadge = post.group_name
+        ? `<span class="dist-badge" style="background:var(--color-accent)22;color:var(--color-accent);border-color:var(--color-accent)44;">in ${escapeHtml(post.group_name)}</span>`
+        : '';
+
       return `      <article class="post-card h-entry">
         <div class="post-content e-content">${content}</div>
         <div class="post-meta">
           <span class="post-time"><a href="${escapeHtml(postUrl)}" class="u-url"><time class="dt-published" datetime="${isoDate}">${timeAgo}</time></a></span>
+          ${groupBadge}
           ${badgesHtml}
         </div>
       </article>`;

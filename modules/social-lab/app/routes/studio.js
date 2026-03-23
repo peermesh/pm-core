@@ -3105,17 +3105,19 @@ export default function registerRoutes(routes) {
 
       const profile = profileResult.rows[0];
 
-      // Create the post
+      // Create the post (with optional group_id)
       const postId = randomUUID();
+      const groupId = (body.group_id || '').trim() || null;
+
       const insertResult = await pool.query(
-        `INSERT INTO social_profiles.posts (id, webid, content_text, content_html, media_urls, visibility, in_reply_to)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)
-         RETURNING id, webid, content_text, content_html, media_urls, visibility, in_reply_to, created_at, updated_at`,
-        [postId, profile.webid, trimmed, null, '{}', 'public', null]
+        `INSERT INTO social_profiles.posts (id, webid, content_text, content_html, media_urls, visibility, in_reply_to, group_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+         RETURNING id, webid, content_text, content_html, media_urls, visibility, in_reply_to, group_id, created_at, updated_at`,
+        [postId, profile.webid, trimmed, null, '{}', 'public', null, groupId]
       );
 
       const post = insertResult.rows[0];
-      console.log(`[studio] Created post ${post.id} by @${profile.username}`);
+      console.log(`[studio] Created post ${post.id} by @${profile.username}${groupId ? ` in group ${groupId}` : ''}`);
 
       // Distribute to protocols
       const distributions = await studioDistributePost(post, profile);

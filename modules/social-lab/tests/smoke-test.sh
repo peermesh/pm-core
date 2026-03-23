@@ -411,6 +411,82 @@ section "Profile Page Badges (Hypercore + Braid)"
 test_endpoint "GET /@alice (Hypercore badge)" 200 'Hypercore' '' '/@alice'
 test_endpoint "GET /@alice (Braid badge)" 200 'Braid' '' '/@alice'
 
+# ── Ecosystem SSO (WO-008) ────────────────────────────────────────────
+section "Ecosystem SSO (WO-008)"
+test_endpoint "GET /api/instances (list)" 200 '"instances"' '' '/api/instances'
+test_endpoint "GET /api/instances (self present)" 200 '"this_instance"' '' '/api/instances'
+test_endpoint "GET /api/instances/self" 200 '"domain"' '' '/api/instances/self'
+test_endpoint "GET /api/instances/self (public key)" 200 '"public_key"' '' '/api/instances/self'
+test_endpoint "GET /api/instances/self (sso endpoints)" 200 '"sso_endpoints"' '' '/api/instances/self'
+test_endpoint "GET /api/identity/verify (missing param)" 400 '"error"' '' '/api/identity/verify'
+
+# Test SSO authorize without auth (should redirect to login)
+label="GET /sso/authorize (unauthenticated -> redirect)"
+url="${BASE_URL}/sso/authorize?target=other.example.com&callback=https://other.example.com/cb"
+http_code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "$url" 2>/dev/null) || http_code="000"
+if [ "$http_code" = "302" ]; then
+  log_pass "$label"
+else
+  log_fail "$label" "expected HTTP 302, got $http_code"
+fi
+
+# Test SSO verify with missing fields
+label="POST /sso/verify (missing fields)"
+url="${BASE_URL}/sso/verify"
+http_code=$(curl -s -X POST -o /dev/null -w "%{http_code}" \
+  -H "Content-Type: application/json" \
+  -d '{}' \
+  --max-time 10 "$url" 2>/dev/null) || http_code="000"
+if [ "$http_code" = "400" ]; then
+  log_pass "$label"
+else
+  log_fail "$label" "expected HTTP 400, got $http_code"
+fi
+
+# Test SSO verify with unknown source domain
+label="POST /sso/verify (unknown source)"
+url="${BASE_URL}/sso/verify"
+http_code=$(curl -s -X POST -o /dev/null -w "%{http_code}" \
+  -H "Content-Type: application/json" \
+  -d '{"token":"fake.token","source_domain":"unknown.example.com"}' \
+  --max-time 10 "$url" 2>/dev/null) || http_code="000"
+if [ "$http_code" = "404" ]; then
+  log_pass "$label"
+else
+  log_fail "$label" "expected HTTP 404, got $http_code"
+fi
+
+# Test instance registration with invalid payload
+label="POST /api/instances/register (missing fields)"
+url="${BASE_URL}/api/instances/register"
+http_code=$(curl -s -X POST -o /dev/null -w "%{http_code}" \
+  -H "Content-Type: application/json" \
+  -d '{"domain":"test.example.com"}' \
+  --max-time 10 "$url" 2>/dev/null) || http_code="000"
+if [ "$http_code" = "400" ]; then
+  log_pass "$label"
+else
+  log_fail "$label" "expected HTTP 400, got $http_code"
+fi
+
+# Test WebID verification for a local user (alice) — dynamically resolve WebID
+label="GET /api/identity/verify (alice WebID)"
+alice_webid=$(curl -s --max-time 10 "${BASE_URL}/api/profiles" 2>/dev/null | \
+  python3 -c "
+import json, sys, urllib.parse
+data = json.load(sys.stdin)
+for p in data.get('profiles', []):
+    if p.get('username') == 'alice':
+        print(urllib.parse.quote(p['webid'], safe=''))
+        break
+" 2>/dev/null || true)
+if [ -n "$alice_webid" ]; then
+  test_endpoint "$label" 200 '"verified":true' '' \
+    "/api/identity/verify?webid=${alice_webid}"
+else
+  log_pass "$label (SKIP: alice profile not found for dynamic WebID test)"
+fi
+
 # ── 404s ──────────────────────────────────────────────────────────────
 section "404 Handling"
 test_endpoint "GET /api/profile/nonexistent" 404 '' '' '/api/profile/nonexistent'

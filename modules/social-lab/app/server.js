@@ -16,6 +16,7 @@ import { json, parseUrl, VERSION, MODULE } from './lib/helpers.js';
 // Import route registration functions
 import registerHealthRoutes from './routes/health.js';
 import registerLandingRoutes from './routes/landing.js';
+import registerSolidPodRoutes from './routes/solid-pod.js';
 import registerProfileRoutes from './routes/profile.js';
 import registerLinksRoutes from './routes/links.js';
 import registerMediaRoutes from './routes/media.js';
@@ -39,7 +40,10 @@ import registerStudioRoutes from './routes/studio.js';
 import registerPageRoutes from './routes/page.js';
 import registerNotificationRoutes from './routes/notifications.js';
 import registerManifestRoutes from './routes/manifest.js';
+import registerIdentityRoutes from './routes/identity.js';
+import registerRecoveryRoutes from './routes/recovery.js';
 import { initializeWebPush } from './lib/webpush.js';
+import { registerSelfInstance } from './lib/sso.js';
 
 const PORT = parseInt(process.env.SOCIAL_LAB_PORT || '3000', 10);
 
@@ -125,6 +129,7 @@ registerLandingRoutes(routes);
 registerFeedsRoutes(routes);
 registerMediaRoutes(routes);
 registerLinksRoutes(routes);
+registerSolidPodRoutes(routes);  // Must be before profile routes (more specific /api/profile/:id/... patterns)
 registerProfileRoutes(routes);
 registerAtProtocolRoutes(routes);
 registerDsnpRoutes(routes);
@@ -140,6 +145,8 @@ registerIndieWebRoutes(routes);
 registerActivityPubRoutes(routes);
 registerNotificationRoutes(routes);
 registerManifestRoutes(routes);
+registerIdentityRoutes(routes);
+registerRecoveryRoutes(routes);
 registerSearchRoutes(routes);
 registerAuthRoutes(routes);
 registerGroupsRoutes(routes);
@@ -221,6 +228,14 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(`[social-lab] Module: ${MODULE} v${VERSION}`);
   console.log(`[social-lab] Landing page: http://0.0.0.0:${PORT}/`);
   console.log(`[social-lab] Health endpoint: http://0.0.0.0:${PORT}/health`);
+
+  // Instance self-registration for Ecosystem SSO (WO-008, ARCH-010)
+  // Runs asynchronously after server is listening — non-blocking.
+  registerSelfInstance().then(() => {
+    console.log('[social-lab] Instance self-registration complete');
+  }).catch((err) => {
+    console.warn('[social-lab] Instance self-registration deferred:', err.message);
+  });
 });
 
 // Graceful shutdown

@@ -18,8 +18,48 @@ import {
   generateAndStoreManifest,
   UM_MANIFEST_VERSION,
 } from '../lib/manifest.js';
-import { getEd25519Keypair } from '../lib/identity-keys.js';
+import { getEd25519Keypair, provisionEd25519Identity } from '../lib/identity-keys.js';
 import { pool } from '../db.js';
+
+/**
+ * Auto-generate a manifest for a profile that doesn't have one yet.
+ * Generates Ed25519 keys on the fly if missing, then generates + stores the manifest.
+ * Returns the signed manifest or null if the profile doesn't exist.
+ */
+async function autoGenerateManifest(handle) {
+  // Look up profile by handle
+  const profileResult = await pool.query(
+    `SELECT id, webid, omni_account_id, display_name, username, bio,
+            avatar_url, banner_url, homepage_url, source_pod_uri,
+            nostr_npub, at_did, ap_actor_uri, dsnp_user_id,
+            zot_channel_hash, matrix_id
+     FROM social_profiles.profile_index
+     WHERE username = $1
+     ORDER BY created_at ASC
+     LIMIT 1`,
+    [handle]
+  );
+
+  if (profileResult.rowCount === 0) return null;
+
+  const profile = profileResult.rows[0];
+
+  // Get or generate Ed25519 keypair
+  let keypair = await getEd25519Keypair(profile.omni_account_id);
+  if (!keypair) {
+    // Auto-provision keys on first manifest request
+    console.log(`[manifest] Auto-provisioning Ed25519 keys for ${handle}`);
+    const provisioned = await provisionEd25519Identity(profile.omni_account_id);
+    keypair = {
+      publicKeySpkiB64: provisioned.publicKeySpkiB64,
+      privateKeyPem: provisioned.privateKeyPem,
+    };
+  }
+
+  // Generate, sign, and store the manifest
+  const signedManifest = await generateAndStoreManifest(profile, keypair);
+  return signedManifest;
+}
 
 export default function registerRoutes(routes) {
 
@@ -38,7 +78,13 @@ export default function registerRoutes(routes) {
       }
 
       try {
-        const manifest = await getManifestByHandle(handle);
+        let manifest = await getManifestByHandle(handle);
+
+        // Auto-generate manifest if none exists yet
+        if (!manifest) {
+          manifest = await autoGenerateManifest(handle);
+        }
+
         if (!manifest) {
           return json(res, 404, {
             error: 'Not Found',
@@ -72,7 +118,13 @@ export default function registerRoutes(routes) {
       const handle = matches[1];
 
       try {
-        const manifest = await getManifestByHandle(handle);
+        let manifest = await getManifestByHandle(handle);
+
+        // Auto-generate manifest if none exists yet
+        if (!manifest) {
+          manifest = await autoGenerateManifest(handle);
+        }
+
         if (!manifest) {
           return json(res, 404, {
             error: 'Not Found',

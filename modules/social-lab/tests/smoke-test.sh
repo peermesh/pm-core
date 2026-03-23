@@ -494,6 +494,249 @@ else
   log_pass "$label (SKIP: alice profile not found for dynamic WebID test)"
 fi
 
+# ── Universal Manifest (F-030) ────────────────────────────────────────
+section "Universal Manifest (F-030)"
+test_endpoint "GET /api/manifest/alice" 200 '"@type"' '' '/api/manifest/alice'
+test_endpoint "GET /api/manifest/alice (manifest version)" 200 '"manifestVersion"' '' '/api/manifest/alice'
+test_endpoint "GET /api/manifest/alice (subject)" 200 '"subject"' '' '/api/manifest/alice'
+test_endpoint "GET /api/manifest/alice (signature)" 200 '"signature"' '' '/api/manifest/alice'
+test_endpoint "GET /api/manifest/nonexistent" 404 '"error"' '' '/api/manifest/nonexistent'
+test_endpoint "GET /.well-known/manifest/alice" 200 '"@type"' '' '/.well-known/manifest/alice'
+test_endpoint "GET /.well-known/manifest/alice (LD+JSON)" 200 '"manifestVersion"' '' '/.well-known/manifest/alice'
+test_endpoint "GET /.well-known/manifest/nonexistent" 404 '"error"' '' '/.well-known/manifest/nonexistent'
+
+# POST /api/manifest/verify — with empty body (should return 400)
+label="POST /api/manifest/verify (empty body)"
+url="${BASE_URL}/api/manifest/verify"
+http_code=$(curl -s -X POST -o /dev/null -w "%{http_code}" \
+  -H "Content-Type: application/json" \
+  -d '{}' \
+  --max-time 10 "$url" 2>/dev/null) || http_code="000"
+if [ "$http_code" = "400" ]; then
+  log_pass "$label"
+else
+  log_fail "$label" "expected HTTP 400, got $http_code"
+fi
+
+# POST /api/manifest/verify — with a fetched manifest
+label="POST /api/manifest/verify (with alice manifest)"
+manifest_body=$(curl -s --max-time 10 "${BASE_URL}/api/manifest/alice" 2>/dev/null)
+if [ -n "$manifest_body" ] && printf '%s' "$manifest_body" | grep -qF '"@type"'; then
+  verify_payload="{\"manifest\":${manifest_body}}"
+  tmpfile=$(mktemp)
+  http_code=$(curl -s -X POST -o "$tmpfile" -w "%{http_code}" \
+    -H "Content-Type: application/json" \
+    -d "$verify_payload" \
+    --max-time 10 "${BASE_URL}/api/manifest/verify" 2>/dev/null) || http_code="000"
+  body=$(cat "$tmpfile" 2>/dev/null || true)
+  rm -f "$tmpfile"
+  if [ "$http_code" = "200" ] && printf '%s' "$body" | grep -qF '"valid"'; then
+    log_pass "$label"
+  else
+    log_fail "$label" "expected HTTP 200 with valid field, got $http_code"
+  fi
+else
+  log_pass "$label (SKIP: no alice manifest to verify)"
+fi
+
+# ── Encryption API ───────────────────────────────────────────────────
+section "Encryption API"
+
+# Encryption endpoints require auth — test 401 without auth first
+label="POST /api/encryption/group/test-group/init (no auth -> 401)"
+http_code=$(curl -s -X POST -o /dev/null -w "%{http_code}" \
+  -H "Content-Type: application/json" \
+  --max-time 10 "${BASE_URL}/api/encryption/group/test-group/init" 2>/dev/null) || http_code="000"
+if [ "$http_code" = "401" ]; then
+  log_pass "$label"
+else
+  log_fail "$label" "expected HTTP 401, got $http_code"
+fi
+
+label="GET /api/encryption/group/test-group/status (no auth -> 401)"
+http_code=$(curl -s -o /dev/null -w "%{http_code}" \
+  --max-time 10 "${BASE_URL}/api/encryption/group/test-group/status" 2>/dev/null) || http_code="000"
+if [ "$http_code" = "401" ]; then
+  log_pass "$label"
+else
+  log_fail "$label" "expected HTTP 401, got $http_code"
+fi
+
+# If we have a session cookie, test authenticated encryption status
+if [ -n "$SESSION_COOKIE" ]; then
+  label="GET /api/encryption/group/test-group/status (with auth)"
+  tmpfile=$(mktemp)
+  http_code=$(curl -s -o "$tmpfile" -w "%{http_code}" \
+    -b "sl_session=${SESSION_COOKIE}" \
+    --max-time 10 "${BASE_URL}/api/encryption/group/test-group/status" 2>/dev/null) || http_code="000"
+  body=$(cat "$tmpfile" 2>/dev/null || true)
+  rm -f "$tmpfile"
+  if [ "$http_code" = "200" ] && printf '%s' "$body" | grep -qF '"groupId"'; then
+    log_pass "$label"
+  else
+    log_fail "$label" "expected HTTP 200 with groupId, got $http_code"
+  fi
+fi
+
+# ── Protocol Registry ────────────────────────────────────────────────
+section "Protocol Registry"
+test_endpoint "GET /api/protocols" 200 '"protocols"' '' '/api/protocols'
+test_endpoint "GET /api/protocols (summary)" 200 '"summary"' '' '/api/protocols'
+test_endpoint "GET /api/protocols/activitypub" 200 '"name"' '' '/api/protocols/activitypub'
+test_endpoint "GET /api/protocols/activitypub (status)" 200 '"status"' '' '/api/protocols/activitypub'
+test_endpoint "GET /api/protocols/nostr" 200 '"name"' '' '/api/protocols/nostr'
+test_endpoint "GET /api/protocols/nonexistent" 404 '"error"' '' '/api/protocols/nonexistent'
+test_endpoint "GET /api/protocols/activitypub/health" 200 '"protocol"' '' '/api/protocols/activitypub/health'
+test_endpoint "GET /api/protocols/activitypub/health (health obj)" 200 '"health"' '' '/api/protocols/activitypub/health'
+test_endpoint "GET /api/protocols/nonexistent/health" 404 '"error"' '' '/api/protocols/nonexistent/health'
+
+# ── Search & Discovery ───────────────────────────────────────────────
+section "Search & Discovery"
+test_endpoint "GET /api/search?q=test" 200 '"query"' '' '/api/search?q=test'
+test_endpoint "GET /api/search?q=test (results)" 200 '"results"' '' '/api/search?q=test'
+test_endpoint "GET /api/search?q=test (total_count)" 200 '"total_count"' '' '/api/search?q=test'
+test_endpoint "GET /api/search?q=test (pagination)" 200 '"pagination"' '' '/api/search?q=test'
+test_endpoint "GET /api/search (missing q -> 400)" 400 '"error"' '' '/api/search'
+test_endpoint "GET /api/search/suggestions?q=ali" 200 '"suggestions"' '' '/api/search/suggestions?q=ali'
+test_endpoint "GET /api/search/suggestions?q=ali (query echo)" 200 '"query"' '' '/api/search/suggestions?q=ali'
+test_endpoint "GET /api/search/suggestions?q=x (short query)" 200 '"suggestions"' '' '/api/search/suggestions?q=x'
+test_endpoint "GET /api/discover/trending" 200 '"trending_tags"' '' '/api/discover/trending'
+test_endpoint "GET /api/discover/trending (profiles)" 200 '"popular_profiles"' '' '/api/discover/trending'
+test_endpoint "GET /api/discover/trending (groups)" 200 '"active_groups"' '' '/api/discover/trending'
+test_endpoint "GET /api/discover/directory" 200 '"profiles"' '' '/api/discover/directory'
+test_endpoint "GET /api/discover/directory (pagination)" 200 '"pagination"' '' '/api/discover/directory'
+test_endpoint "GET /api/discover/directory (letters)" 200 '"available_letters"' '' '/api/discover/directory'
+
+# ── Notifications ────────────────────────────────────────────────────
+section "Notifications"
+test_endpoint "GET /api/notifications/vapid-key" 200 '"publicKey"' '' '/api/notifications/vapid-key'
+
+# ── Recovery ─────────────────────────────────────────────────────────
+# NOTE: Recovery module is a stub — routes not yet implemented.
+# When routes are added, uncomment and adjust expected codes.
+section "Recovery (stub check)"
+# Recovery status without auth should return 401 or 404 depending on implementation.
+# Since recovery.js is a stub with no routes registered, hitting the endpoint
+# will return a generic 404.
+label="GET /api/recovery/status (stub — expect 404)"
+http_code=$(curl -s -o /dev/null -w "%{http_code}" \
+  --max-time 10 "${BASE_URL}/api/recovery/status" 2>/dev/null) || http_code="000"
+if [ "$http_code" = "404" ] || [ "$http_code" = "401" ]; then
+  log_pass "$label"
+else
+  log_fail "$label" "expected HTTP 404 or 401, got $http_code"
+fi
+
+# ── Groups ───────────────────────────────────────────────────────────
+section "Groups"
+test_endpoint "GET /api/groups" 200 '"groups"' '' '/api/groups'
+test_endpoint "GET /api/groups (count)" 200 '"count"' '' '/api/groups'
+test_endpoint "GET /api/groups (pagination)" 200 '"pagination"' '' '/api/groups'
+
+# POST /api/group — requires auth
+label="POST /api/group (no auth -> 401)"
+http_code=$(curl -s -X POST -o /dev/null -w "%{http_code}" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Smoke Test Group"}' \
+  --max-time 10 "${BASE_URL}/api/group" 2>/dev/null) || http_code="000"
+if [ "$http_code" = "401" ]; then
+  log_pass "$label"
+else
+  log_fail "$label" "expected HTTP 401, got $http_code"
+fi
+
+# Group CRUD with auth — create, get, join, members, cleanup
+SMOKE_GROUP_ID=""
+if [ -n "$SESSION_COOKIE" ]; then
+  # Create group
+  label="POST /api/group (with auth)"
+  tmpfile=$(mktemp)
+  http_code=$(curl -s -X POST -o "$tmpfile" -w "%{http_code}" \
+    -H "Content-Type: application/json" \
+    -b "sl_session=${SESSION_COOKIE}" \
+    -d '{"name":"Smoke Test Group","type":"user","description":"Created by smoke test","visibility":"public"}' \
+    --max-time 10 "${BASE_URL}/api/group" 2>/dev/null) || http_code="000"
+  body=$(cat "$tmpfile" 2>/dev/null || true)
+  rm -f "$tmpfile"
+  if [ "$http_code" = "201" ] && printf '%s' "$body" | grep -qF '"group"'; then
+    SMOKE_GROUP_ID=$(printf '%s' "$body" | python3 -c "import json,sys; print(json.load(sys.stdin)['group']['id'])" 2>/dev/null || true)
+    log_pass "$label (id=${SMOKE_GROUP_ID})"
+  else
+    log_fail "$label" "expected HTTP 201 with group, got $http_code"
+  fi
+
+  if [ -n "$SMOKE_GROUP_ID" ]; then
+    # GET /api/group/:id
+    test_endpoint "GET /api/group/$SMOKE_GROUP_ID" 200 '"group"' '' "/api/group/$SMOKE_GROUP_ID"
+    test_endpoint "GET /api/group/$SMOKE_GROUP_ID (subgroups)" 200 '"subgroups"' '' "/api/group/$SMOKE_GROUP_ID"
+
+    # GET /api/group/:id/members
+    test_endpoint "GET /api/group/$SMOKE_GROUP_ID/members" 200 '"members"' '' "/api/group/$SMOKE_GROUP_ID/members"
+    test_endpoint "GET /api/group/$SMOKE_GROUP_ID/members (count)" 200 '"count"' '' "/api/group/$SMOKE_GROUP_ID/members"
+
+    # POST /api/group/:id/join — creator is auto-joined, so expect 409
+    label="POST /api/group/$SMOKE_GROUP_ID/join (already member -> 409)"
+    http_code=$(curl -s -X POST -o /dev/null -w "%{http_code}" \
+      -b "sl_session=${SESSION_COOKIE}" \
+      --max-time 10 "${BASE_URL}/api/group/${SMOKE_GROUP_ID}/join" 2>/dev/null) || http_code="000"
+    if [ "$http_code" = "409" ]; then
+      log_pass "$label"
+    else
+      log_fail "$label" "expected HTTP 409, got $http_code"
+    fi
+
+    # POST /api/group/:id/join without auth
+    label="POST /api/group/$SMOKE_GROUP_ID/join (no auth -> 401)"
+    http_code=$(curl -s -X POST -o /dev/null -w "%{http_code}" \
+      --max-time 10 "${BASE_URL}/api/group/${SMOKE_GROUP_ID}/join" 2>/dev/null) || http_code="000"
+    if [ "$http_code" = "401" ]; then
+      log_pass "$label"
+    else
+      log_fail "$label" "expected HTTP 401, got $http_code"
+    fi
+
+    # Cleanup: delete the smoke test group
+    label="DELETE /api/group/$SMOKE_GROUP_ID (cleanup)"
+    http_code=$(curl -s -X DELETE -o /dev/null -w "%{http_code}" \
+      -b "sl_session=${SESSION_COOKIE}" \
+      --max-time 10 "${BASE_URL}/api/group/${SMOKE_GROUP_ID}" 2>/dev/null) || http_code="000"
+    if [ "$http_code" = "200" ]; then
+      log_pass "$label"
+    else
+      log_fail "$label" "expected HTTP 200, got $http_code"
+    fi
+  fi
+else
+  printf "  SKIP  Group CRUD tests (no session cookie)\n"
+fi
+
+# GET /api/group/nonexistent
+test_endpoint "GET /api/group/nonexistent" 404 '"error"' '' '/api/group/nonexistent'
+
+# ── Timeline ─────────────────────────────────────────────────────────
+section "Timeline"
+test_endpoint "GET /api/timeline/alice" 200 '"handle"' '' '/api/timeline/alice'
+test_endpoint "GET /api/timeline/alice (items)" 200 '"items"' '' '/api/timeline/alice'
+test_endpoint "GET /api/timeline/alice (count)" 200 '"count"' '' '/api/timeline/alice'
+test_endpoint "GET /api/timeline/nonexistent" 404 '"error"' '' '/api/timeline/nonexistent'
+
+# ── NodeInfo ─────────────────────────────────────────────────────────
+section "NodeInfo"
+test_endpoint "GET /.well-known/nodeinfo" 200 '"links"' '' '/.well-known/nodeinfo'
+test_endpoint "GET /.well-known/nodeinfo (rel)" 200 'nodeinfo.diaspora.software' '' '/.well-known/nodeinfo'
+test_endpoint "GET /nodeinfo/2.0" 200 '"version"' '' '/nodeinfo/2.0'
+test_endpoint "GET /nodeinfo/2.0 (software)" 200 '"software"' '' '/nodeinfo/2.0'
+test_endpoint "GET /nodeinfo/2.0 (protocols)" 200 '"protocols"' '' '/nodeinfo/2.0'
+test_endpoint "GET /nodeinfo/2.0 (usage)" 200 '"usage"' '' '/nodeinfo/2.0'
+test_endpoint "GET /nodeinfo/2.0 (openRegistrations)" 200 '"openRegistrations"' '' '/nodeinfo/2.0'
+
+# ── Spatial (note) ───────────────────────────────────────────────────
+section "Spatial"
+# NOTE: spatial.peers.social is a separate module/service.
+# Spatial API smoke tests belong in the spatial module's own test suite.
+# If cross-module testing is needed, set SPATIAL_BASE_URL and add tests here.
+printf "  NOTE  Spatial API is at spatial.peers.social (separate service)\n"
+
 # ── 404s ──────────────────────────────────────────────────────────────
 section "404 Handling"
 test_endpoint "GET /api/profile/nonexistent" 404 '' '' '/api/profile/nonexistent'

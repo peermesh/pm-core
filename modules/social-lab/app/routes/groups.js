@@ -29,6 +29,22 @@ import { requireAuth } from '../lib/session.js';
 // =============================================================================
 
 /**
+ * Resolve WebID for a session. Looks up the profile by ID first;
+ * if the profile row was deleted, constructs the canonical WebID from
+ * the session's profileId (the WebID format is deterministic).
+ */
+async function resolveWebIdForSession(session) {
+  if (!session || !session.profileId) return null;
+  const result = await pool.query(
+    'SELECT webid FROM social_profiles.profile_index WHERE id = $1',
+    [session.profileId]
+  );
+  if (result.rowCount > 0) return result.rows[0].webid;
+  // Fallback: construct the canonical WebID from the profile ID
+  return `${BASE_URL}/profile/${session.profileId}#me`;
+}
+
+/**
  * Create a URL-safe slug from a string.
  * Used for materialized path segments.
  */
@@ -172,17 +188,8 @@ export default function registerRoutes(routes) {
         path = `/ecosystem/${slugify(name)}`;
       }
 
-      // Look up creator's webid from session
-      let createdBy = null;
-      if (session.profileId) {
-        const profileResult = await pool.query(
-          'SELECT webid FROM social_profiles.profile_index WHERE id = $1',
-          [session.profileId]
-        );
-        if (profileResult.rowCount > 0) {
-          createdBy = profileResult.rows[0].webid;
-        }
-      }
+      // Look up creator's webid from session (with fallback for deleted profiles)
+      let createdBy = await resolveWebIdForSession(session);
 
       try {
         const result = await pool.query(
@@ -491,17 +498,8 @@ export default function registerRoutes(routes) {
 
       const group = groupResult.rows[0];
 
-      // Look up user's webid
-      let userWebid = null;
-      if (session.profileId) {
-        const profileResult = await pool.query(
-          'SELECT webid FROM social_profiles.profile_index WHERE id = $1',
-          [session.profileId]
-        );
-        if (profileResult.rowCount > 0) {
-          userWebid = profileResult.rows[0].webid;
-        }
-      }
+      // Look up user's webid (with fallback for deleted profiles)
+      const userWebid = await resolveWebIdForSession(session);
 
       if (!userWebid) {
         return json(res, 400, { error: 'Bad Request', message: 'No profile associated with session' });
@@ -561,17 +559,8 @@ export default function registerRoutes(routes) {
 
       const groupId = matches[1];
 
-      // Look up user's webid
-      let userWebid = null;
-      if (session.profileId) {
-        const profileResult = await pool.query(
-          'SELECT webid FROM social_profiles.profile_index WHERE id = $1',
-          [session.profileId]
-        );
-        if (profileResult.rowCount > 0) {
-          userWebid = profileResult.rows[0].webid;
-        }
-      }
+      // Look up user's webid (with fallback for deleted profiles)
+      const userWebid = await resolveWebIdForSession(session);
 
       if (!userWebid) {
         return json(res, 400, { error: 'Bad Request', message: 'No profile associated with session' });

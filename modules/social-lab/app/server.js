@@ -40,9 +40,11 @@ import registerStudioRoutes from './routes/studio.js';
 import registerPageRoutes from './routes/page.js';
 import registerNotificationRoutes from './routes/notifications.js';
 import registerManifestRoutes from './routes/manifest.js';
+import registerEncryptionRoutes from './routes/encryption.js';
 import registerIdentityRoutes from './routes/identity.js';
 import registerRecoveryRoutes from './routes/recovery.js';
 import registerProtocolRoutes from './routes/protocols.js';
+import registerInviteRoutes from './routes/invites.js';
 import { initializeWebPush } from './lib/webpush.js';
 import { registerSelfInstance } from './lib/sso.js';
 
@@ -146,10 +148,12 @@ registerIndieWebRoutes(routes);
 registerActivityPubRoutes(routes);
 registerNotificationRoutes(routes);
 registerManifestRoutes(routes);
+registerEncryptionRoutes(routes);
 registerIdentityRoutes(routes);
 registerRecoveryRoutes(routes);
 registerProtocolRoutes(routes);
 registerSearchRoutes(routes);
+registerInviteRoutes(routes);      // F-031: Invite system (before auth for /invite/:code)
 registerAuthRoutes(routes);
 registerGroupsRoutes(routes);
 registerStudioRoutes(routes);

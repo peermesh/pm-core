@@ -24,6 +24,16 @@ import { requireAuth } from '../lib/session.js';
 import { signedFetch } from '../lib/http-signatures.js';
 import { npubToHex, createNostrEvent } from '../lib/nostr-crypto.js';
 import { registry } from '../lib/protocol-registry.js';
+import {
+  REGISTRATION_MODE,
+  INVITE_POOL_SIZE,
+  getUserInviteCodes,
+  getInvitationTree,
+  getInviteStats,
+  getAllInviteCodes,
+  checkPoolLimit,
+  isAdmin,
+} from '../lib/invites.js';
 
 /**
  * Protocol display names and colors for badges.
@@ -2260,7 +2270,61 @@ function settingsContent(profile) {
       </div>
 
       <!-- ============================================================ -->
-      <!-- 5. Danger Zone                                               -->
+      <!-- 5. Your Invites (F-031)                                      -->
+      <!-- ============================================================ -->
+      <div class="settings-section" id="invites-section">
+        <div class="settings-section-header">
+          <div class="settings-section-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
+          </div>
+          <div class="settings-section-title">Your Invites</div>
+        </div>
+        <div class="settings-section-desc">
+          Share invite codes with friends to join PeerMesh. Registration mode: <strong>${escapeHtml(REGISTRATION_MODE)}</strong>.
+        </div>
+        <div id="invites-content" style="margin-top: var(--space-3);">
+          <div style="font-size: var(--font-size-caption); color: var(--color-text-tertiary);">Loading invite codes...</div>
+        </div>
+        <div class="settings-actions">
+          <a href="/api/invites" class="btn btn-secondary btn-sm" target="_blank" rel="noopener">View Invite Codes (API)</a>
+        </div>
+      </div>
+
+      <!-- Script to load invite codes inline (progressive enhancement) -->
+      <script>
+        (function() {
+          var container = document.getElementById('invites-content');
+          fetch('/api/invites', { credentials: 'same-origin' })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+              if (!data.codes || data.codes.length === 0) {
+                container.innerHTML = '<div style="font-size: 0.875rem; color: var(--color-text-secondary);">No invite codes yet. Generate some below.</div>'
+                  + '<div style="margin-top: 0.75rem;"><form method="POST" action="/api/invites/generate" style="display:inline;">'
+                  + '<button type="submit" class="btn btn-secondary btn-sm" style="display:inline-flex;align-items:center;gap:0.25rem;padding:0.5rem 1rem;font-size:0.8125rem;border:1px solid var(--color-border);border-radius:9999px;background:transparent;color:var(--color-text-primary);cursor:pointer;">Generate Invite Codes</button>'
+                  + '</form></div>';
+                return;
+              }
+              var domain = location.origin;
+              var rows = data.codes.map(function(c) {
+                var statusColor = c.status === 'active' ? 'var(--color-success, #22c55e)' : c.status === 'revoked' ? 'var(--color-error)' : 'var(--color-text-tertiary)';
+                var inviteUrl = domain + '/invite/' + c.code;
+                return '<div style="display:flex;align-items:center;gap:0.75rem;padding:0.625rem 0;border-bottom:1px solid var(--color-border);">'
+                  + '<span style="font-family:var(--font-family-mono);font-size:0.8125rem;font-weight:600;color:var(--color-text-primary);min-width:140px;">' + c.code + '</span>'
+                  + '<span style="font-size:0.75rem;color:' + statusColor + ';text-transform:uppercase;font-weight:600;min-width:64px;">' + c.status + '</span>'
+                  + '<button onclick="navigator.clipboard.writeText(\'' + inviteUrl + '\').then(function(){this.textContent=\'Copied!\';var b=this;setTimeout(function(){b.textContent=\'Copy Link\'},1500)}.bind(this))" style="font-size:0.75rem;padding:0.25rem 0.5rem;background:var(--color-bg-tertiary);border:1px solid var(--color-border);border-radius:var(--radius-sm);color:var(--color-primary);cursor:pointer;">Copy Link</button>'
+                  + '</div>';
+              }).join('');
+              var poolHtml = data.pool ? '<div style="font-size:0.75rem;color:var(--color-text-tertiary);margin-bottom:0.5rem;">Pool: ' + (data.pool.remaining === null ? 'Unlimited' : data.pool.remaining + ' remaining of ' + data.pool.poolSize) + '</div>' : '';
+              container.innerHTML = poolHtml + rows;
+            })
+            .catch(function() {
+              container.innerHTML = '<div style="font-size:0.875rem;color:var(--color-text-tertiary);">Could not load invite codes.</div>';
+            });
+        })();
+      </script>
+
+      <!-- ============================================================ -->
+      <!-- 6. Danger Zone                                               -->
       <!-- ============================================================ -->
       <div class="settings-section danger-zone">
         <div class="settings-section-header">
@@ -3811,6 +3875,188 @@ export default function registerRoutes(routes) {
       const content = settingsContent(profile);
       html(res, 200, studioShell({
         title: 'Settings',
+        activePage: 'settings',
+        profile,
+        contentHtml: content,
+        sessionUsername: session.username,
+      }));
+    },
+  });
+
+  // =========================================================================
+  // Admin Invites Dashboard (F-031)
+  // =========================================================================
+
+  // GET /studio/admin/invites — Admin invite management page
+  routes.push({
+    method: 'GET',
+    pattern: '/studio/admin/invites',
+    handler: async (req, res) => {
+      const session = authGate(req, res);
+      if (!session) return;
+      const profile = await loadProfileFromSession(session);
+
+      // Admin check: first registered user is admin
+      const admin = await isAdmin(session.profileId);
+      if (!admin) {
+        return html(res, 403, studioShell({
+          title: 'Access Denied',
+          activePage: 'settings',
+          profile,
+          contentHtml: `<div class="page-header"><h1 class="page-title">Access Denied</h1></div>
+            <p style="color: var(--color-text-secondary); margin-top: 1rem;">Only platform administrators can access the invite management dashboard.</p>
+            <a href="/studio/settings" class="btn btn-secondary btn-sm" style="margin-top: 1rem; display: inline-block;">Back to Settings</a>`,
+          sessionUsername: session.username,
+        }));
+      }
+
+      // Load data
+      const stats = await getInviteStats();
+      const { codes, total } = await getAllInviteCodes({ limit: 50 });
+
+      // Build admin content
+      const statsHtml = `
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:1rem;margin-bottom:2rem;">
+          <div style="background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:1.25rem;">
+            <div style="font-size:0.75rem;text-transform:uppercase;letter-spacing:0.05em;color:var(--color-text-tertiary);margin-bottom:0.25rem;">Total Codes</div>
+            <div style="font-size:1.75rem;font-weight:700;color:var(--color-text-primary);">${stats.total_codes}</div>
+          </div>
+          <div style="background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:1.25rem;">
+            <div style="font-size:0.75rem;text-transform:uppercase;letter-spacing:0.05em;color:var(--color-text-tertiary);margin-bottom:0.25rem;">Redeemed</div>
+            <div style="font-size:1.75rem;font-weight:700;color:var(--color-success,#22c55e);">${stats.redeemed}</div>
+          </div>
+          <div style="background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:1.25rem;">
+            <div style="font-size:0.75rem;text-transform:uppercase;letter-spacing:0.05em;color:var(--color-text-tertiary);margin-bottom:0.25rem;">Conversion</div>
+            <div style="font-size:1.75rem;font-weight:700;color:var(--color-primary);">${stats.conversion_rate}%</div>
+          </div>
+          <div style="background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:1.25rem;">
+            <div style="font-size:0.75rem;text-transform:uppercase;letter-spacing:0.05em;color:var(--color-text-tertiary);margin-bottom:0.25rem;">Max Depth</div>
+            <div style="font-size:1.75rem;font-weight:700;color:var(--color-text-primary);">${stats.max_depth}</div>
+          </div>
+          <div style="background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:1.25rem;">
+            <div style="font-size:0.75rem;text-transform:uppercase;letter-spacing:0.05em;color:var(--color-text-tertiary);margin-bottom:0.25rem;">Avg Depth</div>
+            <div style="font-size:1.75rem;font-weight:700;color:var(--color-text-primary);">${stats.avg_depth}</div>
+          </div>
+          <div style="background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:1.25rem;">
+            <div style="font-size:0.75rem;text-transform:uppercase;letter-spacing:0.05em;color:var(--color-text-tertiary);margin-bottom:0.25rem;">Mode</div>
+            <div style="font-size:1rem;font-weight:600;color:var(--color-primary);text-transform:uppercase;">${escapeHtml(REGISTRATION_MODE)}</div>
+          </div>
+        </div>`;
+
+      // Generate codes form
+      const generateHtml = `
+        <div style="background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:1.5rem;margin-bottom:2rem;">
+          <h3 style="font-size:1rem;font-weight:600;color:var(--color-text-primary);margin-bottom:1rem;">Generate Invite Codes</h3>
+          <form id="admin-generate-form" style="display:flex;gap:0.75rem;flex-wrap:wrap;align-items:flex-end;">
+            <div>
+              <label style="display:block;font-size:0.75rem;color:var(--color-text-tertiary);margin-bottom:0.25rem;">Count</label>
+              <input type="number" name="count" value="5" min="1" max="100" style="width:80px;padding:0.5rem;background:var(--color-bg-tertiary);border:1px solid var(--color-border);border-radius:var(--radius-sm);color:var(--color-text-primary);font-size:0.875rem;">
+            </div>
+            <div>
+              <label style="display:block;font-size:0.75rem;color:var(--color-text-tertiary);margin-bottom:0.25rem;">Max Uses</label>
+              <input type="number" name="max_uses" value="1" min="1" max="100" style="width:80px;padding:0.5rem;background:var(--color-bg-tertiary);border:1px solid var(--color-border);border-radius:var(--radius-sm);color:var(--color-text-primary);font-size:0.875rem;">
+            </div>
+            <div>
+              <label style="display:block;font-size:0.75rem;color:var(--color-text-tertiary);margin-bottom:0.25rem;">Expiry (days)</label>
+              <input type="number" name="expiry_days" value="30" min="1" max="365" style="width:80px;padding:0.5rem;background:var(--color-bg-tertiary);border:1px solid var(--color-border);border-radius:var(--radius-sm);color:var(--color-text-primary);font-size:0.875rem;">
+            </div>
+            <button type="submit" style="padding:0.5rem 1.25rem;background:var(--color-primary);color:var(--color-text-inverse);border:none;border-radius:9999px;font-size:0.875rem;font-weight:600;cursor:pointer;">Generate</button>
+          </form>
+          <div id="admin-generate-result" style="margin-top:0.75rem;font-size:0.8125rem;"></div>
+        </div>
+        <script>
+          document.getElementById('admin-generate-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            var form = e.target;
+            var body = JSON.stringify({
+              count: parseInt(form.count.value),
+              max_uses: parseInt(form.max_uses.value),
+              expiry_days: parseInt(form.expiry_days.value)
+            });
+            fetch('/api/invites/generate', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              credentials: 'same-origin',
+              body: body
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+              if (data.codes && data.codes.length > 0) {
+                var codesStr = data.codes.map(function(c) { return c.code; }).join(', ');
+                document.getElementById('admin-generate-result').innerHTML =
+                  '<span style="color:var(--color-success,#22c55e);">Generated ' + data.codes.length + ' code(s): ' + codesStr + '</span>';
+                setTimeout(function() { location.reload(); }, 2000);
+              } else {
+                document.getElementById('admin-generate-result').innerHTML =
+                  '<span style="color:var(--color-error);">Failed: ' + (data.error || 'Unknown error') + '</span>';
+              }
+            });
+          });
+        </script>`;
+
+      // Codes table
+      const codesTableHtml = codes.length > 0 ? `
+        <div style="background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:1.5rem;margin-bottom:2rem;">
+          <h3 style="font-size:1rem;font-weight:600;color:var(--color-text-primary);margin-bottom:1rem;">All Invite Codes (${total} total)</h3>
+          <div style="overflow-x:auto;">
+            <table style="width:100%;border-collapse:collapse;font-size:0.8125rem;">
+              <thead>
+                <tr style="border-bottom:2px solid var(--color-border);">
+                  <th style="text-align:left;padding:0.5rem;color:var(--color-text-tertiary);font-weight:600;font-size:0.75rem;text-transform:uppercase;">Code</th>
+                  <th style="text-align:left;padding:0.5rem;color:var(--color-text-tertiary);font-weight:600;font-size:0.75rem;text-transform:uppercase;">Status</th>
+                  <th style="text-align:left;padding:0.5rem;color:var(--color-text-tertiary);font-weight:600;font-size:0.75rem;text-transform:uppercase;">Creator</th>
+                  <th style="text-align:left;padding:0.5rem;color:var(--color-text-tertiary);font-weight:600;font-size:0.75rem;text-transform:uppercase;">Uses</th>
+                  <th style="text-align:left;padding:0.5rem;color:var(--color-text-tertiary);font-weight:600;font-size:0.75rem;text-transform:uppercase;">Expires</th>
+                  <th style="text-align:left;padding:0.5rem;color:var(--color-text-tertiary);font-weight:600;font-size:0.75rem;text-transform:uppercase;">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${codes.map(c => {
+                  const statusColor = c.status === 'active' ? 'var(--color-success,#22c55e)' : c.status === 'revoked' ? 'var(--color-error)' : c.status === 'used' || c.status === 'exhausted' ? 'var(--color-text-tertiary)' : 'var(--color-warning,#f59e0b)';
+                  const expiresStr = new Date(c.expires_at).toLocaleDateString();
+                  const creatorStr = c.creator_username ? '@' + escapeHtml(c.creator_username) : escapeHtml(c.created_by_webid.slice(0, 30));
+                  return `<tr style="border-bottom:1px solid var(--color-border);">
+                    <td style="padding:0.5rem;font-family:var(--font-family-mono);font-weight:600;color:var(--color-text-primary);">${escapeHtml(c.code)}</td>
+                    <td style="padding:0.5rem;"><span style="color:${statusColor};font-weight:600;text-transform:uppercase;font-size:0.6875rem;">${escapeHtml(c.status)}</span></td>
+                    <td style="padding:0.5rem;color:var(--color-text-secondary);">${creatorStr}</td>
+                    <td style="padding:0.5rem;color:var(--color-text-secondary);">${c.use_count}/${c.max_uses}</td>
+                    <td style="padding:0.5rem;color:var(--color-text-secondary);">${expiresStr}</td>
+                    <td style="padding:0.5rem;">${c.status === 'active' ? `<button onclick="fetch('/api/invites/revoke/${escapeHtml(c.code)}',{method:'POST',credentials:'same-origin'}).then(function(){location.reload();})" style="font-size:0.6875rem;padding:0.25rem 0.5rem;background:transparent;border:1px solid var(--color-error);border-radius:var(--radius-sm);color:var(--color-error);cursor:pointer;">Revoke</button>` : ''}</td>
+                  </tr>`;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>` : '';
+
+      // Top inviters
+      const topInvitersHtml = stats.top_inviters && stats.top_inviters.length > 0 ? `
+        <div style="background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:1.5rem;margin-bottom:2rem;">
+          <h3 style="font-size:1rem;font-weight:600;color:var(--color-text-primary);margin-bottom:1rem;">Top Inviters</h3>
+          ${stats.top_inviters.map((inv, i) => `
+            <div style="display:flex;align-items:center;gap:0.75rem;padding:0.5rem 0;${i < stats.top_inviters.length - 1 ? 'border-bottom:1px solid var(--color-border);' : ''}">
+              <span style="font-size:0.875rem;font-weight:700;color:var(--color-primary);min-width:24px;">#${i + 1}</span>
+              <span style="font-size:0.875rem;color:var(--color-text-primary);flex:1;">${escapeHtml(inv.display_name || inv.username || 'Unknown')}</span>
+              <span style="font-size:0.8125rem;color:var(--color-text-secondary);">${inv.invite_count} invited</span>
+            </div>
+          `).join('')}
+        </div>` : '';
+
+      const content = `
+        <div class="page-header">
+          <h1 class="page-title">Invite Management</h1>
+        </div>
+        ${statsHtml}
+        ${generateHtml}
+        ${codesTableHtml}
+        ${topInvitersHtml}
+        <div style="margin-top:1rem;">
+          <a href="/studio/settings" class="btn btn-secondary btn-sm">Back to Settings</a>
+          <a href="/api/invites/stats" class="btn btn-secondary btn-sm" target="_blank" rel="noopener" style="margin-left:0.5rem;">Stats API</a>
+        </div>`;
+
+      html(res, 200, studioShell({
+        title: 'Invite Management',
         activePage: 'settings',
         profile,
         contentHtml: content,

@@ -30,6 +30,11 @@ import {
   generateSSOToken, verifySSOToken,
   getInstanceByDomain, getInstancePublicKey,
 } from '../lib/sso.js';
+import {
+  REGISTRATION_MODE,
+  validateInviteCode,
+  useInviteCode,
+} from '../lib/invites.js';
 
 // =============================================================================
 // Shared Auth Page CSS (matches Studio dark theme)
@@ -256,10 +261,28 @@ function loginPageHtml(error = '') {
 // Signup Page HTML
 // =============================================================================
 
-function signupPageHtml(error = '') {
+function signupPageHtml(error = '', opts = {}) {
   const errorHtml = error
     ? `<div class="error-message">${escapeHtml(error)}</div>`
     : '';
+
+  const inviteCode = opts.inviteCode || '';
+  const inviterName = opts.inviterName || '';
+  const isInviteOnly = REGISTRATION_MODE === 'invite-only';
+  const isOpen = REGISTRATION_MODE === 'open';
+
+  // Invite code field — required in invite-only mode, optional in open mode
+  const inviteFieldHtml = (isInviteOnly || isOpen) ? `
+        <div class="form-field">
+          <label class="form-label" for="invite-code">Invite Code${isInviteOnly ? '' : ' (optional)'}</label>
+          <input class="form-input" type="text" id="invite-code" name="inviteCode"
+                 placeholder="PEER-XXXX-XXXX" ${isInviteOnly ? 'required' : ''}
+                 value="${escapeHtml(inviteCode)}"
+                 ${inviteCode ? 'readonly style="background: var(--color-bg-primary); opacity: 0.8;"' : ''}
+                 autocomplete="off">
+          ${inviterName ? `<div class="form-hint" style="color: var(--color-primary);">Invited by ${escapeHtml(inviterName)}</div>` : ''}
+          ${isInviteOnly ? '<div class="form-hint">An invite code is required to create an account</div>' : '<div class="form-hint">Have an invite code? Enter it to connect with your inviter</div>'}
+        </div>` : '';
 
   return `<!DOCTYPE html>
 <html lang="en" data-theme="dark">
@@ -280,6 +303,7 @@ function signupPageHtml(error = '') {
       <h1 class="auth-title">Sign Up</h1>
       ${errorHtml}
       <form method="POST" action="/signup">
+        ${inviteFieldHtml}
         <div class="form-field">
           <label class="form-label" for="display-name">Display Name</label>
           <input class="form-input" type="text" id="display-name" name="displayName"
@@ -521,7 +545,25 @@ export default function registerRoutes(routes) {
     method: 'GET',
     pattern: '/signup',
     handler: async (req, res) => {
-      html(res, 200, signupPageHtml());
+      const { searchParams } = parseUrl(req);
+      const inviteCode = searchParams.get('invite') || '';
+      let inviterName = '';
+
+      // If invite code provided via URL, validate and look up inviter
+      if (inviteCode) {
+        const validation = await validateInviteCode(inviteCode);
+        if (validation.valid && validation.code_record) {
+          const inviterResult = await pool.query(
+            'SELECT display_name, username FROM social_profiles.profile_index WHERE webid = $1',
+            [validation.code_record.created_by_webid]
+          );
+          if (inviterResult.rowCount > 0) {
+            inviterName = inviterResult.rows[0].display_name || inviterResult.rows[0].username;
+          }
+        }
+      }
+
+      html(res, 200, signupPageHtml('', { inviteCode, inviterName }));
     },
   });
 
@@ -540,25 +582,48 @@ export default function registerRoutes(routes) {
       const handle = (body.handle || '').trim().toLowerCase();
       const username = (body.username || '').trim();
       const password = body.password || '';
+      const inviteCode = (body.inviteCode || '').trim();
+
+      // ─── Invite Code Validation (F-031) ───
+      const regMode = REGISTRATION_MODE;
+
+      if (regMode === 'invite-only') {
+        if (!inviteCode) {
+          return html(res, 400, signupPageHtml(
+            'An invite code is required to create an account.',
+            { inviteCode }
+          ));
+        }
+        const validation = await validateInviteCode(inviteCode);
+        if (!validation.valid) {
+          return html(res, 400, signupPageHtml(validation.error, { inviteCode }));
+        }
+      } else if (regMode === 'open' && inviteCode) {
+        // Optional code in open mode — validate if provided
+        const validation = await validateInviteCode(inviteCode);
+        if (!validation.valid) {
+          return html(res, 400, signupPageHtml(validation.error, { inviteCode }));
+        }
+      }
 
       // Validation
       if (!displayName) {
-        return html(res, 400, signupPageHtml('Display name is required.'));
+        return html(res, 400, signupPageHtml('Display name is required.', { inviteCode }));
       }
       if (!handle) {
-        return html(res, 400, signupPageHtml('Handle is required.'));
+        return html(res, 400, signupPageHtml('Handle is required.', { inviteCode }));
       }
       if (!/^[a-zA-Z0-9_.-]+$/.test(handle)) {
-        return html(res, 400, signupPageHtml('Handle can only contain letters, numbers, underscores, dots, and hyphens.'));
+        return html(res, 400, signupPageHtml('Handle can only contain letters, numbers, underscores, dots, and hyphens.', { inviteCode }));
       }
       if (!username) {
-        return html(res, 400, signupPageHtml('Username is required.'));
+        return html(res, 400, signupPageHtml('Username is required.', { inviteCode }));
       }
       if (!/^[a-zA-Z0-9_.-]+$/.test(username)) {
-        return html(res, 400, signupPageHtml('Username can only contain letters, numbers, underscores, dots, and hyphens.'));
+        return html(res, 400, signupPageHtml('Username can only contain letters, numbers, underscores, dots, and hyphens.', { inviteCode }));
       }
       if (password.length < 8) {
-        return html(res, 400, signupPageHtml('Password must be at least 8 characters.'));
+        return html(res, 400, signupPageHtml('Password must be at least 8 characters.', { inviteCode }));
       }
 
       // Check if handle is already taken (as a profile username)
@@ -567,7 +632,7 @@ export default function registerRoutes(routes) {
         [handle]
       );
       if (existingProfile.rowCount > 0) {
-        return html(res, 409, signupPageHtml('That handle is already taken. Choose another.'));
+        return html(res, 409, signupPageHtml('That handle is already taken. Choose another.', { inviteCode }));
       }
 
       // Check if auth username is already taken
@@ -576,7 +641,7 @@ export default function registerRoutes(routes) {
         [username]
       );
       if (existingAuth.rowCount > 0) {
-        return html(res, 409, signupPageHtml('That username is already taken. Choose another.'));
+        return html(res, 409, signupPageHtml('That username is already taken. Choose another.', { inviteCode }));
       }
 
       // ─── Omni-Account Creation Pipeline ───
@@ -722,6 +787,20 @@ export default function registerRoutes(routes) {
 
         console.log(`[auth/signup] Account created: ${username} / @${handle} (profile: ${profileId})`);
 
+        // ─── Invite Code Redemption (F-031) ───
+        if (inviteCode) {
+          try {
+            const redeemResult = await useInviteCode(inviteCode, webid);
+            if (redeemResult.success) {
+              console.log(`[auth/signup] Invite code ${inviteCode} redeemed for ${handle}`);
+            } else {
+              console.warn(`[auth/signup] Invite code redemption issue: ${redeemResult.error}`);
+            }
+          } catch (err) {
+            console.error(`[auth/signup] Invite code redemption failed:`, err.message);
+          }
+        }
+
         // Set session and redirect
         const cookie = setSessionCookie({ profileId, username });
         redirect(res, '/studio', cookie);
@@ -729,9 +808,9 @@ export default function registerRoutes(routes) {
         console.error(`[auth/signup] Account creation failed:`, err.message);
         if (err.code === '23505') {
           // Unique constraint violation
-          return html(res, 409, signupPageHtml('That handle or username is already taken.'));
+          return html(res, 409, signupPageHtml('That handle or username is already taken.', { inviteCode }));
         }
-        return html(res, 500, signupPageHtml('Account creation failed. Please try again.'));
+        return html(res, 500, signupPageHtml('Account creation failed. Please try again.', { inviteCode }));
       }
     },
   });

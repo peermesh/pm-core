@@ -13,6 +13,8 @@ Note:
 
 ## Production Quick Start (10 Steps)
 
+> **For production deployments**, use the [fork + upstream remote pattern](DEPLOYMENT-REPO-PATTERN.md) instead of cloning Docker Lab directly. Forking gives you your own repo for project-specific configuration while preserving the ability to merge upstream improvements. The steps below still apply -- you just run them inside your forked repo instead of a direct clone.
+
 A condensed path for operators who want the shortest route to a running instance:
 
 1. **Clone the repo**

@@ -603,6 +603,12 @@ Primary policy references:
 - [IMAGE-DIGEST-BASELINE.md](IMAGE-DIGEST-BASELINE.md)
 - [DEPLOYMENT-PROMOTION-RUNBOOK.md](DEPLOYMENT-PROMOTION-RUNBOOK.md)
 
+### Image Digest Refresh Log
+
+All external image digests were last refreshed on **2026-03-22**. 20 images were updated across 22 files and deployed to the production VPS. Post-update Trivy scans confirmed CVE reduction (traefik 75% reduction, socket-proxy net improvement). Remaining CRITICAL/HIGH findings are upstream-blocked (grpc-go in traefik, openssl/pcre2 in socket-proxy).
+
+The `run-full-audit.sh` script provides repeatable verification of digest currency and vulnerability status. Run periodically to detect when upstream fixes become available.
+
 ---
 
 ## Security Testing Strategy

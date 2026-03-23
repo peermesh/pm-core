@@ -38,6 +38,21 @@ This means:
 See [OpenTofu Deployment Model](docs/OPENTOFU-DEPLOYMENT-MODEL.md) for the full walkthrough and options.
 See [Enterprise Version Immutability Standard](docs/ENTERPRISE-VERSION-IMMUTABILITY-STANDARD.md) for dependency pinning and upgrade controls.
 
+## Start Your Project
+
+Docker Lab is designed to be forked. The recommended way to build on Docker Lab is the **fork + upstream remote** pattern: fork this repo into your own, add your modules, and periodically merge upstream improvements.
+
+```bash
+# Fork peermesh/docker-lab on GitHub, then:
+git clone https://github.com/YOUR-ORG/your-project-deploy.git
+cd your-project-deploy
+git remote add upstream https://github.com/peermesh/docker-lab.git
+cp .env.example .env && ./scripts/generate-secrets.sh
+./launch_peermesh.sh module create my-app
+```
+
+See [Deployment Repo Pattern](docs/DEPLOYMENT-REPO-PATTERN.md) for the complete step-by-step guide, conflict avoidance rules, and a real-world example (peers.social).
+
 ## What This Repository Is NOT
 
 - **Not app-specific automation** - You bring your own application containers
@@ -153,6 +168,7 @@ See `examples/` for complete configurations.
 
 ## Documentation
 
+- [Deployment Repo Pattern](docs/DEPLOYMENT-REPO-PATTERN.md) - Fork + upstream remote setup for your project
 - [Quick Start Guide](docs/QUICKSTART.md) - Get running in 5 minutes
 - [Public Quick Start Tutorial](docs/community/QUICK-START-TUTORIAL.md) - Public onboarding walkthrough
 - [System Architecture](docs/ARCHITECTURE.md) - Four-tier modular architecture overview

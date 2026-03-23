@@ -22,6 +22,8 @@ import {
   checkRateLimit, getClientIp, checkCsrf,
 } from '../lib/session.js';
 import { generateNostrKeypair } from '../lib/nostr-crypto.js';
+import { provisionEd25519Identity } from '../lib/identity-keys.js';
+import { generateAndStoreManifest } from '../lib/manifest.js';
 
 // =============================================================================
 // Shared Auth Page CSS (matches Studio dark theme)
@@ -30,30 +32,9 @@ import { generateNostrKeypair } from '../lib/nostr-crypto.js';
 const AUTH_CSS = `
     *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
-    :root {
-      --color-primary: #06b6d4;
-      --color-primary-hover: #22d3ee;
-      --color-bg-primary: #020617;
-      --color-bg-secondary: #0b1120;
-      --color-bg-tertiary: #0f172a;
-      --color-bg-elevated: #1e293b;
-      --color-text-primary: #f1f5f9;
-      --color-text-secondary: #94a3b8;
-      --color-text-tertiary: #64748b;
-      --color-text-inverse: #020617;
-      --color-border: #1e293b;
-      --color-border-strong: #334155;
-      --color-error: #ef4444;
-      --color-success: #22c55e;
-      --font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-      --radius-sm: 0.375rem;
-      --radius-md: 0.5rem;
-      --radius-lg: 0.75rem;
-      --radius-pill: 9999px;
-    }
 
     body {
-      font-family: var(--font-family);
+      font-family: var(--font-family-primary);
       background: var(--color-bg-primary);
       color: var(--color-text-primary);
       min-height: 100vh;
@@ -87,7 +68,7 @@ const AUTH_CSS = `
 
     .auth-card {
       background: var(--color-bg-secondary);
-      border: 1px solid var(--color-border);
+      border: var(--border-width-default) solid var(--color-border);
       border-radius: var(--radius-lg);
       padding: 2rem;
     }
@@ -115,11 +96,11 @@ const AUTH_CSS = `
     .form-input {
       width: 100%;
       background: var(--color-bg-tertiary);
-      border: 1px solid var(--color-border);
+      border: var(--border-width-default) solid var(--color-border);
       border-radius: var(--radius-sm);
       padding: 0.75rem 1rem;
       font-size: 1rem;
-      font-family: var(--font-family);
+      font-family: var(--font-family-primary);
       color: var(--color-text-primary);
       min-height: 44px;
       transition: border-color 0.15s;
@@ -130,7 +111,7 @@ const AUTH_CSS = `
     .form-input:focus {
       outline: none;
       border-color: var(--color-primary);
-      box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.25);
+      box-shadow: 0 0 0 3px var(--color-focus-ring);
     }
 
     .form-hint {
@@ -145,7 +126,7 @@ const AUTH_CSS = `
       align-items: center;
       justify-content: center;
       gap: 0.5rem;
-      font-family: var(--font-family);
+      font-family: var(--font-family-primary);
       font-size: 1rem;
       font-weight: 600;
       border: none;
@@ -161,7 +142,7 @@ const AUTH_CSS = `
 
     .btn-submit:hover {
       background: var(--color-primary-hover);
-      box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+      box-shadow: var(--shadow-sm);
     }
 
     .auth-footer {
@@ -182,8 +163,8 @@ const AUTH_CSS = `
     }
 
     .error-message {
-      background: rgba(239, 68, 68, 0.1);
-      border: 1px solid rgba(239, 68, 68, 0.3);
+      background: var(--color-error-light);
+      border: var(--border-width-default) solid var(--color-error);
       border-radius: var(--radius-sm);
       padding: 0.75rem 1rem;
       margin-bottom: 1.25rem;
@@ -230,6 +211,7 @@ function loginPageHtml(error = '') {
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Log In - PeerMesh Social Lab</title>
   <meta name="robots" content="noindex, nofollow">
+  <link rel="stylesheet" href="/static/tokens.css">
   <style>${AUTH_CSS}</style>
 </head>
 <body>
@@ -280,6 +262,7 @@ function signupPageHtml(error = '') {
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Sign Up - PeerMesh Social Lab</title>
   <meta name="robots" content="noindex, nofollow">
+  <link rel="stylesheet" href="/static/tokens.css">
   <style>${AUTH_CSS}</style>
 </head>
 <body>
@@ -595,6 +578,32 @@ export default function registerRoutes(routes) {
           console.log(`[auth/signup] Generated AP actor for ${handle}: ${actorUri}`);
         } catch (err) {
           console.error(`[auth/signup] AP actor generation failed:`, err.message);
+        }
+
+        // Generate Ed25519 identity keypair for Universal Manifest signing (F-030)
+        try {
+          const ed25519Result = await provisionEd25519Identity(omniAccountId);
+          console.log(`[auth/signup] Generated Ed25519 identity keypair for ${handle}`);
+
+          // Generate initial Universal Manifest
+          // Re-fetch profile to get all protocol URIs that were just set
+          const freshProfile = await pool.query(
+            `SELECT id, webid, omni_account_id, display_name, username, bio,
+                    avatar_url, banner_url, homepage_url, source_pod_uri,
+                    nostr_npub, at_did, ap_actor_uri, dsnp_user_id,
+                    zot_channel_hash, matrix_id
+             FROM social_profiles.profile_index WHERE id = $1`,
+            [profileId]
+          );
+          if (freshProfile.rowCount > 0) {
+            await generateAndStoreManifest(freshProfile.rows[0], {
+              publicKeySpkiB64: ed25519Result.publicKeySpkiB64,
+              privateKeyPem: ed25519Result.privateKeyPem,
+            });
+            console.log(`[auth/signup] Generated initial Universal Manifest for ${handle}`);
+          }
+        } catch (err) {
+          console.error(`[auth/signup] Ed25519/Manifest generation failed:`, err.message);
         }
 
         console.log(`[auth/signup] Account created: ${username} / @${handle} (profile: ${profileId})`);

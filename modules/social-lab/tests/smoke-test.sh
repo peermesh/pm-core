@@ -292,7 +292,14 @@ test_endpoint "GET /ap/actor/alice (AP)" 200 '"publicKey"' \
 # ── AP Collections ────────────────────────────────────────────────────
 section "AP Collections"
 test_endpoint "GET /ap/actor/alice/followers" 200 '"OrderedCollection"' '' '/ap/actor/alice/followers'
+test_endpoint "GET /ap/actor/alice/following" 200 '"OrderedCollection"' '' '/ap/actor/alice/following'
 test_endpoint "GET /ap/outbox/alice" 200 '"OrderedCollection"' '' '/ap/outbox/alice'
+
+# ── Following API ────────────────────────────────────────────────────
+section "Following API"
+test_endpoint "GET /api/following/alice" 200 '"following"' '' '/api/following/alice'
+test_endpoint "GET /api/following/alice (count)" 200 '"count"' '' '/api/following/alice'
+test_endpoint "GET /api/following/nonexistent" 404 '"error"' '' '/api/following/nonexistent'
 
 # ── Nostr ─────────────────────────────────────────────────────────────
 section "Nostr"

@@ -1,0 +1,426 @@
+/*
+ * Design Tokens — CSS Custom Properties
+ * Theme: Social Lab (Dark default + Light + Warm variants)
+ * Generated: 2026-03-22
+ * Source: TOKENS.md, TOKENS-alt-light.md, TOKENS-alt-warm.md
+ * Methodology: Design Kit DESIGN-SYSTEM-PROCESS.md Phase 7
+ *
+ * Usage:
+ *   <html data-theme="dark">   — Dark theme (default)
+ *   <html data-theme="light">  — Light theme
+ *   <html data-theme="warm">   — Warm theme
+ *   <html>                     — Falls back to OS preference, then dark
+ */
+
+/* ==========================================================================
+   Tier 1: Reference Tokens (Raw Palette)
+   These are the atomic color values. Never consumed directly by components.
+   ========================================================================== */
+
+:root {
+  /* Slate palette */
+  --color-slate-50: #f8fafc;
+  --color-slate-100: #f1f5f9;
+  --color-slate-200: #e2e8f0;
+  --color-slate-300: #cbd5e1;
+  --color-slate-400: #94a3b8;
+  --color-slate-500: #64748b;
+  --color-slate-600: #475569;
+  --color-slate-700: #334155;
+  --color-slate-800: #1e293b;
+  --color-slate-900: #0f172a;
+  --color-slate-950: #020617;
+
+  /* Stone palette (for warm theme) */
+  --color-stone-50: #fafaf9;
+  --color-stone-300: #d6d3d1;
+  --color-stone-400: #a8a29e;
+  --color-stone-500: #78716c;
+  --color-stone-600: #57534e;
+
+  /* Cyan palette */
+  --color-cyan-400: #22d3ee;
+  --color-cyan-500: #06b6d4;
+  --color-cyan-600: #0891b2;
+
+  /* Amber palette */
+  --color-amber-400: #fbbf24;
+  --color-amber-500: #f59e0b;
+  --color-amber-600: #d97706;
+
+  /* Violet palette */
+  --color-violet-500: #8b5cf6;
+  --color-violet-600: #7c3aed;
+
+  /* Orange palette */
+  --color-orange-400: #fb923c;
+  --color-orange-500: #f97316;
+
+  /* Rose palette */
+  --color-rose-400: #fb7185;
+  --color-rose-500: #f43f5e;
+
+  /* Green palette */
+  --color-green-500: #22c55e;
+  --color-green-600: #16a34a;
+
+  /* Red palette */
+  --color-red-500: #ef4444;
+  --color-red-600: #dc2626;
+
+  /* Blue palette */
+  --color-blue-400: #60a5fa;
+  --color-blue-500: #3b82f6;
+  --color-blue-600: #2563eb;
+
+  /* Neutral */
+  --color-white: #ffffff;
+  --color-black: #000000;
+}
+
+/* ==========================================================================
+   Tier 2: Semantic Tokens — Dark Theme (Default)
+   Components consume ONLY these tokens.
+   ========================================================================== */
+
+:root {
+  /* --- Brand Colors --- */
+  --color-primary: var(--color-cyan-500);
+  --color-primary-hover: var(--color-cyan-400);
+  --color-primary-light: rgba(6, 182, 212, 0.12);
+  --color-secondary: var(--color-amber-500);
+  --color-secondary-hover: var(--color-amber-400);
+  --color-secondary-light: rgba(245, 158, 11, 0.12);
+  --color-accent: var(--color-violet-500);
+
+  /* --- Background Colors --- */
+  --color-bg-primary: var(--color-slate-950);
+  --color-bg-secondary: #0b1120;
+  --color-bg-tertiary: var(--color-slate-900);
+  --color-bg-elevated: var(--color-slate-800);
+  --color-bg-hover: rgba(255, 255, 255, 0.05);
+  --color-bg-active: rgba(255, 255, 255, 0.08);
+  --color-bg-overlay: rgba(0, 0, 0, 0.60);
+
+  /* --- Text Colors --- */
+  --color-text-primary: var(--color-slate-100);
+  --color-text-secondary: var(--color-slate-400);
+  --color-text-tertiary: var(--color-slate-500);
+  --color-text-inverse: var(--color-slate-950);
+  --color-text-link: var(--color-cyan-500);
+  --color-text-link-hover: var(--color-cyan-400);
+
+  /* --- Border Colors --- */
+  --color-border: var(--color-slate-800);
+  --color-border-strong: var(--color-slate-700);
+  --color-border-focus: var(--color-cyan-500);
+  --color-focus-ring: rgba(6, 182, 212, 0.50);
+
+  /* --- Status Colors --- */
+  --color-success: var(--color-green-500);
+  --color-success-light: rgba(34, 197, 94, 0.12);
+  --color-error: var(--color-red-500);
+  --color-error-light: rgba(239, 68, 68, 0.12);
+  --color-warning: var(--color-amber-500);
+  --color-warning-light: rgba(245, 158, 11, 0.12);
+  --color-info: var(--color-blue-500);
+  --color-info-light: rgba(59, 130, 246, 0.12);
+
+  /* --- Social Lab-Specific --- */
+  --color-protocol-badge-bg: rgba(255, 255, 255, 0.08);
+  --color-protocol-badge-text: var(--color-slate-300);
+  --color-metric-positive: var(--color-green-500);
+  --color-metric-negative: var(--color-red-500);
+  --color-skeleton: var(--color-slate-800);
+  --color-skeleton-pulse: var(--color-slate-700);
+
+  /* --- Typography --- */
+  --font-family-primary: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-family-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+
+  --font-size-display: 2.125rem;
+  --font-size-h1: 1.5rem;
+  --font-size-h2: 1.25rem;
+  --font-size-h3: 1rem;
+  --font-size-h4: 0.875rem;
+  --font-size-body-lg: 1.125rem;
+  --font-size-body: 1rem;
+  --font-size-body-sm: 0.875rem;
+  --font-size-caption: 0.75rem;
+  --font-size-overline: 0.6875rem;
+
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  --line-height-tight: 1.2;
+  --line-height-normal: 1.5;
+  --line-height-relaxed: 1.625;
+
+  --letter-spacing-tight: -0.02em;
+  --letter-spacing-normal: 0;
+  --letter-spacing-wide: 0.05em;
+
+  /* --- Spacing --- */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+  --space-20: 5rem;
+  --space-24: 6rem;
+
+  /* Layout-specific spacing */
+  --space-page-margin-mobile: 1rem;
+  --space-page-margin-tablet: 1.5rem;
+  --space-page-margin-desktop: 2rem;
+  --space-sidebar-width: 240px;
+  --space-sidebar-width-collapsed: 72px;
+  --space-topbar-height: 56px;
+  --space-tab-height: 48px;
+  --space-content-max-width: 680px;
+  --space-content-max-width-studio: 1280px;
+
+  /* --- Shape --- */
+  --radius-none: 0;
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  --radius-pill: 9999px;
+  --radius-full: 9999px;
+  --border-width-default: 1px;
+  --border-width-thick: 3px;
+
+  /* --- Shadows (dark mode: higher opacity) --- */
+  --shadow-none: none;
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.30);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.40), 0 2px 4px -2px rgba(0, 0, 0, 0.30);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.40), 0 4px 6px -4px rgba(0, 0, 0, 0.30);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.50), 0 10px 10px -5px rgba(0, 0, 0, 0.40);
+
+  /* --- Motion: Duration --- */
+  --duration-instant: 75ms;
+  --duration-fast: 150ms;
+  --duration-normal: 250ms;
+  --duration-slow: 400ms;
+  --duration-cinematic: 1500ms;
+
+  /* --- Motion: Easing --- */
+  --easing-default: cubic-bezier(0.4, 0.0, 0.2, 1.0);
+  --easing-enter: cubic-bezier(0.0, 0.0, 0.2, 1.0);
+  --easing-exit: cubic-bezier(0.4, 0.0, 1.0, 1.0);
+  --easing-spring: cubic-bezier(0.34, 1.56, 0.64, 1.0);
+
+  /* --- Motion: Distance --- */
+  --distance-sm: 0.25rem;
+  --distance-md: 1rem;
+  --distance-lg: 2rem;
+
+  /* --- Motion: Stagger --- */
+  --stagger-tight: 50ms;
+  --stagger-default: 100ms;
+  --stagger-relaxed: 200ms;
+
+  /* --- Motion: Effects --- */
+  --blur-overlay: 8px;
+  --blur-frosted: 16px;
+
+  /* --- Breakpoints (for reference; use in @media manually) --- */
+  --breakpoint-sm: 640px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
+  --breakpoint-xl: 1280px;
+  --breakpoint-2xl: 1536px;
+}
+
+/* ==========================================================================
+   Tier 3: Theme Override — Light
+   ========================================================================== */
+
+[data-theme="light"] {
+  /* Brand */
+  --color-primary: var(--color-cyan-600);
+  --color-primary-hover: var(--color-cyan-500);
+  --color-primary-light: rgba(8, 145, 178, 0.08);
+  --color-secondary: var(--color-amber-600);
+  --color-secondary-hover: var(--color-amber-500);
+  --color-secondary-light: rgba(217, 119, 6, 0.08);
+  --color-accent: var(--color-violet-600);
+
+  /* Backgrounds */
+  --color-bg-primary: var(--color-white);
+  --color-bg-secondary: var(--color-slate-50);
+  --color-bg-tertiary: var(--color-slate-100);
+  --color-bg-elevated: var(--color-white);
+  --color-bg-hover: rgba(0, 0, 0, 0.04);
+  --color-bg-active: rgba(0, 0, 0, 0.06);
+  --color-bg-overlay: rgba(0, 0, 0, 0.50);
+
+  /* Text */
+  --color-text-primary: var(--color-slate-900);
+  --color-text-secondary: var(--color-slate-500);
+  --color-text-tertiary: var(--color-slate-400);
+  --color-text-inverse: var(--color-white);
+  --color-text-link: var(--color-cyan-600);
+  --color-text-link-hover: var(--color-cyan-500);
+
+  /* Borders */
+  --color-border: var(--color-slate-200);
+  --color-border-strong: var(--color-slate-300);
+  --color-border-focus: var(--color-cyan-600);
+  --color-focus-ring: rgba(8, 145, 178, 0.40);
+
+  /* Status */
+  --color-success: var(--color-green-600);
+  --color-success-light: rgba(22, 163, 74, 0.08);
+  --color-error: var(--color-red-600);
+  --color-error-light: rgba(220, 38, 38, 0.08);
+  --color-warning: var(--color-amber-600);
+  --color-warning-light: rgba(217, 119, 6, 0.08);
+  --color-info: var(--color-blue-600);
+  --color-info-light: rgba(37, 99, 235, 0.08);
+
+  /* Social Lab-Specific */
+  --color-protocol-badge-bg: rgba(0, 0, 0, 0.05);
+  --color-protocol-badge-text: var(--color-slate-600);
+  --color-metric-positive: var(--color-green-600);
+  --color-metric-negative: var(--color-red-600);
+  --color-skeleton: var(--color-slate-200);
+  --color-skeleton-pulse: var(--color-slate-100);
+
+  /* Shadows (lower opacity for light surfaces) */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.10), 0 2px 4px -2px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.10), 0 4px 6px -4px rgba(0, 0, 0, 0.05);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.10), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+/* ==========================================================================
+   Tier 3: Theme Override — Warm
+   ========================================================================== */
+
+[data-theme="warm"] {
+  /* Brand */
+  --color-primary: var(--color-amber-500);
+  --color-primary-hover: var(--color-amber-400);
+  --color-primary-light: rgba(245, 158, 11, 0.12);
+  --color-secondary: var(--color-rose-500);
+  --color-secondary-hover: var(--color-rose-400);
+  --color-secondary-light: rgba(244, 63, 94, 0.12);
+  --color-accent: var(--color-orange-500);
+
+  /* Backgrounds (warm grays) */
+  --color-bg-primary: #1c1412;
+  --color-bg-secondary: #231c19;
+  --color-bg-tertiary: #292220;
+  --color-bg-elevated: #3d322e;
+
+  /* Text (warm whites/grays) */
+  --color-text-primary: var(--color-stone-50);
+  --color-text-secondary: var(--color-stone-400);
+  --color-text-tertiary: var(--color-stone-500);
+  --color-text-inverse: #1c1412;
+  --color-text-link: var(--color-amber-500);
+  --color-text-link-hover: var(--color-amber-400);
+
+  /* Borders (warm) */
+  --color-border: #3d322e;
+  --color-border-strong: var(--color-stone-600);
+  --color-border-focus: var(--color-amber-500);
+  --color-focus-ring: rgba(245, 158, 11, 0.50);
+
+  /* Status */
+  --color-warning: var(--color-orange-400);
+  --color-warning-light: rgba(251, 146, 60, 0.12);
+  --color-info: var(--color-blue-400);
+  --color-info-light: rgba(96, 165, 250, 0.12);
+
+  /* Social Lab-Specific */
+  --color-protocol-badge-text: var(--color-stone-300);
+  --color-skeleton: #3d322e;
+  --color-skeleton-pulse: var(--color-stone-600);
+
+  /* Shape (softer radii) */
+  --radius-sm: 0.5rem;
+  --radius-md: 0.625rem;
+  --radius-lg: 0.875rem;
+
+  /* Shadows (warm-tinted) */
+  --shadow-sm: 0 1px 2px 0 rgba(28, 20, 18, 0.40);
+  --shadow-md: 0 4px 6px -1px rgba(28, 20, 18, 0.50), 0 2px 4px -2px rgba(28, 20, 18, 0.40);
+  --shadow-lg: 0 10px 15px -3px rgba(28, 20, 18, 0.50), 0 4px 6px -4px rgba(28, 20, 18, 0.40);
+  --shadow-xl: 0 20px 25px -5px rgba(28, 20, 18, 0.60), 0 10px 10px -5px rgba(28, 20, 18, 0.50);
+}
+
+/* ==========================================================================
+   OS Preference Fallback
+   When no data-theme is set, respect prefers-color-scheme.
+   Default is dark, so only override for explicit light preference.
+   ========================================================================== */
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme]) {
+    /* Brand */
+    --color-primary: var(--color-cyan-600);
+    --color-primary-hover: var(--color-cyan-500);
+    --color-primary-light: rgba(8, 145, 178, 0.08);
+    --color-secondary: var(--color-amber-600);
+    --color-secondary-hover: var(--color-amber-500);
+    --color-secondary-light: rgba(217, 119, 6, 0.08);
+    --color-accent: var(--color-violet-600);
+
+    /* Backgrounds */
+    --color-bg-primary: var(--color-white);
+    --color-bg-secondary: var(--color-slate-50);
+    --color-bg-tertiary: var(--color-slate-100);
+    --color-bg-elevated: var(--color-white);
+    --color-bg-hover: rgba(0, 0, 0, 0.04);
+    --color-bg-active: rgba(0, 0, 0, 0.06);
+    --color-bg-overlay: rgba(0, 0, 0, 0.50);
+
+    /* Text */
+    --color-text-primary: var(--color-slate-900);
+    --color-text-secondary: var(--color-slate-500);
+    --color-text-tertiary: var(--color-slate-400);
+    --color-text-inverse: var(--color-white);
+    --color-text-link: var(--color-cyan-600);
+    --color-text-link-hover: var(--color-cyan-500);
+
+    /* Borders */
+    --color-border: var(--color-slate-200);
+    --color-border-strong: var(--color-slate-300);
+    --color-border-focus: var(--color-cyan-600);
+    --color-focus-ring: rgba(8, 145, 178, 0.40);
+
+    /* Status */
+    --color-success: var(--color-green-600);
+    --color-success-light: rgba(22, 163, 74, 0.08);
+    --color-error: var(--color-red-600);
+    --color-error-light: rgba(220, 38, 38, 0.08);
+    --color-warning: var(--color-amber-600);
+    --color-warning-light: rgba(217, 119, 6, 0.08);
+    --color-info: var(--color-blue-600);
+    --color-info-light: rgba(37, 99, 235, 0.08);
+
+    /* Social Lab-Specific */
+    --color-protocol-badge-bg: rgba(0, 0, 0, 0.05);
+    --color-protocol-badge-text: var(--color-slate-600);
+    --color-metric-positive: var(--color-green-600);
+    --color-metric-negative: var(--color-red-600);
+    --color-skeleton: var(--color-slate-200);
+    --color-skeleton-pulse: var(--color-slate-100);
+
+    /* Shadows */
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.10), 0 2px 4px -2px rgba(0, 0, 0, 0.06);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.10), 0 4px 6px -4px rgba(0, 0, 0, 0.05);
+    --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.10), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  }
+}

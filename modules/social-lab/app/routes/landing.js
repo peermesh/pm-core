@@ -7,17 +7,18 @@ import { html, VERSION, MODULE, startTime } from '../lib/helpers.js';
 function landingPageHtml() {
   const uptimeSeconds = Math.floor((Date.now() - startTime) / 1000);
   return `<!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>PeerMesh Social Lab</title>
+  <link rel="stylesheet" href="/static/tokens.css">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-      background: #0d1117;
-      color: #e6edf3;
+      font-family: var(--font-family-primary);
+      background: var(--color-bg-primary);
+      color: var(--color-text-primary);
       min-height: 100vh;
       display: flex;
       align-items: center;
@@ -26,48 +27,48 @@ function landingPageHtml() {
     .container {
       max-width: 480px;
       width: 100%;
-      padding: 2rem;
+      padding: var(--space-8);
     }
     .logo {
-      font-size: 2.4rem;
-      font-weight: 700;
-      color: #58a6ff;
-      margin-bottom: 0.3rem;
+      font-size: var(--font-size-display);
+      font-weight: var(--font-weight-bold);
+      color: var(--color-primary);
+      margin-bottom: var(--space-1);
     }
     .subtitle {
-      font-size: 0.95rem;
-      color: #8b949e;
-      margin-bottom: 2rem;
+      font-size: var(--font-size-body-sm);
+      color: var(--color-text-secondary);
+      margin-bottom: var(--space-8);
     }
     .card {
-      background: #161b22;
-      border: 1px solid #30363d;
-      border-radius: 8px;
-      padding: 1.4rem;
-      margin-bottom: 1.2rem;
+      background: var(--color-bg-secondary);
+      border: var(--border-width-default) solid var(--color-border);
+      border-radius: var(--radius-md);
+      padding: var(--space-5);
+      margin-bottom: var(--space-5);
     }
     .row {
       display: flex;
       justify-content: space-between;
-      padding: 0.45rem 0;
-      border-bottom: 1px solid #21262d;
+      padding: var(--space-2) 0;
+      border-bottom: var(--border-width-default) solid var(--color-border);
     }
     .row:last-child { border-bottom: none; }
-    .label { color: #8b949e; font-size: 0.85rem; }
-    .value { color: #e6edf3; font-size: 0.85rem; font-weight: 500; }
-    .status-ok { color: #3fb950; }
+    .label { color: var(--color-text-secondary); font-size: var(--font-size-body-sm); }
+    .value { color: var(--color-text-primary); font-size: var(--font-size-body-sm); font-weight: var(--font-weight-medium); }
+    .status-ok { color: var(--color-success); }
     a {
-      color: #58a6ff;
+      color: var(--color-text-link);
       text-decoration: none;
-      font-size: 0.9rem;
+      font-size: var(--font-size-body-sm);
     }
-    a:hover { text-decoration: underline; }
-    .links { display: flex; gap: 1.5rem; margin-top: 0.5rem; }
+    a:hover { color: var(--color-text-link-hover); text-decoration: underline; }
+    .links { display: flex; gap: var(--space-6); margin-top: var(--space-2); }
     .footer {
       text-align: center;
-      color: #484f58;
-      font-size: 0.75rem;
-      margin-top: 2rem;
+      color: var(--color-text-tertiary);
+      font-size: var(--font-size-caption);
+      margin-top: var(--space-8);
     }
   </style>
 </head>

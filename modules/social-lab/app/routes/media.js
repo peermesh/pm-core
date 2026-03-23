@@ -12,6 +12,8 @@ import { join, extname } from 'node:path';
 import Busboy from 'busboy';
 import { pool } from '../db.js';
 import { json, ensureDir, BASE_URL } from '../lib/helpers.js';
+import { transcodeImage } from '../lib/media-transcoder.js';
+import { hashAndStore, toContentId } from '../lib/content-store.js';
 
 // =============================================================================
 // Media Upload Constants
@@ -175,6 +177,27 @@ export default function registerRoutes(routes) {
 
       const mediaUrl = `${BASE_URL}/media/${profileId}/${file.filename}`;
 
+      // Content-addressed storage: hash and store in CAS (WO-021)
+      let casResult = null;
+      try {
+        casResult = await hashAndStore(finalPath, { keepOriginal: true });
+        console.log(`[media] CAS: ${toContentId(casResult.hash)} (dedup: ${casResult.deduplicated})`);
+      } catch (err) {
+        console.warn(`[media] CAS storage skipped:`, err.message);
+      }
+
+      // Transcoding: generate variants in background (WO-021)
+      let variants = [];
+      if (file.mimeType.startsWith('image/') && file.mimeType !== 'image/gif') {
+        try {
+          const variantDir = join(profileMediaDir, 'variants');
+          variants = await transcodeImage(finalPath, variantDir);
+          console.log(`[media] Transcoded ${variants.length} variants for ${file.filename}`);
+        } catch (err) {
+          console.warn(`[media] Transcoding skipped:`, err.message);
+        }
+      }
+
       console.log(`[media] Uploaded: ${mediaUrl} (${file.mimeType}, ${file.size} bytes)`);
 
       json(res, 201, {
@@ -183,6 +206,9 @@ export default function registerRoutes(routes) {
         content_type: file.mimeType,
         size: file.size,
         profile_id: profileId,
+        content_id: casResult ? toContentId(casResult.hash) : null,
+        deduplicated: casResult ? casResult.deduplicated : false,
+        variants: variants.map(v => ({ name: v.name, format: v.format, width: v.width, height: v.height, size: v.size })),
       });
     },
   });

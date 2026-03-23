@@ -92,7 +92,7 @@ function formatTimeAgo(date) {
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
-function profilePageHtml(profile, links, posts, distributions) {
+function profilePageHtml(profile, links, posts, distributions, userGroups = []) {
   const displayName = escapeHtml(profile.display_name || profile.username);
   const handle = escapeHtml(profile.username);
   const bio = escapeHtml(profile.bio || '');
@@ -179,7 +179,7 @@ ${postCards}
   }
 
   return `<!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -191,23 +191,24 @@ ${postCards}
   <link rel="alternate" type="application/feed+json" title="JSON Feed" href="${BASE_URL}/@${handle}/feed.json">
   <link rel="webmention" href="${BASE_URL}/webmention">
   <link rel="indieauth-metadata" href="${BASE_URL}/.well-known/oauth-authorization-server">
+  <link rel="stylesheet" href="/static/tokens.css">
   <style>
     *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
     :root {
-      --profile-bg-color: #0d1117;
-      --profile-surface-color: #161b22;
-      --profile-border-color: #30363d;
-      --profile-text-color: #e6edf3;
-      --profile-text-muted: #8b949e;
-      --profile-accent-color: #58a6ff;
-      --profile-accent-hover: #79b8ff;
-      --profile-link-bg: #161b22;
-      --profile-link-text: #e6edf3;
-      --profile-link-radius: 12px;
-      --profile-font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      --profile-bg-color: var(--color-bg-primary);
+      --profile-surface-color: var(--color-bg-secondary);
+      --profile-border-color: var(--color-border);
+      --profile-text-color: var(--color-text-primary);
+      --profile-text-muted: var(--color-text-secondary);
+      --profile-accent-color: var(--color-primary);
+      --profile-accent-hover: var(--color-primary-hover);
+      --profile-link-bg: var(--color-bg-secondary);
+      --profile-link-text: var(--color-text-primary);
+      --profile-link-radius: var(--radius-lg);
+      --profile-font-family: var(--font-family-primary);
       --profile-avatar-size: 120px;
-      --profile-avatar-radius: 50%;
+      --profile-avatar-radius: var(--radius-full);
     }
 
     body {
@@ -236,7 +237,7 @@ ${postCards}
       height: 200px;
       background-size: cover;
       background-position: center;
-      border-radius: 12px;
+      border-radius: var(--radius-lg);
       margin-bottom: -60px;
     }
     /* Banner Section */
@@ -260,8 +261,8 @@ ${postCards}
     }
 
     .avatar-placeholder {
-      background: linear-gradient(135deg, #58a6ff 0%, #a371f7 100%);
-      color: #fff;
+      background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-accent) 100%);
+      color: var(--color-text-inverse);
       font-size: 3rem;
       font-weight: 700;
       display: flex;
@@ -317,7 +318,7 @@ ${postCards}
 
     .bio-link:hover, .bio-link:focus {
       border-color: var(--profile-accent-color);
-      background: rgba(88, 166, 255, 0.08);
+      background: var(--color-primary-light);
       transform: translateY(-1px);
       outline: none;
     }
@@ -368,7 +369,7 @@ ${postCards}
       padding: 0.375rem 0.75rem;
       background: var(--profile-surface-color);
       border: 1px solid var(--profile-border-color);
-      border-radius: 20px;
+      border-radius: var(--radius-pill);
       color: var(--profile-text-muted);
       font-size: 0.8rem;
       text-decoration: none;
@@ -386,13 +387,13 @@ ${postCards}
     }
 
     .protocol-badge-active {
-      color: #3fb950;
-      border-color: rgba(63, 185, 80, 0.3);
+      color: var(--color-success);
+      border-color: var(--color-success);
     }
 
     .protocol-badge-active:hover {
-      color: #56d364;
-      border-color: #3fb950;
+      color: var(--color-success);
+      border-color: var(--color-success);
     }
 
     /* Federation Footer */
@@ -415,7 +416,7 @@ ${postCards}
 
     .powered-by {
       margin-top: 0.75rem;
-      color: #484f58;
+      color: var(--color-text-tertiary);
       font-size: 0.75rem;
     }
 
@@ -435,8 +436,8 @@ ${postCards}
     .post-card {
       background: var(--profile-surface-color);
       border: 1px solid var(--profile-border-color);
-      border-radius: 12px;
-      padding: 1rem 1.25rem;
+      border-radius: var(--radius-lg);
+      padding: var(--space-4) var(--space-5);
       margin-bottom: 0.75rem;
     }
 
@@ -480,7 +481,7 @@ ${postCards}
     .dist-badge {
       display: inline-block;
       padding: 0.15rem 0.45rem;
-      border-radius: 10px;
+      border-radius: var(--radius-pill);
       font-size: 0.7rem;
       font-weight: 500;
       border: 1px solid var(--profile-border-color);
@@ -488,18 +489,18 @@ ${postCards}
     }
 
     .dist-badge-sent {
-      color: #3fb950;
-      border-color: rgba(63, 185, 80, 0.3);
+      color: var(--color-success);
+      border-color: var(--color-success-light);
     }
 
     .dist-badge-pending {
-      color: #d29922;
-      border-color: rgba(210, 153, 34, 0.3);
+      color: var(--color-warning);
+      border-color: var(--color-warning-light);
     }
 
     .dist-badge-failed {
-      color: #f85149;
-      border-color: rgba(248, 81, 73, 0.3);
+      color: var(--color-error);
+      border-color: var(--color-error-light);
     }
 
     /* Responsive */
@@ -532,6 +533,13 @@ ${postCards}
       <h1 class="display-name p-name">${displayName}</h1>
       <p class="handle">@${handle}@${ourDomain}</p>
       ${bio ? `<p class="bio p-note">${bio}</p>` : ''}
+      ${userGroups.length > 0 ? `<div class="profile-groups" style="display:flex;flex-wrap:wrap;gap:0.375rem;margin-top:0.75rem;justify-content:center;">
+        ${userGroups.map(g => {
+          const typeColors = { ecosystem: 'var(--color-violet-500)', platform: 'var(--color-cyan-500)', category: 'var(--color-amber-500)', topic: 'var(--color-green-500)', user: 'var(--color-accent)', custom: 'var(--color-text-tertiary)' };
+          const color = typeColors[g.type] || 'var(--color-text-tertiary)';
+          return `<span style="display:inline-flex;align-items:center;gap:0.25rem;padding:0.2rem 0.6rem;border-radius:9999px;font-size:0.6875rem;font-weight:500;background:${color}18;color:${color};border:1px solid ${color}33;">${escapeHtml(g.name)}</span>`;
+        }).join('')}
+      </div>` : ''}
       <a class="u-url u-uid" href="${escapeHtml(profileUrl)}" style="display:none">${escapeHtml(profileUrl)}</a>
     </section>
 
@@ -655,14 +663,32 @@ export default function registerRoutes(routes) {
 
       const profile = await lookupProfileByHandle(pool, handle);
       if (!profile) {
-        return html(res, 404, `<!DOCTYPE html><html><head><title>Not Found</title></head><body style="background:#0d1117;color:#e6edf3;font-family:sans-serif;display:flex;justify-content:center;align-items:center;min-height:100vh"><div style="text-align:center"><h1>404</h1><p>Profile @${escapeHtml(handle)} not found</p><a href="/" style="color:#58a6ff">Back to home</a></div></body></html>`);
+        return html(res, 404, `<!DOCTYPE html><html data-theme="dark"><head><title>Not Found</title><link rel="stylesheet" href="/static/tokens.css"></head><body style="background:var(--color-bg-primary);color:var(--color-text-primary);font-family:var(--font-family-primary);display:flex;justify-content:center;align-items:center;min-height:100vh"><div style="text-align:center"><h1>404</h1><p>Profile @${escapeHtml(handle)} not found</p><a href="/" style="color:var(--color-primary)">Back to home</a></div></body></html>`);
       }
 
       const links = await getBioLinks(pool, profile.webid);
       const posts = await getRecentPosts(profile.webid);
       const postIds = posts.map(p => p.id);
       const distributions = await getPostDistributions(postIds);
-      html(res, 200, profilePageHtml(profile, links, posts, distributions));
+
+      // Load user's group memberships for profile badges
+      let userGroups = [];
+      try {
+        const groupsResult = await pool.query(
+          `SELECT g.id, g.name, g.type, g.path, m.role
+           FROM social_profiles.group_memberships m
+           JOIN social_profiles.groups g ON g.id = m.group_id
+           WHERE m.user_webid = $1 AND g.visibility = 'public'
+           ORDER BY g.type ASC, g.name ASC
+           LIMIT 20`,
+          [profile.webid]
+        );
+        userGroups = groupsResult.rows;
+      } catch {
+        // groups table may not exist yet
+      }
+
+      html(res, 200, profilePageHtml(profile, links, posts, distributions, userGroups));
     },
   });
 }

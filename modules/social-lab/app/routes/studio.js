@@ -1,34 +1,41 @@
 // =============================================================================
-// Studio Routes — Creator Dashboard (Phase 1: HTML Shell)
+// Studio Routes — Creator Dashboard (Phase 2: Compose + Content)
 // =============================================================================
-// GET /studio             — Dashboard
-// GET /studio/links       — Link Management
-// GET /studio/customize   — Profile Customization
-// GET /studio/settings    — Settings
-// GET /studio/analytics   — Analytics (placeholder)
+// GET  /studio             — Dashboard (with compose box)
+// GET  /studio/compose     — Full-page compose view
+// GET  /studio/content     — Post management (list, delete)
+// GET  /studio/links       — Link Management
+// GET  /studio/customize   — Profile Customization
+// GET  /studio/settings    — Settings
+// GET  /studio/analytics   — Analytics (placeholder)
+// POST /studio/post        — Create post from form submit
+// POST /studio/post/delete — Delete a post from form submit
 //
 // Auth: Session-based authentication via signed cookies (see lib/session.js).
 // Design: Server-rendered HTML, inline CSS with design tokens, zero JS.
 
+import { randomUUID } from 'node:crypto';
 import { pool } from '../db.js';
 import {
-  html, escapeHtml, lookupProfileByHandle, getBioLinks,
+  html, json, parseUrl, escapeHtml, readFormBody, lookupProfileByHandle, getBioLinks,
   BASE_URL, SUBDOMAIN, DOMAIN,
 } from '../lib/helpers.js';
 import { requireAuth } from '../lib/session.js';
+import { signedFetch } from '../lib/http-signatures.js';
+import { npubToHex, createNostrEvent } from '../lib/nostr-crypto.js';
 
 /**
  * Protocol display names and colors for badges.
  */
 const PROTOCOL_DISPLAY = {
-  activitypub: { label: 'ActivityPub', color: '#6364ff' },
-  nostr: { label: 'Nostr', color: '#8b5cf6' },
-  atprotocol: { label: 'AT Protocol', color: '#0085ff' },
-  rss: { label: 'RSS', color: '#ee802f' },
-  matrix: { label: 'Matrix', color: '#0dbd8b' },
-  xmtp: { label: 'XMTP', color: '#fc4f37' },
-  dsnp: { label: 'DSNP', color: '#2dd4bf' },
-  solid: { label: 'Solid', color: '#7c4dff' },
+  activitypub: { label: 'ActivityPub', color: 'var(--color-accent)' },
+  nostr: { label: 'Nostr', color: 'var(--color-violet-500)' },
+  atprotocol: { label: 'AT Protocol', color: 'var(--color-blue-500)' },
+  rss: { label: 'RSS', color: 'var(--color-orange-500)' },
+  matrix: { label: 'Matrix', color: 'var(--color-green-500)' },
+  xmtp: { label: 'XMTP', color: 'var(--color-red-500)' },
+  dsnp: { label: 'DSNP', color: 'var(--color-cyan-400)' },
+  solid: { label: 'Solid', color: 'var(--color-accent)' },
 };
 
 // =============================================================================
@@ -52,6 +59,11 @@ const ICONS = {
   globe: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="20" height="20"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>',
   check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><polyline points="20 6 9 17 4 12"/></svg>',
   clock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
+  content: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="24" height="24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>',
+  compose: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="24" height="24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>',
+  image: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>',
+  groups: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="24" height="24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>',
+  search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="24" height="24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>',
 };
 
 // =============================================================================
@@ -62,72 +74,16 @@ const STUDIO_CSS = `
     *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
     :root {
-      /* Slate palette */
-      --color-slate-50: #f8fafc;
-      --color-slate-100: #f1f5f9;
-      --color-slate-200: #e2e8f0;
-      --color-slate-300: #cbd5e1;
-      --color-slate-400: #94a3b8;
-      --color-slate-500: #64748b;
-      --color-slate-600: #475569;
-      --color-slate-700: #334155;
-      --color-slate-800: #1e293b;
-      --color-slate-900: #0f172a;
-      --color-slate-950: #020617;
-
-      /* Cyan */
-      --color-cyan-400: #22d3ee;
-      --color-cyan-500: #06b6d4;
-
-      /* Green */
-      --color-green-500: #22c55e;
-
-      /* Red */
-      --color-red-500: #ef4444;
-
-      /* Amber */
-      --color-amber-500: #f59e0b;
-
-      /* Semantic tokens — Dark theme */
-      --color-primary: #06b6d4;
-      --color-primary-hover: #22d3ee;
-      --color-primary-light: rgba(6, 182, 212, 0.12);
-      --color-bg-primary: #020617;
-      --color-bg-secondary: #0b1120;
-      --color-bg-tertiary: #0f172a;
-      --color-bg-elevated: #1e293b;
-      --color-bg-hover: rgba(255, 255, 255, 0.05);
-      --color-bg-active: rgba(255, 255, 255, 0.08);
-      --color-text-primary: #f1f5f9;
-      --color-text-secondary: #94a3b8;
-      --color-text-tertiary: #64748b;
-      --color-text-inverse: #020617;
-      --color-border: #1e293b;
-      --color-border-strong: #334155;
-      --color-success: #22c55e;
-      --color-error: #ef4444;
-      --color-warning: #f59e0b;
-
-      /* Typography */
-      --font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-      --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
-
-      /* Spacing */
-      --sidebar-width: 240px;
-      --sidebar-collapsed: 72px;
-      --topbar-height: 56px;
-      --tab-height: 56px;
-      --content-max-width: 1280px;
-
-      /* Shape */
-      --radius-sm: 0.375rem;
-      --radius-md: 0.5rem;
-      --radius-lg: 0.75rem;
-      --radius-pill: 9999px;
+      /* Layout aliases (tokens.css provides all color/font/spacing/shape tokens) */
+      --sidebar-width: var(--space-sidebar-width);
+      --sidebar-collapsed: var(--space-sidebar-width-collapsed);
+      --topbar-height: var(--space-topbar-height);
+      --tab-height: var(--space-tab-height);
+      --content-max-width: var(--space-content-max-width-studio);
     }
 
     body {
-      font-family: var(--font-family);
+      font-family: var(--font-family-primary);
       background: var(--color-bg-primary);
       color: var(--color-text-primary);
       min-height: 100vh;
@@ -187,6 +143,43 @@ const STUDIO_CSS = `
       gap: 0.75rem;
     }
 
+    .topbar-search {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: var(--color-bg-tertiary);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-pill);
+      padding: 0.25rem 0.75rem;
+      transition: border-color 0.15s, background 0.15s;
+      max-width: 360px;
+      flex: 1;
+    }
+    .topbar-search:focus-within {
+      border-color: var(--color-primary);
+      background: var(--color-bg-elevated);
+    }
+    .topbar-search .search-icon {
+      color: var(--color-text-tertiary);
+      flex-shrink: 0;
+    }
+    .topbar-search-input {
+      background: transparent;
+      border: none;
+      outline: none;
+      color: var(--color-text-primary);
+      font-size: 0.8125rem;
+      font-family: var(--font-family);
+      width: 100%;
+      padding: 0.25rem 0;
+    }
+    .topbar-search-input::placeholder {
+      color: var(--color-text-tertiary);
+    }
+    @media (max-width: 768px) {
+      .topbar-search { display: none; }
+    }
+
     .topbar-btn {
       display: inline-flex;
       align-items: center;
@@ -201,7 +194,7 @@ const STUDIO_CSS = `
       cursor: pointer;
       text-decoration: none;
       transition: background 0.15s, border-color 0.15s;
-      font-family: var(--font-family);
+      font-family: var(--font-family-primary);
       min-height: 36px;
     }
 
@@ -393,7 +386,7 @@ const STUDIO_CSS = `
       display: inline-flex;
       align-items: center;
       gap: 0.5rem;
-      font-family: var(--font-family);
+      font-family: var(--font-family-primary);
       font-size: 0.875rem;
       font-weight: 500;
       border: none;
@@ -413,7 +406,7 @@ const STUDIO_CSS = `
     .btn-primary:hover {
       background: var(--color-primary-hover);
       color: var(--color-text-inverse);
-      box-shadow: 0 1px 2px rgba(0,0,0,0.3);
+      box-shadow: var(--shadow-sm);
     }
 
     .btn-secondary {
@@ -445,7 +438,7 @@ const STUDIO_CSS = `
     }
 
     .btn-danger:hover {
-      background: #dc2626;
+      background: var(--color-red-600);
       color: var(--color-text-primary);
     }
 
@@ -465,7 +458,7 @@ const STUDIO_CSS = `
     }
 
     .card:hover {
-      box-shadow: 0 1px 2px rgba(0,0,0,0.3);
+      box-shadow: var(--shadow-sm);
       border-color: var(--color-border-strong);
     }
 
@@ -485,7 +478,7 @@ const STUDIO_CSS = `
     }
 
     .stat-card:hover {
-      box-shadow: 0 1px 2px rgba(0,0,0,0.3);
+      box-shadow: var(--shadow-sm);
       border-color: var(--color-border-strong);
     }
 
@@ -593,9 +586,9 @@ const STUDIO_CSS = `
     }
 
     .badge-active {
-      background: rgba(34, 197, 94, 0.12);
+      background: var(--color-success-light);
       color: var(--color-success);
-      border-color: rgba(34, 197, 94, 0.3);
+      border-color: var(--color-success);
     }
 
     .badge-soon {
@@ -732,7 +725,7 @@ const STUDIO_CSS = `
     }
 
     .link-action-btn.danger:hover {
-      background: rgba(239, 68, 68, 0.12);
+      background: var(--color-error-light);
       color: var(--color-error);
     }
 
@@ -775,7 +768,7 @@ const STUDIO_CSS = `
       border-radius: var(--radius-sm);
       padding: 0.75rem 1rem;
       font-size: 1rem;
-      font-family: var(--font-family);
+      font-family: var(--font-family-primary);
       color: var(--color-text-primary);
       min-height: 44px;
       transition: border-color 0.15s;
@@ -793,7 +786,7 @@ const STUDIO_CSS = `
     .form-input:focus {
       outline: none;
       border-color: var(--color-primary);
-      box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.5);
+      box-shadow: 0 0 0 3px var(--color-focus-ring);
     }
 
     .form-textarea {
@@ -920,8 +913,8 @@ const STUDIO_CSS = `
     .dot-inactive { background: var(--color-text-tertiary); }
 
     .danger-zone {
-      background: rgba(239, 68, 68, 0.06);
-      border-color: rgba(239, 68, 68, 0.2);
+      background: var(--color-error-light);
+      border-color: var(--color-error);
     }
 
     .danger-zone .settings-section-title {
@@ -981,6 +974,339 @@ const STUDIO_CSS = `
     .analytics-card-value {
       font-size: 0.75rem;
       color: var(--color-text-tertiary);
+    }
+
+    /* ===== Compose Box ===== */
+    .compose-box {
+      background: var(--color-bg-secondary);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-lg);
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .compose-box:focus-within {
+      border-color: var(--color-primary);
+      box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.15);
+    }
+
+    .compose-header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+
+    .compose-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: var(--color-primary);
+      color: var(--color-text-inverse);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
+      font-weight: 600;
+      flex-shrink: 0;
+      border: 2px solid var(--color-border-strong);
+      object-fit: cover;
+    }
+
+    .compose-prompt {
+      font-size: 0.875rem;
+      color: var(--color-text-secondary);
+    }
+
+    .compose-textarea {
+      width: 100%;
+      min-height: 96px;
+      background: var(--color-bg-tertiary);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      padding: 0.75rem 1rem;
+      font-size: 1rem;
+      font-family: var(--font-family-primary);
+      color: var(--color-text-primary);
+      resize: vertical;
+      line-height: 1.625;
+      transition: border-color 0.15s;
+    }
+
+    .compose-textarea::placeholder {
+      color: var(--color-text-tertiary);
+    }
+
+    .compose-textarea:hover {
+      border-color: var(--color-border-strong);
+    }
+
+    .compose-textarea:focus {
+      outline: none;
+      border-color: var(--color-primary);
+      box-shadow: 0 0 0 3px var(--color-focus-ring);
+    }
+
+    .compose-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 0.75rem;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+    }
+
+    .compose-meta {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .char-count {
+      font-size: 0.75rem;
+      color: var(--color-text-tertiary);
+      font-family: var(--font-family-mono);
+    }
+
+    .char-count.warn {
+      color: var(--color-warning);
+    }
+
+    .char-count.over {
+      color: var(--color-error);
+    }
+
+    .compose-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .compose-icon-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 36px;
+      border: none;
+      border-radius: var(--radius-sm);
+      background: transparent;
+      color: var(--color-text-tertiary);
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+    }
+
+    .compose-icon-btn:hover {
+      background: var(--color-bg-hover);
+      color: var(--color-primary);
+    }
+
+    /* ===== Protocol Checkboxes ===== */
+    .protocol-checks {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      margin-top: 0.75rem;
+    }
+
+    .protocol-check {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.375rem 0.75rem;
+      background: var(--color-bg-tertiary);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-pill);
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+      font-size: 0.8125rem;
+      color: var(--color-text-secondary);
+    }
+
+    .protocol-check:hover {
+      border-color: var(--color-border-strong);
+    }
+
+    .protocol-check input[type="checkbox"] {
+      accent-color: var(--color-primary);
+      width: 14px;
+      height: 14px;
+    }
+
+    .protocol-check input[type="checkbox"]:checked + span {
+      color: var(--color-text-primary);
+    }
+
+    /* ===== Success Banner ===== */
+    .success-banner {
+      background: var(--color-success-light);
+      border: 1px solid rgba(34, 197, 94, 0.3);
+      border-radius: var(--radius-lg);
+      padding: 1rem 1.25rem;
+      margin-bottom: 1.5rem;
+      display: flex;
+      align-items: flex-start;
+      gap: 0.75rem;
+    }
+
+    .success-banner-icon {
+      color: var(--color-success);
+      flex-shrink: 0;
+      margin-top: 0.125rem;
+    }
+
+    .success-banner-text {
+      flex: 1;
+    }
+
+    .success-banner-title {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--color-success);
+      margin-bottom: 0.25rem;
+    }
+
+    .success-banner-detail {
+      font-size: 0.8125rem;
+      color: var(--color-text-secondary);
+    }
+
+    .dist-badges {
+      display: flex;
+      gap: 0.375rem;
+      flex-wrap: wrap;
+      margin-top: 0.5rem;
+    }
+
+    .dist-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      padding: 0.125rem 0.5rem;
+      border-radius: var(--radius-pill);
+      font-size: 0.6875rem;
+      font-weight: 500;
+    }
+
+    .dist-badge-sent {
+      background: var(--color-success-light);
+      color: var(--color-success);
+      border: 1px solid rgba(34, 197, 94, 0.3);
+    }
+
+    .dist-badge-pending {
+      background: rgba(245, 158, 11, 0.12);
+      color: var(--color-warning);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+
+    .dist-badge-failed {
+      background: var(--color-error-light);
+      color: var(--color-error);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+
+    .dist-badge-skipped {
+      background: transparent;
+      color: var(--color-text-tertiary);
+      border: 1px dashed var(--color-border);
+    }
+
+    /* ===== Post List (Content Page) ===== */
+    .post-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .post-item {
+      display: flex;
+      gap: 1rem;
+      padding: 1.25rem;
+      background: var(--color-bg-secondary);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-lg);
+      transition: border-color 0.15s;
+    }
+
+    .post-item:hover {
+      border-color: var(--color-border-strong);
+    }
+
+    .post-item-body {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .post-item-content {
+      font-size: 0.9375rem;
+      color: var(--color-text-primary);
+      line-height: 1.6;
+      word-break: break-word;
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .post-item-meta {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-top: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .post-item-time {
+      font-size: 0.75rem;
+      color: var(--color-text-tertiary);
+    }
+
+    .post-item-actions {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.5rem;
+      flex-shrink: 0;
+    }
+
+    /* ===== Post Preview (Compose Page) ===== */
+    .post-preview {
+      background: var(--color-bg-tertiary);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-lg);
+      padding: 1.5rem;
+      margin-top: 1.5rem;
+    }
+
+    .post-preview-label {
+      font-size: 0.75rem;
+      font-weight: 500;
+      color: var(--color-text-tertiary);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 1rem;
+    }
+
+    .post-preview-card {
+      background: var(--color-bg-secondary);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      padding: 1rem;
+    }
+
+    .post-preview-content {
+      font-size: 0.9375rem;
+      color: var(--color-text-secondary);
+      font-style: italic;
+      line-height: 1.6;
+    }
+
+    /* ===== Pagination ===== */
+    .pagination {
+      display: flex;
+      justify-content: center;
+      gap: 0.5rem;
+      margin-top: 1.5rem;
     }
 
     /* ===== Empty State ===== */
@@ -1095,6 +1421,7 @@ function studioShell({ title, activePage, profile, contentHtml, sessionUsername 
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>${escapeHtml(title)} - Studio - PeerMesh Social Lab</title>
   <meta name="robots" content="noindex, nofollow">
+  <link rel="stylesheet" href="/static/tokens.css">
   <style>${STUDIO_CSS}</style>
 </head>
 <body>
@@ -1105,6 +1432,10 @@ function studioShell({ title, activePage, profile, contentHtml, sessionUsername 
       <div class="topbar-divider"></div>
       <span class="topbar-title">${escapeHtml(title)}</span>
     </div>
+    <form class="topbar-search" action="/studio/search" method="GET">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" class="search-icon"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" name="q" placeholder="Search profiles, posts, groups..." autocomplete="off" class="topbar-search-input">
+    </form>
     <div class="topbar-right">
       ${handle ? `<a class="topbar-btn" href="/@${handle}" target="_blank" rel="noopener noreferrer">
         ${ICONS.externalLinkSmall} View Page
@@ -1120,6 +1451,9 @@ function studioShell({ title, activePage, profile, contentHtml, sessionUsername 
     <div class="sidebar-nav">
       ${navItem('dashboard', 'Dashboard', ICONS.dashboard, '/studio')}
       ${navItem('feed', 'Feed', ICONS.feed, '/studio/feed')}
+      ${navItem('search', 'Search', ICONS.search, '/studio/search')}
+      ${navItem('content', 'Content', ICONS.content, '/studio/content')}
+      ${navItem('groups', 'Groups', ICONS.groups, '/studio/groups')}
       ${navItem('links', 'Links', ICONS.links, '/studio/links')}
       ${navItem('analytics', 'Analytics', ICONS.analytics, '/studio/analytics')}
       ${navItem('customize', 'Customize', ICONS.customize, '/studio/customize')}
@@ -1142,8 +1476,9 @@ function studioShell({ title, activePage, profile, contentHtml, sessionUsername 
   <nav class="studio-tabbar" aria-label="Studio navigation">
     ${tabItem('dashboard', ICONS.dashboard, '/studio', 'Dashboard')}
     ${tabItem('feed', ICONS.feed, '/studio/feed', 'Feed')}
+    ${tabItem('content', ICONS.content, '/studio/content', 'Content')}
+    ${tabItem('groups', ICONS.groups, '/studio/groups', 'Groups')}
     ${tabItem('links', ICONS.links, '/studio/links', 'Links')}
-    ${tabItem('analytics', ICONS.analytics, '/studio/analytics', 'Analytics')}
     ${tabItem('customize', ICONS.customize, '/studio/customize', 'Customize')}
     ${tabItem('settings', ICONS.settings, '/studio/settings', 'Settings')}
   </nav>
@@ -1162,7 +1497,7 @@ function studioShell({ title, activePage, profile, contentHtml, sessionUsername 
 // Page: Dashboard
 // =============================================================================
 
-function dashboardContent(profile, links) {
+function dashboardContent(profile, links, { successMessage, distributions } = {}) {
   const displayName = profile ? escapeHtml(profile.display_name || profile.username || 'User') : 'User';
   const handle = profile ? escapeHtml(profile.username || '') : '';
   const avatarUrl = profile ? profile.avatar_url : null;
@@ -1173,6 +1508,10 @@ function dashboardContent(profile, links) {
   const avatarHtml = avatarUrl
     ? `<img class="profile-summary-avatar" src="${escapeHtml(avatarUrl)}" alt="${displayName}">`
     : `<div class="profile-summary-avatar">${initial}</div>`;
+
+  const composeAvatarHtml = avatarUrl
+    ? `<img class="compose-avatar" src="${escapeHtml(avatarUrl)}" alt="${displayName}">`
+    : `<div class="compose-avatar">${initial}</div>`;
 
   // Protocol badges
   const protocols = [];
@@ -1188,7 +1527,54 @@ function dashboardContent(profile, links) {
     `<span class="protocol-badge badge-active">${ICONS.check} ${escapeHtml(p.name)}</span>`
   ).join('\n              ');
 
+  // Success banner after post creation
+  let successBannerHtml = '';
+  if (successMessage) {
+    let distBadgesHtml = '';
+    if (distributions && distributions.length > 0) {
+      distBadgesHtml = '<div class="dist-badges">' + distributions.map(d => {
+        const cls = d.status === 'sent' ? 'dist-badge-sent'
+          : d.status === 'pending' ? 'dist-badge-pending'
+          : d.status === 'skipped' ? 'dist-badge-skipped'
+          : 'dist-badge-failed';
+        return `<span class="dist-badge ${cls}">${escapeHtml(d.protocol)} : ${escapeHtml(d.status)}</span>`;
+      }).join('') + '</div>';
+    }
+    successBannerHtml = `
+      <div class="success-banner">
+        <span class="success-banner-icon">${ICONS.check}</span>
+        <div class="success-banner-text">
+          <div class="success-banner-title">${escapeHtml(successMessage)}</div>
+          <div class="success-banner-detail">Your post has been published and distributed to active protocols.</div>
+          ${distBadgesHtml}
+        </div>
+      </div>`;
+  }
+
   return `
+      ${successBannerHtml}
+
+      <!-- Compose Box -->
+      <div class="compose-box">
+        <div class="compose-header">
+          ${composeAvatarHtml}
+          <span class="compose-prompt">What's on your mind?</span>
+        </div>
+        <form action="/studio/post" method="POST">
+          <textarea class="compose-textarea" name="content" placeholder="Write something..." maxlength="500" required
+            oninput="this.form.querySelector('.char-count').textContent = this.value.length + ' / 500'; var c = this.form.querySelector('.char-count'); c.className = 'char-count' + (this.value.length > 450 ? (this.value.length >= 500 ? ' over' : ' warn') : '');"></textarea>
+          <div class="compose-footer">
+            <div class="compose-meta">
+              <span class="char-count">0 / 500</span>
+              <a href="/studio/compose" style="font-size: 0.8125rem; color: var(--color-text-tertiary);">Full editor</a>
+            </div>
+            <div class="compose-actions">
+              <button class="btn btn-primary" type="submit">${ICONS.compose} Post</button>
+            </div>
+          </div>
+        </form>
+      </div>
+
       <!-- Profile Summary Card -->
       <div class="profile-summary">
         ${avatarHtml}
@@ -1299,7 +1685,8 @@ function dashboardContent(profile, links) {
       <div class="section">
         <h2 class="section-title">Quick Actions</h2>
         <div class="quick-actions">
-          <a class="btn btn-primary" href="/studio/links">${ICONS.plus} Add Link</a>
+          <a class="btn btn-primary" href="/studio/compose">${ICONS.compose} Compose Post</a>
+          <a class="btn btn-secondary" href="/studio/links">${ICONS.plus} Add Link</a>
           <a class="btn btn-secondary" href="/studio/customize">${ICONS.edit} Edit Profile</a>
           ${handle ? `<a class="btn btn-secondary" href="/@${handle}" target="_blank" rel="noopener noreferrer">${ICONS.externalLinkSmall} View Page</a>` : ''}
         </div>
@@ -1541,7 +1928,7 @@ function settingsContent(profile) {
         </div>
         <div class="settings-row">
           <span class="settings-label">Profile ID</span>
-          <span class="settings-value" style="font-family: var(--font-mono); font-size: 0.75rem;">${escapeHtml(profileId)}</span>
+          <span class="settings-value" style="font-family: var(--font-family-mono); font-size: 0.75rem;">${escapeHtml(profileId)}</span>
         </div>
         <div class="settings-row">
           <span class="settings-label">Export Data</span>
@@ -1669,7 +2056,7 @@ function feedContent(profile, items) {
       <div class="section" style="margin-top: 1.5rem;">
         <h2 class="section-title">Timeline API</h2>
         <div class="card" style="padding: 1.5rem;">
-          <div style="font-family: var(--font-mono); font-size: 0.8125rem; color: var(--color-text-secondary); display: flex; flex-direction: column; gap: 0.5rem;">
+          <div style="font-family: var(--font-family-mono); font-size: 0.8125rem; color: var(--color-text-secondary); display: flex; flex-direction: column; gap: 0.5rem;">
             <div>GET <a href="/api/timeline/${handle}" style="color: var(--color-primary);">/api/timeline/${handle}</a></div>
             <div>GET <a href="/api/timeline/${handle}/protocol/activitypub" style="color: var(--color-primary);">/api/timeline/${handle}/protocol/activitypub</a></div>
           </div>
@@ -1679,7 +2066,7 @@ function feedContent(profile, items) {
 
   // Render timeline items
   const itemsHtml = items.map(item => {
-    const proto = PROTOCOL_DISPLAY[item.source_protocol] || { label: item.source_protocol, color: '#64748b' };
+    const proto = PROTOCOL_DISPLAY[item.source_protocol] || { label: item.source_protocol, color: 'var(--color-text-tertiary)' };
     const authorName = escapeHtml(item.author_name || 'Unknown');
     const authorHandle = escapeHtml(item.author_handle || item.source_actor_uri || '');
     const avatarInitial = authorName.charAt(0).toUpperCase();
@@ -1752,10 +2139,454 @@ function feedContent(profile, items) {
       <div class="section" style="margin-top: 1rem;">
         <div class="card" style="padding: 1rem; text-align: center;">
           <span style="font-size: 0.875rem; color: var(--color-text-tertiary);">
-            Timeline API: <a href="/api/timeline/${handle}" style="font-family: var(--font-mono); font-size: 0.8125rem;">/api/timeline/${handle}</a>
+            Timeline API: <a href="/api/timeline/${handle}" style="font-family: var(--font-family-mono); font-size: 0.8125rem;">/api/timeline/${handle}</a>
           </span>
         </div>
       </div>`;
+}
+
+// =============================================================================
+// Page: Compose (Full Page)
+// =============================================================================
+
+function composeContent(profile, { successMessage, distributions } = {}) {
+  const displayName = profile ? escapeHtml(profile.display_name || profile.username || 'User') : 'User';
+  const handle = profile ? escapeHtml(profile.username || '') : '';
+  const avatarUrl = profile ? profile.avatar_url : null;
+  const initial = displayName.charAt(0).toUpperCase();
+  const ourDomain = `${SUBDOMAIN}.${DOMAIN}`;
+
+  const composeAvatarHtml = avatarUrl
+    ? `<img class="compose-avatar" src="${escapeHtml(avatarUrl)}" alt="${displayName}">`
+    : `<div class="compose-avatar">${initial}</div>`;
+
+  // Success banner
+  let successBannerHtml = '';
+  if (successMessage) {
+    let distBadgesHtml = '';
+    if (distributions && distributions.length > 0) {
+      distBadgesHtml = '<div class="dist-badges">' + distributions.map(d => {
+        const cls = d.status === 'sent' ? 'dist-badge-sent'
+          : d.status === 'pending' ? 'dist-badge-pending'
+          : d.status === 'skipped' ? 'dist-badge-skipped'
+          : 'dist-badge-failed';
+        return `<span class="dist-badge ${cls}">${escapeHtml(d.protocol)} : ${escapeHtml(d.status)}</span>`;
+      }).join('') + '</div>';
+    }
+    successBannerHtml = `
+      <div class="success-banner">
+        <span class="success-banner-icon">${ICONS.check}</span>
+        <div class="success-banner-text">
+          <div class="success-banner-title">${escapeHtml(successMessage)}</div>
+          <div class="success-banner-detail">Your post has been published and distributed to active protocols.</div>
+          ${distBadgesHtml}
+        </div>
+      </div>`;
+  }
+
+  return `
+      <div class="page-header">
+        <h1 class="page-title">Compose Post</h1>
+        <div class="page-actions">
+          <a class="btn btn-secondary" href="/studio/content">${ICONS.content} View Content</a>
+        </div>
+      </div>
+
+      ${successBannerHtml}
+
+      <!-- Full Compose Form -->
+      <div class="compose-box" style="margin-bottom: 0;">
+        <div class="compose-header">
+          ${composeAvatarHtml}
+          <div>
+            <div style="font-size: 0.875rem; font-weight: 500; color: var(--color-text-primary);">${displayName}</div>
+            <div style="font-size: 0.75rem; color: var(--color-text-tertiary);">@${handle}@${ourDomain}</div>
+          </div>
+        </div>
+        <form action="/studio/post" method="POST">
+          <input type="hidden" name="redirect" value="compose">
+          <textarea class="compose-textarea" name="content" placeholder="What's on your mind? Write your post here..." maxlength="500" required style="min-height: 160px;"
+            oninput="this.form.querySelector('.char-count').textContent = this.value.length + ' / 500'; var c = this.form.querySelector('.char-count'); c.className = 'char-count' + (this.value.length > 450 ? (this.value.length >= 500 ? ' over' : ' warn') : ''); this.form.querySelector('.post-preview-content').textContent = this.value || 'Your post will appear here...';"></textarea>
+
+          <!-- Protocol Distribution Checkboxes -->
+          <div style="margin-top: 1rem;">
+            <div style="font-size: 0.8125rem; font-weight: 500; color: var(--color-text-secondary); margin-bottom: 0.5rem;">Distribute to:</div>
+            <div class="protocol-checks">
+              <label class="protocol-check">
+                <input type="checkbox" name="proto_ap" value="1" checked>
+                <span>ActivityPub</span>
+              </label>
+              <label class="protocol-check">
+                <input type="checkbox" name="proto_nostr" value="1" checked>
+                <span>Nostr</span>
+              </label>
+              <label class="protocol-check">
+                <input type="checkbox" name="proto_rss" value="1" checked>
+                <span>RSS</span>
+              </label>
+              <label class="protocol-check">
+                <input type="checkbox" name="proto_indieweb" value="1" checked>
+                <span>IndieWeb</span>
+              </label>
+              <label class="protocol-check">
+                <input type="checkbox" name="proto_atproto" value="1" checked>
+                <span>AT Protocol</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="compose-footer" style="margin-top: 1rem;">
+            <div class="compose-meta">
+              <span class="char-count">0 / 500</span>
+              <button type="button" class="compose-icon-btn" title="Attach media (coming soon)" disabled style="opacity: 0.5;">
+                ${ICONS.image}
+              </button>
+            </div>
+            <div class="compose-actions">
+              <a class="btn btn-ghost" href="/studio">Cancel</a>
+              <button class="btn btn-primary" type="submit">${ICONS.compose} Post</button>
+            </div>
+          </div>
+        </form>
+      </div>
+
+      <!-- Post Preview -->
+      <div class="post-preview">
+        <div class="post-preview-label">Preview</div>
+        <div class="post-preview-card">
+          <div style="display: flex; gap: 0.75rem;">
+            ${composeAvatarHtml}
+            <div style="flex: 1;">
+              <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <span style="font-weight: 600; font-size: 0.875rem; color: var(--color-text-primary);">${displayName}</span>
+                <span style="font-size: 0.75rem; color: var(--color-text-tertiary);">@${handle} &middot; just now</span>
+              </div>
+              <div class="post-preview-content" style="margin-top: 0.375rem;">Your post will appear here...</div>
+            </div>
+          </div>
+        </div>
+      </div>`;
+}
+
+// =============================================================================
+// Page: Content (Post Management)
+// =============================================================================
+
+async function loadUserPosts(webid, limit = 20, before = null) {
+  let query = `SELECT id, content_text, content_html, media_urls, visibility, created_at, updated_at
+               FROM social_profiles.posts
+               WHERE webid = $1`;
+  const params = [webid];
+
+  if (before) {
+    query += ` AND created_at < $2`;
+    params.push(before);
+  }
+
+  query += ` ORDER BY created_at DESC LIMIT $${params.length + 1}`;
+  params.push(limit + 1); // Fetch one extra to know if there are more
+  try {
+    const result = await pool.query(query, params);
+    return result.rows;
+  } catch (err) {
+    console.error('[studio/content] Error loading posts:', err.message);
+    return [];
+  }
+}
+
+async function loadPostDistributions(postIds) {
+  if (!postIds || postIds.length === 0) return {};
+  try {
+    const result = await pool.query(
+      `SELECT post_id, protocol, status
+       FROM social_federation.post_distribution
+       WHERE post_id = ANY($1)
+       ORDER BY protocol`,
+      [postIds]
+    );
+    const map = {};
+    for (const row of result.rows) {
+      if (!map[row.post_id]) map[row.post_id] = [];
+      map[row.post_id].push({ protocol: row.protocol, status: row.status });
+    }
+    return map;
+  } catch (err) {
+    console.error('[studio/content] Error loading distributions:', err.message);
+    return {};
+  }
+}
+
+function contentPageContent(profile, posts, distributions, { before, hasMore, deletedMessage } = {}) {
+  const handle = profile ? escapeHtml(profile.username || '') : '';
+  const PAGE_SIZE = 20;
+
+  let bannerHtml = '';
+  if (deletedMessage) {
+    bannerHtml = `
+      <div class="success-banner">
+        <span class="success-banner-icon">${ICONS.check}</span>
+        <div class="success-banner-text">
+          <div class="success-banner-title">${escapeHtml(deletedMessage)}</div>
+        </div>
+      </div>`;
+  }
+
+  let postsHtml = '';
+  if (posts && posts.length > 0) {
+    postsHtml = posts.map(post => {
+      const content = post.content_html || escapeHtml(post.content_text);
+      const createdAt = new Date(post.created_at);
+      const timeStr = createdAt.toLocaleString('en-US', {
+        month: 'short', day: 'numeric', year: 'numeric',
+        hour: 'numeric', minute: '2-digit',
+      });
+
+      // Distribution badges
+      const dists = distributions[post.id] || [];
+      const distBadgesHtml = dists.map(d => {
+        const cls = d.status === 'sent' ? 'dist-badge-sent'
+          : d.status === 'pending' ? 'dist-badge-pending'
+          : d.status === 'skipped' ? 'dist-badge-skipped'
+          : 'dist-badge-failed';
+        return `<span class="dist-badge ${cls}">${escapeHtml(d.protocol)}</span>`;
+      }).join('');
+
+      return `
+          <div class="post-item">
+            <div class="post-item-body">
+              <div class="post-item-content">${content}</div>
+              <div class="post-item-meta">
+                <span class="post-item-time">${ICONS.clock} ${escapeHtml(timeStr)}</span>
+                <div class="dist-badges">${distBadgesHtml}</div>
+              </div>
+            </div>
+            <div class="post-item-actions">
+              <a class="link-action-btn" href="/@${handle}/post/${escapeHtml(post.id)}" target="_blank" rel="noopener noreferrer" title="View post">${ICONS.externalLinkSmall}</a>
+              <form action="/studio/post/delete" method="POST" style="display:inline;" onsubmit="return confirm('Delete this post? This will also send delete notifications to federated servers.');">
+                <input type="hidden" name="postId" value="${escapeHtml(post.id)}">
+                <button class="link-action-btn danger" type="submit" title="Delete post">${ICONS.trash}</button>
+              </form>
+            </div>
+          </div>`;
+    }).join('');
+  } else {
+    postsHtml = `
+          <div class="empty-state">
+            <div class="empty-state-icon">${ICONS.content}</div>
+            <div class="empty-state-title">No posts yet</div>
+            <div class="empty-state-desc">Compose your first post to share it across all your connected protocols.</div>
+            <a class="btn btn-primary" href="/studio/compose" style="margin-top: 1rem;">${ICONS.compose} Compose Post</a>
+          </div>`;
+  }
+
+  // Pagination
+  let paginationHtml = '';
+  if (hasMore) {
+    const lastPost = posts[posts.length - 1];
+    const nextBefore = new Date(lastPost.created_at).toISOString();
+    paginationHtml = `
+      <div class="pagination">
+        <a class="btn btn-secondary btn-sm" href="/studio/content?before=${encodeURIComponent(nextBefore)}">Older posts</a>
+      </div>`;
+  }
+
+  return `
+      <div class="page-header">
+        <h1 class="page-title">Content</h1>
+        <div class="page-actions">
+          <a class="btn btn-primary" href="/studio/compose">${ICONS.compose} Compose Post</a>
+        </div>
+      </div>
+
+      ${bannerHtml}
+
+      <div class="post-list">
+        ${postsHtml}
+      </div>
+
+      ${paginationHtml}`;
+}
+
+// =============================================================================
+// Post Creation + Distribution (Studio Form Handler)
+// =============================================================================
+
+/**
+ * Distribute a post via ActivityPub: Create(Note) to all followers' inboxes.
+ */
+async function studioDistributeAP(post, profile) {
+  const handle = profile.username;
+  const actorUri = `${BASE_URL}/ap/actor/${handle}`;
+  const noteId = `${BASE_URL}/ap/note/${post.id}`;
+
+  const actorResult = await pool.query(
+    `SELECT id, actor_uri, public_key_pem, private_key_pem, key_id
+     FROM social_federation.ap_actors
+     WHERE webid = $1 AND status = 'active'`,
+    [profile.webid]
+  );
+
+  if (actorResult.rowCount === 0 || !actorResult.rows[0].private_key_pem) {
+    return { status: 'failed', error: 'No active AP actor keys found' };
+  }
+
+  const keys = actorResult.rows[0];
+
+  const noteObject = {
+    '@context': 'https://www.w3.org/ns/activitystreams',
+    id: noteId,
+    type: 'Note',
+    attributedTo: actorUri,
+    content: escapeHtml(post.content_text),
+    published: new Date(post.created_at).toISOString(),
+    to: ['https://www.w3.org/ns/activitystreams#Public'],
+    cc: [`${actorUri}/followers`],
+    url: `${BASE_URL}/@${handle}/post/${post.id}`,
+  };
+
+  const createActivity = {
+    '@context': 'https://www.w3.org/ns/activitystreams',
+    id: `${noteId}/activity`,
+    type: 'Create',
+    actor: actorUri,
+    published: new Date(post.created_at).toISOString(),
+    to: ['https://www.w3.org/ns/activitystreams#Public'],
+    cc: [`${actorUri}/followers`],
+    object: noteObject,
+  };
+
+  const followersResult = await pool.query(
+    `SELECT DISTINCT COALESCE(follower_shared_inbox, follower_inbox) AS inbox
+     FROM social_graph.followers
+     WHERE actor_uri = $1 AND status = 'accepted'`,
+    [actorUri]
+  );
+
+  let deliveryCount = 0;
+  let lastError = null;
+
+  for (const row of followersResult.rows) {
+    if (!row.inbox) continue;
+    try {
+      const result = await signedFetch(row.inbox, createActivity, keys.private_key_pem, keys.key_id);
+      if (result.status >= 200 && result.status < 300) deliveryCount++;
+      else lastError = `HTTP ${result.status} from ${row.inbox}`;
+    } catch (err) {
+      lastError = err.message;
+    }
+  }
+
+  console.log(`[studio] AP distribution: ${deliveryCount}/${followersResult.rowCount} inboxes for post ${post.id}`);
+  return { status: 'sent', remoteId: noteId, error: lastError || undefined };
+}
+
+async function studioDistributeNostr(post, profile) {
+  if (!profile.nostr_npub) return { status: 'skipped', error: 'No Nostr identity' };
+  const pubkeyHex = npubToHex(profile.nostr_npub);
+  if (!pubkeyHex) return { status: 'failed', error: 'Failed to decode Nostr npub' };
+
+  const keyResult = await pool.query(
+    `SELECT public_key_hash FROM social_keys.key_metadata
+     WHERE omni_account_id = $1 AND protocol = 'nostr' AND key_type = 'secp256k1-nsec' AND is_active = TRUE
+     LIMIT 1`,
+    [profile.omni_account_id]
+  );
+
+  if (keyResult.rowCount === 0) {
+    return { status: 'pending', error: 'Client-side signing required' };
+  }
+
+  try {
+    const event = createNostrEvent(1, post.content_text, [], keyResult.rows[0].public_key_hash, pubkeyHex);
+    return { status: 'sent', remoteId: event.id };
+  } catch (err) {
+    return { status: 'failed', error: err.message };
+  }
+}
+
+/**
+ * Run cross-protocol distribution for a post created from the Studio form.
+ */
+async function studioDistributePost(post, profile) {
+  const distributions = [];
+
+  const protocols = [
+    { name: 'activitypub', fn: () => studioDistributeAP(post, profile) },
+    { name: 'nostr', fn: () => studioDistributeNostr(post, profile) },
+    { name: 'rss', fn: () => ({ status: 'sent', remoteId: 'auto-included-in-feed' }) },
+    { name: 'indieweb', fn: () => ({ status: 'sent', remoteId: 'auto-included-in-h-feed' }) },
+    { name: 'atproto', fn: () => profile.at_did
+        ? { status: 'pending', error: 'AT Protocol PDS not yet implemented' }
+        : { status: 'skipped', error: 'No AT DID configured' } },
+  ];
+
+  for (const proto of protocols) {
+    try {
+      const result = await proto.fn();
+      const distId = randomUUID();
+      const distributedAt = result.status === 'sent' ? new Date() : null;
+
+      await pool.query(
+        `INSERT INTO social_federation.post_distribution
+           (id, post_id, protocol, remote_id, status, distributed_at, error)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
+         ON CONFLICT (post_id, protocol) DO UPDATE SET
+           remote_id = EXCLUDED.remote_id,
+           status = EXCLUDED.status,
+           distributed_at = EXCLUDED.distributed_at,
+           error = EXCLUDED.error`,
+        [distId, post.id, proto.name, result.remoteId || null, result.status, distributedAt, result.error || null]
+      );
+
+      distributions.push({ protocol: proto.name, status: result.status, error: result.error || null });
+    } catch (err) {
+      console.error(`[studio] Distribution error for ${proto.name}:`, err.message);
+      distributions.push({ protocol: proto.name, status: 'failed', error: err.message });
+    }
+  }
+
+  return distributions;
+}
+
+/**
+ * Send AP Delete/Tombstone to all followers.
+ */
+async function studioSendApDelete(postId, profile) {
+  const handle = profile.username;
+  const actorUri = `${BASE_URL}/ap/actor/${handle}`;
+  const noteId = `${BASE_URL}/ap/note/${postId}`;
+
+  const actorResult = await pool.query(
+    `SELECT private_key_pem, key_id
+     FROM social_federation.ap_actors
+     WHERE webid = $1 AND status = 'active'`,
+    [profile.webid]
+  );
+
+  if (actorResult.rowCount === 0 || !actorResult.rows[0].private_key_pem) return;
+  const keys = actorResult.rows[0];
+
+  const deleteActivity = {
+    '@context': 'https://www.w3.org/ns/activitystreams',
+    id: `${noteId}#delete`,
+    type: 'Delete',
+    actor: actorUri,
+    to: ['https://www.w3.org/ns/activitystreams#Public'],
+    object: { id: noteId, type: 'Tombstone', formerType: 'Note', deleted: new Date().toISOString() },
+  };
+
+  const followersResult = await pool.query(
+    `SELECT DISTINCT COALESCE(follower_shared_inbox, follower_inbox) AS inbox
+     FROM social_graph.followers
+     WHERE actor_uri = $1 AND status = 'accepted'`,
+    [actorUri]
+  );
+
+  for (const row of followersResult.rows) {
+    if (!row.inbox) continue;
+    try { await signedFetch(row.inbox, deleteActivity, keys.private_key_pem, keys.key_id); }
+    catch (err) { console.error(`[studio] AP delete delivery failed:`, err.message); }
+  }
 }
 
 // =============================================================================
@@ -1798,6 +2629,162 @@ function authGate(req, res) {
   return session;
 }
 
+// =============================================================================
+// Page: Search Results
+// =============================================================================
+
+function searchResultsContent(query, results, byType) {
+  const q = escapeHtml(query || '');
+  const hasResults = results && results.length > 0;
+  const profileCount = byType?.profiles?.length || 0;
+  const postCount = byType?.posts?.length || 0;
+  const groupCount = byType?.groups?.length || 0;
+
+  let resultsHtml = '';
+  if (!query) {
+    resultsHtml = `
+      <div class="empty-state">
+        <div class="empty-state-icon">${ICONS.search}</div>
+        <div class="empty-state-title">Search Social Lab</div>
+        <div class="empty-state-desc">Search across profiles, posts, and groups. Enter a query in the search bar above.</div>
+      </div>`;
+  } else if (!hasResults) {
+    resultsHtml = `
+      <div class="empty-state">
+        <div class="empty-state-icon">${ICONS.search}</div>
+        <div class="empty-state-title">No results found</div>
+        <div class="empty-state-desc">No matches for "${q}". Try a different search term.</div>
+      </div>`;
+  } else {
+    // Profile results
+    let profilesHtml = '';
+    if (profileCount > 0) {
+      const items = byType.profiles.map(p => `
+        <a href="/@${escapeHtml(p.username)}" class="search-result-item" style="text-decoration:none;color:inherit;">
+          <div class="search-result-avatar" style="background:var(--color-primary);color:var(--color-text-inverse);display:flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:50%;font-size:1rem;flex-shrink:0;">
+            ${p.avatar_url ? `<img src="${escapeHtml(p.avatar_url)}" alt="" style="width:40px;height:40px;border-radius:50%;object-fit:cover;">` : escapeHtml((p.display_name || p.username || '?').charAt(0).toUpperCase())}
+          </div>
+          <div>
+            <div style="font-weight:500;">${escapeHtml(p.display_name || p.username)}</div>
+            <div style="font-size:0.8125rem;color:var(--color-text-secondary);">@${escapeHtml(p.username)}</div>
+            ${p.bio ? `<div style="font-size:0.8125rem;color:var(--color-text-tertiary);margin-top:0.25rem;">${escapeHtml(p.bio).slice(0, 120)}</div>` : ''}
+          </div>
+        </a>`).join('');
+      profilesHtml = `
+        <div class="search-section">
+          <h3 class="search-section-title">Profiles (${profileCount})</h3>
+          ${items}
+        </div>`;
+    }
+
+    // Post results
+    let postsHtml = '';
+    if (postCount > 0) {
+      const items = byType.posts.map(p => `
+        <a href="${escapeHtml(p.url)}" class="search-result-item" style="text-decoration:none;color:inherit;">
+          <div>
+            <div style="font-size:0.8125rem;color:var(--color-text-secondary);margin-bottom:0.25rem;">
+              @${escapeHtml(p.author?.username || 'unknown')} ${p.created_at ? new Date(p.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''}
+            </div>
+            <div style="font-size:0.875rem;">${escapeHtml(p.content || '').slice(0, 200)}</div>
+          </div>
+        </a>`).join('');
+      postsHtml = `
+        <div class="search-section">
+          <h3 class="search-section-title">Posts (${postCount})</h3>
+          ${items}
+        </div>`;
+    }
+
+    // Group results
+    let groupsHtml = '';
+    if (groupCount > 0) {
+      const items = byType.groups.map(g => `
+        <div class="search-result-item">
+          <div>
+            <div style="font-weight:500;">${escapeHtml(g.name)}</div>
+            <div style="font-size:0.8125rem;color:var(--color-text-secondary);">${escapeHtml(g.group_type || 'group')} &middot; ${escapeHtml(g.visibility || 'public')}</div>
+            ${g.description ? `<div style="font-size:0.8125rem;color:var(--color-text-tertiary);margin-top:0.25rem;">${escapeHtml(g.description).slice(0, 120)}</div>` : ''}
+          </div>
+        </div>`).join('');
+      groupsHtml = `
+        <div class="search-section">
+          <h3 class="search-section-title">Groups (${groupCount})</h3>
+          ${items}
+        </div>`;
+    }
+
+    resultsHtml = profilesHtml + postsHtml + groupsHtml;
+  }
+
+  return `
+    <style>
+      .search-section { margin-bottom: 2rem; }
+      .search-section-title {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--color-text-secondary);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-bottom: 0.75rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid var(--color-border);
+      }
+      .search-result-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.75rem;
+        padding: 0.75rem 1rem;
+        border-radius: var(--radius-md);
+        transition: background 0.15s;
+      }
+      .search-result-item:hover {
+        background: var(--color-bg-hover);
+      }
+      .search-header-form {
+        display: flex;
+        gap: 0.5rem;
+        margin-bottom: 1.5rem;
+      }
+      .search-header-input {
+        flex: 1;
+        background: var(--color-bg-tertiary);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-md);
+        color: var(--color-text-primary);
+        font-size: 0.875rem;
+        font-family: var(--font-family);
+        padding: 0.625rem 1rem;
+        outline: none;
+      }
+      .search-header-input:focus {
+        border-color: var(--color-primary);
+      }
+      .search-header-btn {
+        padding: 0.625rem 1.25rem;
+        background: var(--color-primary);
+        color: var(--color-text-inverse);
+        border: none;
+        border-radius: var(--radius-md);
+        font-size: 0.875rem;
+        font-weight: 500;
+        cursor: pointer;
+      }
+      .search-header-btn:hover { opacity: 0.9; }
+      .search-summary {
+        font-size: 0.875rem;
+        color: var(--color-text-secondary);
+        margin-bottom: 1.5rem;
+      }
+    </style>
+    <form class="search-header-form" action="/studio/search" method="GET">
+      <input class="search-header-input" type="text" name="q" value="${q}" placeholder="Search profiles, posts, groups..." autocomplete="off">
+      <button class="search-header-btn" type="submit">Search</button>
+    </form>
+    ${query ? `<div class="search-summary">${results.length} result${results.length !== 1 ? 's' : ''} for "${q}"</div>` : ''}
+    ${resultsHtml}`;
+}
+
 export default function registerRoutes(routes) {
   // GET /studio — Dashboard
   routes.push({
@@ -1812,6 +2799,106 @@ export default function registerRoutes(routes) {
       html(res, 200, studioShell({
         title: 'Dashboard',
         activePage: 'dashboard',
+        profile,
+        contentHtml: content,
+        sessionUsername: session.username,
+      }));
+    },
+  });
+
+  // GET /studio/search — Search Results Page
+  routes.push({
+    method: 'GET',
+    pattern: '/studio/search',
+    handler: async (req, res) => {
+      const session = authGate(req, res);
+      if (!session) return;
+      const profile = await loadProfileFromSession(session);
+
+      const { searchParams } = parseUrl(req);
+      const q = (searchParams.get('q') || '').trim();
+
+      let results = [];
+      let byType = {};
+      if (q) {
+        try {
+          // Use the search API internally
+          const tsq = q
+            .toLowerCase()
+            .replace(/[^\w\s@.-]/g, '')
+            .split(/\s+/)
+            .filter(t => t.length > 0)
+            .map((t, i, arr) => i === arr.length - 1 ? `${t}:*` : t)
+            .join(' & ');
+
+          if (tsq) {
+            // Search profiles
+            const profileResult = await pool.query(
+              `SELECT id, display_name, username, bio, avatar_url,
+                      ts_rank(search_vector, to_tsquery('english', $1)) AS rank
+               FROM social_profiles.profile_index
+               WHERE search_vector @@ to_tsquery('english', $1)
+               ORDER BY rank DESC LIMIT 10`,
+              [tsq]
+            );
+
+            // Search posts
+            const postResult = await pool.query(
+              `SELECT p.id, p.content_text, p.created_at,
+                      pi.username, pi.display_name, pi.avatar_url,
+                      ts_rank(p.search_vector, to_tsquery('english', $1)) AS rank
+               FROM social_profiles.posts p
+               JOIN social_profiles.profile_index pi ON pi.webid = p.webid
+               WHERE p.search_vector @@ to_tsquery('english', $1)
+                 AND p.visibility = 'public'
+               ORDER BY rank DESC LIMIT 10`,
+              [tsq]
+            );
+
+            // Search groups
+            const groupResult = await pool.query(
+              `SELECT id, name, type, description, avatar_url, visibility,
+                      ts_rank(search_vector, to_tsquery('english', $1)) AS rank
+               FROM social_profiles.groups
+               WHERE search_vector @@ to_tsquery('english', $1)
+                 AND visibility IN ('public', 'unlisted')
+               ORDER BY rank DESC LIMIT 10`,
+              [tsq]
+            );
+
+            byType.profiles = profileResult.rows.map(r => ({
+              type: 'profile', id: r.id, display_name: r.display_name,
+              username: r.username, bio: r.bio, avatar_url: r.avatar_url,
+              url: `/@${r.username}`, rank: parseFloat(r.rank),
+            }));
+            byType.posts = postResult.rows.map(r => ({
+              type: 'post', id: r.id, content: r.content_text,
+              created_at: r.created_at,
+              author: { username: r.username, display_name: r.display_name, avatar_url: r.avatar_url },
+              url: `/@${r.username}/post/${r.id}`, rank: parseFloat(r.rank),
+            }));
+            byType.groups = groupResult.rows.map(r => ({
+              type: 'group', id: r.id, name: r.name, group_type: r.type,
+              description: r.description, avatar_url: r.avatar_url,
+              visibility: r.visibility, rank: parseFloat(r.rank),
+            }));
+
+            results = [
+              ...(byType.profiles || []),
+              ...(byType.posts || []),
+              ...(byType.groups || []),
+            ].sort((a, b) => b.rank - a.rank);
+          }
+        } catch (err) {
+          console.error('[studio] Search error:', err.message);
+          // Graceful degradation: show empty results
+        }
+      }
+
+      const content = searchResultsContent(q, results, byType);
+      html(res, 200, studioShell({
+        title: q ? `Search: ${q}` : 'Search',
+        activePage: 'search',
         profile,
         contentHtml: content,
         sessionUsername: session.username,
@@ -1914,6 +3001,223 @@ export default function registerRoutes(routes) {
         contentHtml: content,
         sessionUsername: session.username,
       }));
+    },
+  });
+
+  // =========================================================================
+  // Compose + Content Routes (WO-006)
+  // =========================================================================
+
+  // GET /studio/compose — Full-page compose view
+  routes.push({
+    method: 'GET',
+    pattern: '/studio/compose',
+    handler: async (req, res) => {
+      const session = authGate(req, res);
+      if (!session) return;
+      const profile = await loadProfileFromSession(session);
+      const content = composeContent(profile);
+      html(res, 200, studioShell({
+        title: 'Compose',
+        activePage: 'content',
+        profile,
+        contentHtml: content,
+        sessionUsername: session.username,
+      }));
+    },
+  });
+
+  // GET /studio/content — Post management
+  routes.push({
+    method: 'GET',
+    pattern: '/studio/content',
+    handler: async (req, res) => {
+      const session = authGate(req, res);
+      if (!session) return;
+      const profile = await loadProfileFromSession(session);
+
+      const { searchParams } = new URL(req.url, 'http://localhost');
+      const before = searchParams.get('before') || null;
+      const deleted = searchParams.get('deleted');
+      const PAGE_SIZE = 20;
+
+      let posts = [];
+      let hasMore = false;
+      if (profile) {
+        const rows = await loadUserPosts(profile.webid, PAGE_SIZE, before);
+        hasMore = rows.length > PAGE_SIZE;
+        posts = rows.slice(0, PAGE_SIZE);
+      }
+
+      const postIds = posts.map(p => p.id);
+      const distributions = await loadPostDistributions(postIds);
+
+      const content = contentPageContent(profile, posts, distributions, {
+        before,
+        hasMore,
+        deletedMessage: deleted === '1' ? 'Post deleted successfully.' : null,
+      });
+      html(res, 200, studioShell({
+        title: 'Content',
+        activePage: 'content',
+        profile,
+        contentHtml: content,
+        sessionUsername: session.username,
+      }));
+    },
+  });
+
+  // POST /studio/post — Create a post from form submit
+  routes.push({
+    method: 'POST',
+    pattern: '/studio/post',
+    handler: async (req, res) => {
+      const session = authGate(req, res);
+      if (!session) return;
+
+      const body = await readFormBody(req);
+      const contentText = (body.content || '').trim();
+
+      if (!contentText) {
+        res.writeHead(302, { Location: '/studio' });
+        res.end();
+        return;
+      }
+
+      // Enforce character limit
+      const MAX_LEN = 500;
+      const trimmed = contentText.slice(0, MAX_LEN);
+
+      // Load profile
+      const profileResult = await pool.query(
+        `SELECT id, webid, omni_account_id, display_name, username, bio,
+                avatar_url, banner_url, homepage_url, nostr_npub, at_did
+         FROM social_profiles.profile_index
+         WHERE id = $1`,
+        [session.profileId]
+      );
+
+      if (profileResult.rowCount === 0) {
+        res.writeHead(302, { Location: '/studio' });
+        res.end();
+        return;
+      }
+
+      const profile = profileResult.rows[0];
+
+      // Create the post
+      const postId = randomUUID();
+      const insertResult = await pool.query(
+        `INSERT INTO social_profiles.posts (id, webid, content_text, content_html, media_urls, visibility, in_reply_to)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
+         RETURNING id, webid, content_text, content_html, media_urls, visibility, in_reply_to, created_at, updated_at`,
+        [postId, profile.webid, trimmed, null, '{}', 'public', null]
+      );
+
+      const post = insertResult.rows[0];
+      console.log(`[studio] Created post ${post.id} by @${profile.username}`);
+
+      // Distribute to protocols
+      const distributions = await studioDistributePost(post, profile);
+
+      // Render success page depending on redirect param
+      const redirect = body.redirect || 'dashboard';
+      const links = await loadLinks(profile);
+
+      if (redirect === 'compose') {
+        const content = composeContent(profile, {
+          successMessage: 'Post published!',
+          distributions,
+        });
+        html(res, 200, studioShell({
+          title: 'Compose',
+          activePage: 'content',
+          profile,
+          contentHtml: content,
+          sessionUsername: session.username,
+        }));
+      } else {
+        const content = dashboardContent(profile, links, {
+          successMessage: 'Post published!',
+          distributions,
+        });
+        html(res, 200, studioShell({
+          title: 'Dashboard',
+          activePage: 'dashboard',
+          profile,
+          contentHtml: content,
+          sessionUsername: session.username,
+        }));
+      }
+    },
+  });
+
+  // POST /studio/post/delete — Delete a post from form submit
+  routes.push({
+    method: 'POST',
+    pattern: '/studio/post/delete',
+    handler: async (req, res) => {
+      const session = authGate(req, res);
+      if (!session) return;
+
+      const body = await readFormBody(req);
+      const postId = (body.postId || '').trim();
+
+      if (!postId) {
+        res.writeHead(302, { Location: '/studio/content' });
+        res.end();
+        return;
+      }
+
+      // Load profile
+      const profileResult = await pool.query(
+        `SELECT id, webid, omni_account_id, display_name, username, bio,
+                avatar_url, nostr_npub, at_did
+         FROM social_profiles.profile_index
+         WHERE id = $1`,
+        [session.profileId]
+      );
+
+      if (profileResult.rowCount === 0) {
+        res.writeHead(302, { Location: '/studio/content' });
+        res.end();
+        return;
+      }
+
+      const profile = profileResult.rows[0];
+
+      // Verify post belongs to this user
+      const postResult = await pool.query(
+        `SELECT id FROM social_profiles.posts WHERE id = $1 AND webid = $2`,
+        [postId, profile.webid]
+      );
+
+      if (postResult.rowCount === 0) {
+        res.writeHead(302, { Location: '/studio/content' });
+        res.end();
+        return;
+      }
+
+      // Send AP Delete
+      try {
+        await studioSendApDelete(postId, profile);
+      } catch (err) {
+        console.error(`[studio] Error sending AP delete for post ${postId}:`, err.message);
+      }
+
+      // Update distribution status
+      await pool.query(
+        `UPDATE social_federation.post_distribution SET status = 'deleted' WHERE post_id = $1`,
+        [postId]
+      );
+
+      // Delete the post
+      await pool.query('DELETE FROM social_profiles.posts WHERE id = $1', [postId]);
+      console.log(`[studio] Deleted post ${postId} by @${profile.username}`);
+
+      // Redirect back to content page
+      res.writeHead(302, { Location: '/studio/content?deleted=1' });
+      res.end();
     },
   });
 }

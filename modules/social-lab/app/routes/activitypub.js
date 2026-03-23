@@ -18,7 +18,7 @@ import {
   json, jsonWithType, parseUrl, readJsonBody, extractId,
   lookupProfileByHandle, BASE_URL, SUBDOMAIN, DOMAIN, VERSION,
 } from '../lib/helpers.js';
-import { signedFetch, verifyHttpSignature } from '../lib/http-signatures.js';
+import { signedFetch, fetchRemoteActor, verifyHttpSignature } from '../lib/http-signatures.js';
 
 /**
  * Get or create an RSA keypair for an actor.
@@ -167,6 +167,70 @@ async function handleFollowActivity(activity, remoteActor) {
 }
 
 /**
+ * Handle an incoming Accept activity.
+ * When a remote server accepts our Follow, update the following record to 'accepted'.
+ */
+async function handleAcceptActivity(activity, remoteActor) {
+  const acceptor = activity.actor || (remoteActor && remoteActor.id);
+  if (!acceptor) {
+    console.log('[federation] Accept activity missing actor, skipping');
+    return;
+  }
+
+  // The object of an Accept is typically the original Follow activity
+  const innerObject = activity.object;
+  if (!innerObject) {
+    console.log('[federation] Accept has no object, skipping');
+    return;
+  }
+
+  const innerType = typeof innerObject === 'string' ? null : innerObject.type;
+  if (innerType !== 'Follow') {
+    console.log(`[federation] Accept wraps type '${innerType}', not Follow — skipping following update`);
+    return;
+  }
+
+  // The Follow's actor is our local actor; the Follow's object is the remote actor we followed
+  const localActorUri = innerObject.actor;
+  const followActivityId = innerObject.id || null;
+
+  if (!localActorUri) {
+    console.log('[federation] Accept(Follow) inner object missing actor');
+    return;
+  }
+
+  // Try to match by follow_activity_id first, then by actor_uri + following_uri
+  let result;
+  if (followActivityId) {
+    result = await pool.query(
+      `UPDATE social_graph.following
+       SET status = 'accepted', accepted_at = NOW()
+       WHERE follow_activity_id = $1 AND status = 'pending'
+       RETURNING id, actor_uri, following_uri`,
+      [followActivityId]
+    );
+  }
+
+  if (!result || result.rowCount === 0) {
+    // Fall back to matching by actor pair
+    result = await pool.query(
+      `UPDATE social_graph.following
+       SET status = 'accepted', accepted_at = NOW()
+       WHERE actor_uri = $1 AND following_uri = $2 AND status = 'pending'
+       RETURNING id, actor_uri, following_uri`,
+      [localActorUri, acceptor]
+    );
+  }
+
+  if (result.rowCount > 0) {
+    const row = result.rows[0];
+    console.log(`[federation] Accept: follow confirmed ${row.actor_uri} => ${row.following_uri}`);
+  } else {
+    console.log(`[federation] Accept from ${acceptor}: no pending follow record found for ${localActorUri}`);
+  }
+}
+
+/**
  * Handle an incoming Create activity (typically Create(Note)).
  * Stores the post content in the timeline table for all local followers.
  */
@@ -214,8 +278,13 @@ async function handleCreateActivity(activity, remoteActor) {
   const authorHandle = remoteActor?.preferredUsername || actorUri;
   const authorAvatarUrl = remoteActor?.icon?.url || null;
 
-  // Find all local profiles that are followed by this remote actor
-  // (i.e., local actors whose followers include the sender)
+  // Find all local actors that should receive this content.
+  // Two cases:
+  //   1. Inbound: the remote actor follows one of our local actors (followers table)
+  //   2. Outbound: one of our local actors follows the remote actor (following table)
+  // Both produce a local actor_uri that should get the content in their timeline.
+
+  // Case 1: Inbound followers (remote actor follows our local actor)
   const followersResult = await pool.query(
     `SELECT DISTINCT f.actor_uri
      FROM social_graph.followers f
@@ -223,15 +292,27 @@ async function handleCreateActivity(activity, remoteActor) {
     [actorUri]
   );
 
-  if (followersResult.rowCount === 0) {
-    console.log(`[federation] Create from ${actorUri}: no local followers, skipping timeline insert`);
+  // Case 2: Outbound following (our local actor follows the remote actor)
+  const followingResult = await pool.query(
+    `SELECT DISTINCT f.actor_uri
+     FROM social_graph.following f
+     WHERE f.following_uri = $1 AND f.status = 'accepted'`,
+    [actorUri]
+  );
+
+  // Merge both sets of local actor URIs (dedup)
+  const localActorUris = new Set();
+  for (const row of followersResult.rows) localActorUris.add(row.actor_uri);
+  for (const row of followingResult.rows) localActorUris.add(row.actor_uri);
+
+  if (localActorUris.size === 0) {
+    console.log(`[federation] Create from ${actorUri}: no local recipients (0 followers, 0 following), skipping timeline insert`);
     return;
   }
 
-  // For each local actor that is followed by the sender, insert into their timeline
-  for (const row of followersResult.rows) {
-    // Extract the local handle from the actor_uri
-    const handleMatch = row.actor_uri.match(/\/ap\/actor\/([^/]+)$/);
+  // For each local actor, insert into their timeline
+  for (const localActorUri of localActorUris) {
+    const handleMatch = localActorUri.match(/\/ap\/actor\/([^/]+)$/);
     if (!handleMatch) continue;
 
     const localHandle = handleMatch[1];
@@ -259,7 +340,7 @@ async function handleCreateActivity(activity, remoteActor) {
     }
   }
 
-  console.log(`[federation] Create(${objectType}) from ${actorUri}: delivered to ${followersResult.rowCount} local timeline(s)`);
+  console.log(`[federation] Create(${objectType}) from ${actorUri}: delivered to ${localActorUris.size} local timeline(s)`);
 }
 
 /**
@@ -284,7 +365,7 @@ async function handleAnnounceActivity(activity, remoteActor) {
   const authorAvatarUrl = remoteActor?.icon?.url || null;
   const publishedAt = activity.published || null;
 
-  // Find local followers of the announcer
+  // Find local recipients: both inbound followers AND outbound following
   const followersResult = await pool.query(
     `SELECT DISTINCT f.actor_uri
      FROM social_graph.followers f
@@ -292,10 +373,21 @@ async function handleAnnounceActivity(activity, remoteActor) {
     [actorUri]
   );
 
-  if (followersResult.rowCount === 0) return;
+  const followingResult = await pool.query(
+    `SELECT DISTINCT f.actor_uri
+     FROM social_graph.following f
+     WHERE f.following_uri = $1 AND f.status = 'accepted'`,
+    [actorUri]
+  );
 
-  for (const row of followersResult.rows) {
-    const handleMatch = row.actor_uri.match(/\/ap\/actor\/([^/]+)$/);
+  const localActorUris = new Set();
+  for (const row of followersResult.rows) localActorUris.add(row.actor_uri);
+  for (const row of followingResult.rows) localActorUris.add(row.actor_uri);
+
+  if (localActorUris.size === 0) return;
+
+  for (const localActorUri of localActorUris) {
+    const handleMatch = localActorUri.match(/\/ap\/actor\/([^/]+)$/);
     if (!handleMatch) continue;
 
     const localHandle = handleMatch[1];
@@ -323,7 +415,7 @@ async function handleAnnounceActivity(activity, remoteActor) {
     }
   }
 
-  console.log(`[federation] Announce from ${actorUri}: delivered to ${followersResult.rowCount} local timeline(s)`);
+  console.log(`[federation] Announce from ${actorUri}: delivered to ${localActorUris.size} local timeline(s)`);
 }
 
 /**
@@ -460,7 +552,7 @@ async function handleInboxPost(req, res) {
         await handleAnnounceActivity(body, sigResult.remoteActor);
         break;
       case 'Accept':
-        console.log('[federation] Received Accept from:', body.actor);
+        await handleAcceptActivity(body, sigResult.remoteActor);
         break;
       case 'Reject':
         console.log('[federation] Received Reject from:', body.actor);
@@ -655,13 +747,17 @@ export default function registerRoutes(routes) {
       }
 
       const actorUri = `${BASE_URL}/ap/actor/${handle}`;
+      const result = await pool.query(
+        `SELECT following_uri FROM social_graph.following WHERE actor_uri = $1 AND status = 'accepted' ORDER BY created_at DESC`,
+        [actorUri]
+      );
 
       const followingDoc = {
         '@context': 'https://www.w3.org/ns/activitystreams',
         id: `${actorUri}/following`,
         type: 'OrderedCollection',
-        totalItems: 0,
-        orderedItems: [],
+        totalItems: result.rowCount,
+        orderedItems: result.rows.map(r => r.following_uri),
       };
 
       jsonWithType(res, 200, 'application/activity+json; charset=utf-8', followingDoc);
@@ -857,6 +953,170 @@ export default function registerRoutes(routes) {
       };
 
       jsonWithType(res, 200, 'application/activity+json; charset=utf-8', outboxDoc);
+    },
+  });
+
+  // =========================================================================
+  // Follow API — Outbound follows
+  // =========================================================================
+
+  // POST /api/follow — Send a Follow to a remote actor
+  // Body: { "handle": "@user@domain" } or { "handle": "user@domain" }
+  routes.push({
+    method: 'POST',
+    pattern: '/api/follow',
+    handler: async (req, res) => {
+      let body;
+      try {
+        ({ parsed: body } = await readJsonBody(req));
+      } catch (err) {
+        return json(res, 400, { error: 'Bad Request', message: err.message });
+      }
+
+      if (!body || !body.handle) {
+        return json(res, 400, { error: 'Bad Request', message: 'Missing required field: handle (e.g., "@user@domain")' });
+      }
+
+      // Parse handle: "@user@domain" or "user@domain"
+      const rawHandle = body.handle.replace(/^@/, '');
+      const atIdx = rawHandle.indexOf('@');
+      if (atIdx === -1) {
+        return json(res, 400, { error: 'Bad Request', message: 'Handle must include domain (e.g., "user@domain.com")' });
+      }
+      const remoteUser = rawHandle.substring(0, atIdx);
+      const remoteDomain = rawHandle.substring(atIdx + 1);
+
+      // Determine which local actor is doing the following.
+      // Use body.as (handle) if provided, otherwise default to "alice".
+      const localHandle = body.as || 'alice';
+      const profile = await lookupProfileByHandle(pool, localHandle);
+      if (!profile) {
+        return json(res, 404, { error: 'Not Found', message: `Local profile not found: ${localHandle}` });
+      }
+      const keys = await getOrCreateActorKeys(profile);
+      const localActorUri = `${BASE_URL}/ap/actor/${localHandle}`;
+
+      // Step 1: WebFinger lookup
+      let remoteActorUrl;
+      try {
+        const wfUrl = `https://${remoteDomain}/.well-known/webfinger?resource=acct:${remoteUser}@${remoteDomain}`;
+        const wfRes = await fetch(wfUrl, {
+          headers: { 'Accept': 'application/jrd+json, application/json' },
+        });
+        if (!wfRes.ok) {
+          return json(res, 502, { error: 'WebFinger Failed', message: `WebFinger returned ${wfRes.status} for ${remoteUser}@${remoteDomain}` });
+        }
+        const wfDoc = await wfRes.json();
+        const selfLink = wfDoc.links?.find(l => l.rel === 'self' && l.type === 'application/activity+json');
+        if (!selfLink?.href) {
+          return json(res, 502, { error: 'WebFinger Failed', message: 'No ActivityPub self link in WebFinger response' });
+        }
+        remoteActorUrl = selfLink.href;
+      } catch (err) {
+        return json(res, 502, { error: 'WebFinger Failed', message: err.message });
+      }
+
+      // Step 2: Fetch remote actor document
+      const remoteActor = await fetchRemoteActor(remoteActorUrl);
+      if (!remoteActor) {
+        return json(res, 502, { error: 'Actor Fetch Failed', message: `Could not fetch actor document from ${remoteActorUrl}` });
+      }
+
+      const remoteInbox = remoteActor.inbox;
+      if (!remoteInbox) {
+        return json(res, 502, { error: 'Actor Fetch Failed', message: 'Remote actor has no inbox' });
+      }
+
+      const remoteSharedInbox = remoteActor.endpoints?.sharedInbox || null;
+
+      // Step 3: Check if already following
+      const existing = await pool.query(
+        `SELECT id, status FROM social_graph.following WHERE actor_uri = $1 AND following_uri = $2`,
+        [localActorUri, remoteActorUrl]
+      );
+      if (existing.rowCount > 0 && existing.rows[0].status === 'accepted') {
+        return json(res, 200, {
+          status: 'already_following',
+          actor: localActorUri,
+          following: remoteActorUrl,
+        });
+      }
+
+      // Step 4: Build and send the Follow activity
+      const followId = `${localActorUri}#follow-${randomUUID()}`;
+      const followActivity = {
+        '@context': 'https://www.w3.org/ns/activitystreams',
+        id: followId,
+        type: 'Follow',
+        actor: localActorUri,
+        object: remoteActorUrl,
+      };
+
+      // Step 5: Store the pending follow record BEFORE sending
+      await pool.query(
+        `INSERT INTO social_graph.following
+           (actor_uri, following_uri, following_inbox, following_shared_inbox, follow_activity_id, status)
+         VALUES ($1, $2, $3, $4, $5, 'pending')
+         ON CONFLICT (actor_uri, following_uri) DO UPDATE SET
+           follow_activity_id = EXCLUDED.follow_activity_id,
+           following_inbox = EXCLUDED.following_inbox,
+           following_shared_inbox = EXCLUDED.following_shared_inbox,
+           status = 'pending',
+           accepted_at = NULL`,
+        [localActorUri, remoteActorUrl, remoteInbox, remoteSharedInbox, followId]
+      );
+
+      // Step 6: Send signed Follow
+      try {
+        const result = await signedFetch(remoteInbox, followActivity, keys.private_key_pem, keys.key_id);
+        console.log(`[federation] Follow sent to ${remoteInbox}: status=${result.status}`);
+
+        json(res, 202, {
+          status: 'pending',
+          follow_activity_id: followId,
+          actor: localActorUri,
+          following: remoteActorUrl,
+          remote_response_status: result.status,
+        });
+      } catch (err) {
+        console.error(`[federation] Failed to send Follow to ${remoteInbox}:`, err.message);
+        json(res, 502, { error: 'Follow Send Failed', message: err.message });
+      }
+    },
+  });
+
+  // GET /api/following/:handle — List who a local actor follows
+  routes.push({
+    method: 'GET',
+    pattern: /^\/api\/following\/([a-zA-Z0-9_.-]+)$/,
+    handler: async (req, res, matches) => {
+      const handle = matches[1];
+      const profile = await lookupProfileByHandle(pool, handle);
+      if (!profile) {
+        return json(res, 404, { error: 'Not Found', message: `No profile found for handle: ${handle}` });
+      }
+
+      const actorUri = `${BASE_URL}/ap/actor/${handle}`;
+      const result = await pool.query(
+        `SELECT id, following_uri, following_inbox, status, created_at, accepted_at
+         FROM social_graph.following
+         WHERE actor_uri = $1
+         ORDER BY created_at DESC`,
+        [actorUri]
+      );
+
+      json(res, 200, {
+        handle,
+        actor_uri: actorUri,
+        count: result.rowCount,
+        following: result.rows.map(r => ({
+          id: r.id,
+          uri: r.following_uri,
+          status: r.status,
+          created_at: r.created_at,
+          accepted_at: r.accepted_at,
+        })),
+      });
     },
   });
 }

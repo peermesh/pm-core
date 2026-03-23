@@ -260,6 +260,36 @@ The peers.social deployment uses:
 - Infrastructure: Hetzner VPS (2 vCPU, 4 GB RAM, 80 GB SSD)
 - Module: `social-lab` under `modules/social-lab/`
 
+## Lessons from First Deployment (peers.social)
+
+The peers.social deployment was the first real-world project built on Docker Lab using the fork + upstream remote pattern. These lessons are now baked into the templates and guides, but they are documented here for context.
+
+### Don't SCP node_modules (or any build artifacts)
+
+The initial deployment attempt SCP'd the entire module directory to the VPS, including `node_modules/`. This broke the deployment because native bindings (compiled on macOS) are incompatible with the Linux VPS. The Dockerfile already runs `npm install` (or equivalent) during the build step, so build artifacts should never be transferred.
+
+**Fix:** The module template now includes a `.gitignore` that excludes `node_modules/`, `dist/`, `build/`, and other build artifacts. This keeps both git repos and SCP transfers clean. Let the Dockerfile handle dependency installation on the target platform.
+
+### Secret file permissions for non-root containers
+
+Docker secrets (the `secrets:` directive in Compose) handle permissions via the `mode:` field. But if you bind-mount config or secret files from the host instead, the container inherits the host file's permissions. A non-root container process cannot read a file owned by root with `0600` permissions.
+
+**Fix:** Set `chmod 644` or `0444` on host-side secret/config files before starting the container. The module template's secrets section now documents this distinction. For Docker-managed secrets, use `mode: 0444` in the service-level secret declaration.
+
+### Root domain vs. subdomain routing
+
+The module template defaulted to subdomain routing (`mymodule.${DOMAIN}`), which assumes the module is one of several services under a shared domain. But peers.social IS the domain -- the social-lab module serves `peers.social` directly, not `social-lab.peers.social`.
+
+**Fix:** The module template now documents both patterns side by side:
+- **Pattern A (subdomain):** `Host(\`${MY_MODULE_SUBDOMAIN:-mymodule}.${DOMAIN}\`)` -- for modules that are one service among many.
+- **Pattern B (root domain):** `Host(\`${DOMAIN}\`)` -- for modules that ARE the primary app for the domain.
+
+### Connection resolver profile limitation
+
+The connection resolver (`launch_peermesh.sh module enable`) currently does not discover services defined in profile compose files (e.g., `profiles/database/docker-compose.yml`). If your module declares a dependency on a profile-provided service, the resolver will not find it.
+
+**Status:** Known issue, being addressed separately. Workaround: manually start profile services before enabling your module, and omit the profile service from `module.json` dependency declarations until resolver support is added.
+
 ## Multiple Environments
 
 If you deploy to multiple environments (dev, staging, production), use separate `.env` files per environment and select the appropriate one at deploy time:

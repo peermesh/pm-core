@@ -45,6 +45,7 @@ import registerIdentityRoutes from './routes/identity.js';
 import registerRecoveryRoutes from './routes/recovery.js';
 import registerProtocolRoutes from './routes/protocols.js';
 import registerInviteRoutes from './routes/invites.js';
+import registerOnboardingRoutes from './routes/onboarding.js';
 import { initializeWebPush } from './lib/webpush.js';
 import { registerSelfInstance } from './lib/sso.js';
 
@@ -154,6 +155,7 @@ registerRecoveryRoutes(routes);
 registerProtocolRoutes(routes);
 registerSearchRoutes(routes);
 registerInviteRoutes(routes);      // F-031: Invite system (before auth for /invite/:code)
+registerOnboardingRoutes(routes);  // FLOW-006: Multi-property SSO onboarding wizard
 registerAuthRoutes(routes);
 registerGroupsRoutes(routes);
 registerStudioRoutes(routes);

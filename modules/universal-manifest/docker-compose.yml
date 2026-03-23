@@ -1,0 +1,109 @@
+# ==============================================================
+# Universal Manifest Module - Docker Compose Configuration
+# ==============================================================
+# Cross-cutting identity document infrastructure for PeerMesh.
+#
+# This file defines:
+#   - Node.js application service (um)
+#   - Extends foundation _service-standard (512MB RAM, 1 CPU)
+#   - Traefik HTTPS routing to um.${DOMAIN}
+#   - PostgreSQL connection via db-internal network
+#   - File-based secrets for database credentials
+#   - Security hardening (cap_drop ALL, no-new-privileges, read_only)
+#
+# Prerequisites:
+#   - Foundation stack running (Traefik, PostgreSQL profile)
+#   - DOMAIN environment variable set
+#   - Database secret files created
+#
+# Deploy:
+#   cd modules/universal-manifest
+#   docker compose up -d
+# ==============================================================
+
+services:
+  # ==========================================================================
+  # Universal Manifest Application Server
+  # ==========================================================================
+  um:
+    extends:
+      file: ../../foundation/docker-compose.base.yml
+      service: _service-standard
+
+    # Build from app/Dockerfile
+    build: ./app
+
+    container_name: um
+
+    # Environment configuration
+    environment:
+      - NODE_ENV=${NODE_ENV:-production}
+      - UM_PORT=${UM_PORT:-4200}
+      - UM_DB_HOST=${UM_DB_HOST:-postgres}
+      - UM_DB_PORT=${UM_DB_PORT:-5432}
+      - UM_DB_NAME=${UM_DB_NAME:-universal_manifest}
+      - UM_DB_USER=${UM_DB_USER:-um}
+      - UM_SUBDOMAIN=${UM_SUBDOMAIN:-um}
+      - DOMAIN=${DOMAIN}
+      # Password injected via secret file mount, read at app startup
+
+    # Secrets (file-based, per foundation security standards)
+    secrets:
+      - um_db_password
+
+    # Working directory
+    working_dir: /app
+
+    # Health check: HTTP GET to /health endpoint
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "--timeout=2", "http://127.0.0.1:4200/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 45s
+
+    # Networks: proxy-external for Traefik routing + db-internal for PostgreSQL
+    networks:
+      - proxy-external
+      - db-internal
+
+    # Security hardening
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+
+    # Tmpfs for Node.js runtime needs (read_only requires this)
+    tmpfs:
+      - /tmp:size=64M
+
+    # Traefik routing labels
+    labels:
+      - "traefik.enable=true"
+
+      # Service: forward to app port 4200
+      - "traefik.http.services.um.loadbalancer.server.port=4200"
+
+      # UM resolver router: um.${DOMAIN} (e.g., um.peers.social)
+      - "traefik.http.routers.um.rule=Host(`${UM_SUBDOMAIN:-um}.${DOMAIN}`)"
+      - "traefik.http.routers.um.entrypoints=websecure"
+      - "traefik.http.routers.um.tls.certresolver=letsencrypt"
+
+# ==============================================================
+# Secrets
+# ==============================================================
+secrets:
+  um_db_password:
+    file: ./secrets/um_db_password
+
+# ==============================================================
+# Networks
+# ==============================================================
+networks:
+  proxy-external:
+    external: true
+    name: pmdl_proxy-external
+  db-internal:
+    external: true
+    name: pmdl_db-internal

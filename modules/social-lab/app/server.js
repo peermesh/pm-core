@@ -42,6 +42,7 @@ import registerNotificationRoutes from './routes/notifications.js';
 import registerManifestRoutes from './routes/manifest.js';
 import registerIdentityRoutes from './routes/identity.js';
 import registerRecoveryRoutes from './routes/recovery.js';
+import registerProtocolRoutes from './routes/protocols.js';
 import { initializeWebPush } from './lib/webpush.js';
 import { registerSelfInstance } from './lib/sso.js';
 
@@ -147,6 +148,7 @@ registerNotificationRoutes(routes);
 registerManifestRoutes(routes);
 registerIdentityRoutes(routes);
 registerRecoveryRoutes(routes);
+registerProtocolRoutes(routes);
 registerSearchRoutes(routes);
 registerAuthRoutes(routes);
 registerGroupsRoutes(routes);

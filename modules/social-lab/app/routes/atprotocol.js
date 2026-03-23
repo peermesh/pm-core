@@ -6,7 +6,7 @@
 // GET /ap/actor/:handle/did.json     — Per-user DID Document
 
 import { pool } from '../db.js';
-import { json, jsonWithType, parseUrl, lookupProfileByHandle, BASE_URL, SUBDOMAIN, DOMAIN } from '../lib/helpers.js';
+import { json, jsonWithType, parseUrl, lookupProfileByHandle, BASE_URL, INSTANCE_DOMAIN } from '../lib/helpers.js';
 
 // Import getOrCreateActorKeys indirectly — we need it for DID doc building.
 // We replicate the minimal lookup here to avoid circular dependency.
@@ -82,7 +82,7 @@ async function getOrCreateActorKeys(profile) {
  */
 function buildDidDocument(profile, keys) {
   const handle = profile.username;
-  const ourDomain = `${SUBDOMAIN}.${DOMAIN}`;
+  const ourDomain = INSTANCE_DOMAIN;
   const did = profile.at_did || `did:web:${ourDomain}:ap:actor:${handle}`;
 
   let publicKeyMultibase = null;
@@ -135,7 +135,7 @@ export default function registerRoutes(routes) {
     method: 'GET',
     pattern: '/.well-known/did.json',
     handler: async (req, res) => {
-      const ourDomain = `${SUBDOMAIN}.${DOMAIN}`;
+      const ourDomain = INSTANCE_DOMAIN;
       const did = `did:web:${ourDomain}`;
 
       const didDoc = {
@@ -179,7 +179,7 @@ export default function registerRoutes(routes) {
         return res.end('Missing required "handle" query parameter');
       }
 
-      const ourDomain = `${SUBDOMAIN}.${DOMAIN}`;
+      const ourDomain = INSTANCE_DOMAIN;
       let username = null;
 
       if (handleParam.endsWith(`.${ourDomain}`)) {

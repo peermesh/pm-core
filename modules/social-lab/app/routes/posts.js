@@ -10,7 +10,7 @@ import { randomUUID } from 'node:crypto';
 import { pool } from '../db.js';
 import {
   json, parseUrl, readJsonBody, lookupProfileByHandle,
-  escapeHtml, BASE_URL, SUBDOMAIN, DOMAIN,
+  escapeHtml, BASE_URL, INSTANCE_DOMAIN,
 } from '../lib/helpers.js';
 import { signedFetch } from '../lib/http-signatures.js';
 import { npubToHex, createNostrEvent } from '../lib/nostr-crypto.js';

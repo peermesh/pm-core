@@ -6,7 +6,7 @@
 // GET  /.well-known/oauth-authorization-server    — IndieAuth metadata
 
 import { pool } from '../db.js';
-import { json, readFormBody, lookupProfileByHandle, BASE_URL, SUBDOMAIN, DOMAIN } from '../lib/helpers.js';
+import { json, readFormBody, lookupProfileByHandle, BASE_URL, INSTANCE_DOMAIN } from '../lib/helpers.js';
 
 export default function registerRoutes(routes) {
   // POST /webmention — Receive a Webmention
@@ -41,7 +41,7 @@ export default function registerRoutes(routes) {
         });
       }
 
-      const ourDomain = `${SUBDOMAIN}.${DOMAIN}`;
+      const ourDomain = INSTANCE_DOMAIN;
       if (targetUrl.hostname !== ourDomain) {
         return json(res, 400, {
           error: 'Bad Request',

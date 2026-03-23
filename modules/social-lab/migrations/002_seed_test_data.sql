@@ -41,7 +41,7 @@ INSERT INTO social_profiles.profile_index (
     'https://alice.example.com',
     'vps',
     '0.1.0',
-    'https://social.core.peermesh.org/ap/actor/alice',
+    'https://peers.social/ap/actor/alice',
     'did:plc:testexample123',
     'https://alice.solidcommunity.net/'
 )

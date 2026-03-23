@@ -4,7 +4,7 @@
 -- Date: 2026-03-22
 -- ============================================================
 -- Adds Matrix and XMTP identity bridge columns to profile_index:
---   1. matrix_id column (e.g., @alice:social.dockerlab.peermesh.org)
+--   1. matrix_id column (e.g., @alice:peers.social)
 --   2. xmtp_address column (Ethereum address, e.g., 0x1234...abcd)
 --
 -- These are IDENTITY BRIDGES ONLY -- NOT chat implementations.

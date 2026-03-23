@@ -16,7 +16,7 @@ import { randomUUID, generateKeyPairSync, createHash } from 'node:crypto';
 import { pool } from '../db.js';
 import {
   json, jsonWithType, parseUrl, readJsonBody, extractId,
-  lookupProfileByHandle, BASE_URL, SUBDOMAIN, DOMAIN, VERSION,
+  lookupProfileByHandle, BASE_URL, INSTANCE_DOMAIN, VERSION,
 } from '../lib/helpers.js';
 import { signedFetch, fetchRemoteActor, verifyHttpSignature } from '../lib/http-signatures.js';
 
@@ -604,7 +604,7 @@ export default function registerRoutes(routes) {
       }
 
       const [, handle, resourceDomain] = acctMatch;
-      const ourDomain = `${SUBDOMAIN}.${DOMAIN}`;
+      const ourDomain = INSTANCE_DOMAIN;
       if (resourceDomain !== ourDomain) {
         return jsonWithType(res, 404, 'application/json', {
           error: 'Not Found',

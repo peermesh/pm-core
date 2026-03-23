@@ -13,7 +13,7 @@
 // Blueprint: F-029 (Push Notification Unification)
 
 import { pool } from '../db.js';
-import { json, readJsonBody, parseUrl } from '../lib/helpers.js';
+import { json, readJsonBody, parseUrl, BASE_URL } from '../lib/helpers.js';
 import { getSession } from '../lib/session.js';
 import { getVapidPublicKey } from '../lib/webpush.js';
 
@@ -35,9 +35,7 @@ function requireAuth(req, res) {
  * Matches the pattern used in auth.js signup.
  */
 function getWebId(session) {
-  const subdomain = process.env.SOCIAL_LAB_SUBDOMAIN || 'social';
-  const domain = process.env.DOMAIN || 'dockerlab.peermesh.org';
-  return `https://${subdomain}.${domain}/profile/${session.profileId}#me`;
+  return `${BASE_URL}/profile/${session.profileId}#me`;
 }
 
 // =============================================================================

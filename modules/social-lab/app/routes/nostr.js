@@ -5,7 +5,7 @@
 // GET /api/nostr/profile/:handle    — Nostr Kind 0 profile metadata
 
 import { pool } from '../db.js';
-import { json, jsonWithType, parseUrl, lookupProfileByHandle, BASE_URL, SUBDOMAIN, DOMAIN } from '../lib/helpers.js';
+import { json, jsonWithType, parseUrl, lookupProfileByHandle, BASE_URL, INSTANCE_DOMAIN } from '../lib/helpers.js';
 import { npubToHex, createNostrEvent } from '../lib/nostr-crypto.js';
 
 export default function registerRoutes(routes) {
@@ -91,7 +91,7 @@ export default function registerRoutes(routes) {
         [profile.omni_account_id]
       );
 
-      const ourDomain = `${SUBDOMAIN}.${DOMAIN}`;
+      const ourDomain = INSTANCE_DOMAIN;
       const metadataContent = JSON.stringify({
         name: profile.display_name || profile.username || handle,
         about: profile.bio || '',

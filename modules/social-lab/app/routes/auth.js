@@ -16,7 +16,7 @@ import { randomUUID, createHash } from 'node:crypto';
 import { pool } from '../db.js';
 import {
   html, json, readFormBody, readJsonBody, escapeHtml, parseUrl,
-  BASE_URL, SUBDOMAIN, DOMAIN,
+  BASE_URL, INSTANCE_DOMAIN,
 } from '../lib/helpers.js';
 import {
   getSession, setSessionCookie, clearSessionCookie,
@@ -29,7 +29,6 @@ import { generateAndStoreManifest } from '../lib/manifest.js';
 import {
   generateSSOToken, verifySSOToken,
   getInstanceByDomain, getInstancePublicKey,
-  INSTANCE_DOMAIN,
 } from '../lib/sso.js';
 
 // =============================================================================
@@ -587,7 +586,7 @@ export default function registerRoutes(routes) {
       const webid = `${BASE_URL}/profile/${profileId}#me`;
       const omniAccountId = `urn:peermesh:omni:${profileId}`;
       const sourcePodUri = `${BASE_URL}/pod/${profileId}/`;
-      const ourDomain = `${SUBDOMAIN}.${DOMAIN}`;
+      const ourDomain = INSTANCE_DOMAIN;
 
       // Generate Nostr keypair
       let nostrNpub = null;

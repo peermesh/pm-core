@@ -28,8 +28,7 @@
 //   3. Create shared Docker volume: solid-pods
 //   4. Configure CSS for multi-user registration
 
-const SUBDOMAIN = process.env.SOCIAL_LAB_SUBDOMAIN || 'social';
-const DOMAIN = process.env.DOMAIN || 'dockerlab.peermesh.org';
+const DOMAIN = process.env.DOMAIN || 'peers.social';
 
 /**
  * Pod lifecycle states (F-026 Section 2).

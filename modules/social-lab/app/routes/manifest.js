@@ -1,24 +1,30 @@
 // =============================================================================
-// Universal Manifest API Routes (F-030)
+// Universal Manifest v0.2 API Routes (F-030)
 // =============================================================================
-// GET  /api/manifest/:handle           — Return signed Universal Manifest
-// GET  /.well-known/manifest/:handle   — Public manifest endpoint (same data)
-// POST /api/manifest/verify            — Verify a manifest signature
+// GET  /api/manifest/:handle           — Return signed UM v0.2 manifest (API wrapper)
+// GET  /.well-known/manifest/:handle   — Public manifest endpoint (JSON-LD)
+// POST /api/manifest/verify            — Verify a v0.2 manifest signature
 // POST /api/manifest/regenerate/:handle — Regenerate manifest after profile update
 //
-// All responses are JSON-LD (application/ld+json) for manifest endpoints,
-// except verify which returns application/json.
+// Content-Type: application/ld+json for manifest endpoints.
+// UMID included in X-Universal-Manifest-Id response header.
+// Verification uses UM v0.2 verifier checklist (Ed25519 + JCS-RFC8785).
 // =============================================================================
 
 import { json, jsonWithType, readJsonBody } from '../lib/helpers.js';
-import { getManifestByHandle, verifyManifest, generateAndStoreManifest } from '../lib/manifest.js';
+import {
+  getManifestByHandle,
+  verifyManifest,
+  generateAndStoreManifest,
+  UM_MANIFEST_VERSION,
+} from '../lib/manifest.js';
 import { getEd25519Keypair } from '../lib/identity-keys.js';
 import { pool } from '../db.js';
 
 export default function registerRoutes(routes) {
 
   // -------------------------------------------------------------------------
-  // GET /api/manifest/:handle — Return signed Universal Manifest
+  // GET /api/manifest/:handle — Return signed Universal Manifest (API wrapper)
   // -------------------------------------------------------------------------
   routes.push({
     method: 'GET',
@@ -40,9 +46,12 @@ export default function registerRoutes(routes) {
           });
         }
 
-        // Return as JSON-LD with short cache
+        // Return as JSON-LD with UMID header and short cache
+        const umid = manifest['@id'] || null;
         jsonWithType(res, 200, 'application/ld+json; charset=utf-8', manifest, {
           'Cache-Control': 'public, max-age=60',
+          ...(umid ? { 'X-Universal-Manifest-Id': umid } : {}),
+          'X-Manifest-Version': UM_MANIFEST_VERSION,
         });
       } catch (err) {
         console.error(`[manifest] Error fetching manifest for ${handle}:`, err.message);
@@ -54,8 +63,8 @@ export default function registerRoutes(routes) {
   // -------------------------------------------------------------------------
   // GET /.well-known/manifest/:handle — Public manifest endpoint
   // -------------------------------------------------------------------------
-  // Same as /api/manifest/:handle but at the well-known path for
-  // interoperability with UM-compatible systems.
+  // Well-known path for interoperability with UM-compatible systems.
+  // Returns the same v0.2 manifest as /api/manifest/:handle.
   routes.push({
     method: 'GET',
     pattern: /^\/\.well-known\/manifest\/([^/]+)$/,
@@ -71,9 +80,12 @@ export default function registerRoutes(routes) {
           });
         }
 
+        const umid = manifest['@id'] || null;
         jsonWithType(res, 200, 'application/ld+json; charset=utf-8', manifest, {
           'Cache-Control': 'public, max-age=60',
           'Access-Control-Allow-Origin': '*',
+          ...(umid ? { 'X-Universal-Manifest-Id': umid } : {}),
+          'X-Manifest-Version': UM_MANIFEST_VERSION,
         });
       } catch (err) {
         console.error(`[manifest] Error fetching well-known manifest for ${handle}:`, err.message);
@@ -83,11 +95,17 @@ export default function registerRoutes(routes) {
   });
 
   // -------------------------------------------------------------------------
-  // POST /api/manifest/verify — Verify a manifest signature
+  // POST /api/manifest/verify — Verify a manifest signature (v0.2 checklist)
   // -------------------------------------------------------------------------
-  // Body: { manifest: <signed manifest object>, publicKey?: <base64url SPKI> }
+  // Body: { manifest: <signed manifest object>, publicKey?: <base64 SPKI> }
+  //
+  // Implements the UM v0.2 verifier checklist:
+  //   1. Structural validation (@type, manifestVersion, subject, TTL)
+  //   2. Signature profile validation (Ed25519 + JCS-RFC8785)
+  //   3. Ed25519 signature verification over JCS-canonicalized content
+  //
   // The publicKey is optional; if omitted, uses the key embedded in the
-  // manifest's signature block.
+  // manifest's signature.publicKeySpkiB64.
   routes.push({
     method: 'POST',
     pattern: '/api/manifest/verify',
@@ -108,11 +126,13 @@ export default function registerRoutes(routes) {
 
       const result = verifyManifest(body.manifest, body.publicKey || null);
 
+      const umid = body.manifest['@id'] || null;
       json(res, 200, {
         valid: result.valid,
         error: result.error || null,
+        manifestVersion: result.manifestVersion || body.manifest.manifestVersion || null,
         subject: body.manifest.subject || null,
-        manifestId: body.manifest['@id'] || null,
+        manifestId: umid,
       });
     },
   });
@@ -120,8 +140,8 @@ export default function registerRoutes(routes) {
   // -------------------------------------------------------------------------
   // POST /api/manifest/regenerate/:handle — Regenerate manifest
   // -------------------------------------------------------------------------
-  // Called after profile updates to regenerate and re-sign the manifest.
-  // Increments the version and preserves the UMID.
+  // Called after profile updates to regenerate and re-sign as v0.2.
+  // Increments the internal version and preserves the UMID.
   routes.push({
     method: 'POST',
     pattern: /^\/api\/manifest\/regenerate\/([^/]+)$/,
@@ -160,11 +180,14 @@ export default function registerRoutes(routes) {
           });
         }
 
-        // Regenerate and store
+        // Regenerate and store as v0.2
         const signedManifest = await generateAndStoreManifest(profile, keypair);
 
+        const umid = signedManifest['@id'] || null;
         json(res, 200, {
-          message: 'Manifest regenerated',
+          message: 'Manifest regenerated (v0.2)',
+          manifestVersion: UM_MANIFEST_VERSION,
+          manifestId: umid,
           manifest: signedManifest,
         });
       } catch (err) {

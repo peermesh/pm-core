@@ -8,7 +8,7 @@
 import { pool } from '../db.js';
 import {
   html, escapeHtml, lookupProfileByHandle, getBioLinks,
-  BASE_URL, VERSION, SUBDOMAIN, DOMAIN,
+  BASE_URL, VERSION, INSTANCE_DOMAIN,
 } from '../lib/helpers.js';
 
 /**
@@ -100,7 +100,7 @@ function profilePageHtml(profile, links, posts, distributions, userGroups = []) 
   const bio = escapeHtml(profile.bio || '');
   const avatarUrl = profile.avatar_url;
   const bannerUrl = profile.banner_url;
-  const ourDomain = `${SUBDOMAIN}.${DOMAIN}`;
+  const ourDomain = INSTANCE_DOMAIN;
 
   const profileUrl = `${BASE_URL}/@${handle}`;
 

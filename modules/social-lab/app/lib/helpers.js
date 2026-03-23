@@ -7,9 +7,11 @@ import { randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync } from 'node:fs';
 
 // Domain for constructing URIs
-const SUBDOMAIN = process.env.SOCIAL_LAB_SUBDOMAIN || 'social';
-const DOMAIN = process.env.DOMAIN || 'dockerlab.peermesh.org';
-const BASE_URL = `https://${SUBDOMAIN}.${DOMAIN}`;
+// SUBDOMAIN may be empty for root-domain deployments (e.g. peers.social itself).
+const SUBDOMAIN = process.env.SOCIAL_LAB_SUBDOMAIN || '';
+const DOMAIN = process.env.DOMAIN || 'peers.social';
+const INSTANCE_DOMAIN = SUBDOMAIN ? `${SUBDOMAIN}.${DOMAIN}` : DOMAIN;
+const BASE_URL = `https://${INSTANCE_DOMAIN}`;
 const VERSION = '0.6.0';
 const MODULE = 'social-lab';
 const startTime = Date.now();
@@ -106,7 +108,16 @@ function readFormBody(req) {
       const params = new URLSearchParams(raw);
       const result = {};
       for (const [key, value] of params) {
-        result[key] = value;
+        // Support multi-value fields (e.g., checkboxes with same name)
+        if (key in result) {
+          if (Array.isArray(result[key])) {
+            result[key].push(value);
+          } else {
+            result[key] = [result[key], value];
+          }
+        } else {
+          result[key] = value;
+        }
       }
       resolve(result);
     });
@@ -212,6 +223,7 @@ async function getBioLinks(pool, webid) {
 export {
   SUBDOMAIN,
   DOMAIN,
+  INSTANCE_DOMAIN,
   BASE_URL,
   VERSION,
   MODULE,

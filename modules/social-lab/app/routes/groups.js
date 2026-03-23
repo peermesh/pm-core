@@ -20,7 +20,7 @@
 import { randomUUID } from 'node:crypto';
 import { pool } from '../db.js';
 import {
-  json, parseUrl, readJsonBody, BASE_URL, SUBDOMAIN, DOMAIN,
+  json, parseUrl, readJsonBody, BASE_URL, INSTANCE_DOMAIN,
 } from '../lib/helpers.js';
 import { requireAuth } from '../lib/session.js';
 
@@ -47,7 +47,7 @@ function slugify(str) {
  */
 async function ensurePlatformGroup() {
   const platformName = process.env.PLATFORM_NAME || 'PeerMesh Social Lab';
-  const domain = `${SUBDOMAIN}.${DOMAIN}`;
+  const domain = INSTANCE_DOMAIN;
   const platformSlug = slugify(domain);
   const platformId = `platform-${platformSlug}`;
   const platformPath = `/ecosystem/${platformSlug}`;

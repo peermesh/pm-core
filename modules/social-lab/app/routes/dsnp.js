@@ -10,7 +10,7 @@
 
 import { createHash } from 'node:crypto';
 import { pool } from '../db.js';
-import { json, lookupProfileByHandle, BASE_URL, SUBDOMAIN, DOMAIN } from '../lib/helpers.js';
+import { json, lookupProfileByHandle, BASE_URL, INSTANCE_DOMAIN } from '../lib/helpers.js';
 
 /**
  * Generate a deterministic numeric DSNP User ID from an omni_account_id.
@@ -52,7 +52,7 @@ export default function registerRoutes(routes) {
         }
       }
 
-      const ourDomain = `${SUBDOMAIN}.${DOMAIN}`;
+      const ourDomain = INSTANCE_DOMAIN;
 
       json(res, 200, {
         '@context': 'https://spec.dsnp.org/v1',

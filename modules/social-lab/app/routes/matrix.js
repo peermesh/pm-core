@@ -13,10 +13,10 @@
 // Source blueprint: F-015 (Matrix Protocol Surface)
 
 import { pool } from '../db.js';
-import { json, jsonWithType, lookupProfileByHandle, BASE_URL, SUBDOMAIN, DOMAIN } from '../lib/helpers.js';
+import { json, jsonWithType, lookupProfileByHandle, BASE_URL, INSTANCE_DOMAIN, DOMAIN } from '../lib/helpers.js';
 
 // Matrix homeserver domain (stub -- points to future homeserver)
-const MATRIX_DOMAIN = process.env.MATRIX_DOMAIN || `${SUBDOMAIN}.${DOMAIN}`;
+const MATRIX_DOMAIN = process.env.MATRIX_DOMAIN || INSTANCE_DOMAIN;
 const MATRIX_HOMESERVER_URL = process.env.MATRIX_HOMESERVER_URL || `https://matrix.${DOMAIN}`;
 
 export default function registerRoutes(routes) {

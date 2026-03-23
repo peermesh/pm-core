@@ -10,7 +10,7 @@
 
 import { createHash } from 'node:crypto';
 import { pool } from '../db.js';
-import { json, lookupProfileByHandle, BASE_URL, SUBDOMAIN, DOMAIN } from '../lib/helpers.js';
+import { json, lookupProfileByHandle, BASE_URL, INSTANCE_DOMAIN } from '../lib/helpers.js';
 
 /**
  * Generate a deterministic Zot channel hash from an omni_account_id.
@@ -49,7 +49,7 @@ export default function registerRoutes(routes) {
         }
       }
 
-      const ourDomain = `${SUBDOMAIN}.${DOMAIN}`;
+      const ourDomain = INSTANCE_DOMAIN;
       const channelAddress = `${handle}@${ourDomain}`;
 
       // Return a Zot-compatible channel info document (stub)
@@ -107,7 +107,7 @@ export default function registerRoutes(routes) {
       }
 
       const zotChannelHash = profile.zot_channel_hash || generateZotChannelHash(profile.omni_account_id);
-      const ourDomain = `${SUBDOMAIN}.${DOMAIN}`;
+      const ourDomain = INSTANCE_DOMAIN;
 
       // Return a Zot xchan (cross-channel) identity document
       // Maps the Zot identity back to the canonical WebID

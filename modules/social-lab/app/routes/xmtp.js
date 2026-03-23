@@ -11,7 +11,7 @@
 // Source blueprint: F-016 (XMTP Protocol Surface)
 
 import { pool } from '../db.js';
-import { json, lookupProfileByHandle, BASE_URL, SUBDOMAIN, DOMAIN } from '../lib/helpers.js';
+import { json, lookupProfileByHandle, BASE_URL, INSTANCE_DOMAIN } from '../lib/helpers.js';
 
 export default function registerRoutes(routes) {
   // GET /api/xmtp/identity/:handle — XMTP address mapping (identity bridge)

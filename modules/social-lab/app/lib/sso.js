@@ -22,13 +22,12 @@ import {
   sign, verify, randomUUID,
 } from 'node:crypto';
 import { pool } from '../db.js';
-import { SUBDOMAIN, DOMAIN, BASE_URL } from './helpers.js';
+import { INSTANCE_DOMAIN, BASE_URL } from './helpers.js';
 
 // =============================================================================
 // Instance Identity — keypair naming convention
 // =============================================================================
 
-const INSTANCE_DOMAIN = `${SUBDOMAIN}.${DOMAIN}`;
 const INSTANCE_OMNI_ID = `instance:${INSTANCE_DOMAIN}`;
 const SSO_TOKEN_TTL_MS = 5 * 60 * 1000; // 5 minutes (short-lived)
 

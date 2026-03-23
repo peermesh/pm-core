@@ -9,7 +9,7 @@
 
 import { randomUUID, createHash } from 'node:crypto';
 import { pool } from '../db.js';
-import { json, readJsonBody, extractId, BASE_URL, SUBDOMAIN, DOMAIN } from '../lib/helpers.js';
+import { json, readJsonBody, extractId, BASE_URL, INSTANCE_DOMAIN } from '../lib/helpers.js';
 import { generateNostrKeypair } from '../lib/nostr-crypto.js';
 import { requireAuth } from '../lib/session.js';
 
@@ -55,9 +55,9 @@ export default function registerRoutes(routes) {
       const avatarUrl = body.avatarUrl || null;
 
       // Auto-generate required fields for Phase 2
-      const webid = `https://social.dockerlab.peermesh.org/profile/${id}#me`;
+      const webid = `${BASE_URL}/profile/${id}#me`;
       const omniAccountId = `urn:peermesh:omni:${id}`;
-      const sourcePodUri = `https://social.dockerlab.peermesh.org/pod/${id}/`;
+      const sourcePodUri = `${BASE_URL}/pod/${id}/`;
 
       // Generate Nostr secp256k1 keypair (Omni-Account pipeline Step 5b)
       let nostrNpub = null;
@@ -71,9 +71,11 @@ export default function registerRoutes(routes) {
       }
 
       // Generate AT Protocol DID (Omni-Account pipeline Step 5c — F-005)
+      // INSTANCE_DOMAIN is resolved from SOCIAL_LAB_SUBDOMAIN + DOMAIN env vars.
+      // For root-domain deployments (peers.social), INSTANCE_DOMAIN equals DOMAIN.
       let atDid = null;
       if (handle) {
-        const ourDomain = `${SUBDOMAIN}.${DOMAIN}`;
+        const ourDomain = INSTANCE_DOMAIN;
         atDid = `did:web:${ourDomain}:ap:actor:${handle}`;
         console.log(`[at-protocol] Generated DID for profile ${id}: ${atDid}`);
       }

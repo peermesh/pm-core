@@ -1,22 +1,31 @@
 // =============================================================================
-// Universal Manifest Generation, Signing, and Verification (F-030)
+// Universal Manifest v0.2 — Generation, Signing, and Verification (F-030)
 // =============================================================================
-// Implements the Universal Manifest (UM) identity document for Social Lab.
+// Implements the Universal Manifest (UM) v0.2 spec for Social Lab.
 //
-// A UM is a portable, signed JSON-LD document carrying:
-//   - Identity facet (WebID, DIDs, protocol keys)
-//   - Social facet (followers, following counts)
-//   - Protocol facet (which protocols are active)
-//   - Spatial facet (placeholder pointers for Spatial Fabric)
+// A UM is a portable, signed JSON-LD state capsule carrying:
+//   - publicProfile facet — display name, bio, avatar, handle
+//   - socialIdentity facet — all protocol identities (AP actor, Nostr npub, AT DID, etc.)
+//   - socialGraph facet — follower/following counts, group memberships
+//   - protocolStatus facet — which protocols are active/stub/unavailable
+//   - Well-known pointers: profile URL, avatar URL, RSS feed URL
+//   - Claims: protocol verifications
+//   - Consents: default-deny model per ARCH-010 SSO mandate
 //
-// Signing: Ed25519 over RFC 8785 JCS-canonicalized content.
+// Signing: Ed25519 over RFC 8785 JCS-canonicalized content (v0.2 mandatory).
 // Verification: Remove signature block, re-canonicalize, verify Ed25519.
+//
+// References:
+//   - UM v0.2 spec: https://universalmanifest.net/spec/v02/
+//   - UM v0.2 SIGNATURE-PROFILE: JCS-RFC8785 + Ed25519
+//   - UM registry: REGISTRY.md well-known names
 //
 // Dependencies: node:crypto only (no external packages).
 // =============================================================================
 
 import { randomUUID, createPrivateKey, createPublicKey, sign, verify } from 'node:crypto';
 import { pool } from '../db.js';
+import { BASE_URL, INSTANCE_DOMAIN } from './helpers.js';
 
 // =============================================================================
 // RFC 8785 JSON Canonicalization Scheme (JCS)
@@ -45,16 +54,12 @@ function jcsCanonicalize(value) {
     return value ? 'true' : 'false';
   }
   if (typeof value === 'number') {
-    // Per RFC 8785 Section 3.2.2.3: use ES2015 Number serialization
     if (!isFinite(value)) {
       return 'null';
     }
-    // JSON.stringify handles -0 -> "0", integers, and floats correctly
-    // per ES2015 Number::toString which is what RFC 8785 mandates
     return JSON.stringify(value);
   }
   if (typeof value === 'string') {
-    // JSON.stringify handles proper escaping per RFC 8785 Section 3.2.2.2
     return JSON.stringify(value);
   }
   if (Array.isArray(value)) {
@@ -62,222 +67,394 @@ function jcsCanonicalize(value) {
     return '[' + items.join(',') + ']';
   }
   if (typeof value === 'object') {
-    // Sort keys by UTF-16 code unit order (JavaScript default sort)
     const keys = Object.keys(value).sort();
     const pairs = [];
     for (const key of keys) {
-      if (value[key] === undefined) continue; // skip undefined values
+      if (value[key] === undefined) continue;
       pairs.push(JSON.stringify(key) + ':' + jcsCanonicalize(value[key]));
     }
     return '{' + pairs.join(',') + '}';
   }
-  // Fallback (symbols, functions, etc.) -- not valid in JSON
   return 'null';
 }
 
 
 // =============================================================================
-// Manifest Generation
+// UM v0.2 Constants
 // =============================================================================
 
-const UM_CONTEXT = 'https://universalmanifest.net/ns/universal-manifest/v0.1/schema.jsonld';
+const UM_CONTEXT = 'https://universalmanifest.net/ns/universal-manifest/v0.2/schema.jsonld';
+const UM_MANIFEST_VERSION = '0.2';
+const DEFAULT_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+
+// =============================================================================
+// Facet Builders — UM v0.2 compliant
+// =============================================================================
 
 /**
- * Build the identity facet from profile data.
+ * Build the publicProfile facet per UM v0.2.
+ * Uses schema:Person entity type for cross-system interop.
+ *
  * @param {object} profile - Profile row from social_profiles.profile_index
- * @param {string} publicKeySpkiB64 - Ed25519 public key in SPKI base64url
- * @returns {object} Identity facet
+ * @returns {object} publicProfile facet
  */
-function buildIdentityFacet(profile, publicKeySpkiB64) {
+function buildPublicProfileFacet(profile) {
   const entity = {
     '@id': profile.webid,
-    '@type': ['foaf:Person'],
-    webId: profile.webid,
-    omniAccountId: profile.omni_account_id,
-    displayName: profile.display_name || null,
-    handle: profile.username || null,
-    avatarUrl: profile.avatar_url || null,
-    signingKey: {
-      algorithm: 'Ed25519',
-      publicKeySpkiB64,
-    },
+    '@type': 'schema:Person',
+    name: profile.display_name || profile.username || null,
+    description: profile.bio || null,
+    image: profile.avatar_url || null,
+    url: `${BASE_URL}/@${profile.username}`,
   };
 
-  // Add protocol-specific DIDs if present
-  if (profile.at_did) {
-    entity.atProtocolDid = profile.at_did;
-  }
-  if (profile.nostr_npub) {
-    entity.nostrNpub = profile.nostr_npub;
+  // Add handle as schema:alternateName
+  if (profile.username) {
+    entity.alternateName = `@${profile.username}@${INSTANCE_DOMAIN}`;
   }
 
   return {
     '@type': 'um:Facet',
-    name: 'identity',
+    name: 'publicProfile',
     entity,
   };
 }
 
 /**
- * Build the social facet from profile + graph data.
+ * Build the socialIdentity facet — Omni-Account protocol identities.
+ * Contains all protocol-specific identifiers for cross-protocol resolution.
+ *
  * @param {object} profile - Profile row
- * @param {{ followers: number, following: number }} counts - Social graph counts
- * @returns {object} Social facet
+ * @param {string} publicKeySpkiB64 - Ed25519 public key in SPKI base64
+ * @returns {object} socialIdentity facet
  */
-function buildSocialFacet(profile, counts) {
+function buildSocialIdentityFacet(profile, publicKeySpkiB64) {
+  const identities = {
+    webId: profile.webid,
+    omniAccountId: profile.omni_account_id,
+  };
+
+  // Protocol-specific identifiers
+  if (profile.ap_actor_uri) {
+    identities.activityPub = { actorUri: profile.ap_actor_uri };
+  }
+  if (profile.nostr_npub) {
+    identities.nostr = { npub: profile.nostr_npub };
+  }
+  if (profile.at_did) {
+    identities.atProtocol = { did: profile.at_did };
+  }
+  if (profile.dsnp_user_id) {
+    identities.dsnp = { userId: profile.dsnp_user_id };
+  }
+  if (profile.zot_channel_hash) {
+    identities.zot = { channelHash: profile.zot_channel_hash };
+  }
+  if (profile.matrix_id) {
+    identities.matrix = { mxid: profile.matrix_id };
+  }
+
   return {
     '@type': 'um:Facet',
-    name: 'social',
+    name: 'socialIdentity',
     entity: {
-      '@type': ['um:SocialGraph'],
-      followers: counts.followers || 0,
-      following: counts.following || 0,
-      handle: profile.username || null,
+      '@id': profile.webid,
+      '@type': 'um:Entity',
+      signingKey: {
+        algorithm: 'Ed25519',
+        publicKeySpkiB64,
+      },
+      ...identities,
     },
   };
 }
 
 /**
- * Build the protocols facet listing which protocols are active.
+ * Build the socialGraph facet — follower/following counts and group memberships.
+ *
  * @param {object} profile - Profile row
- * @returns {object} Protocols facet
+ * @param {{ followers: number, following: number }} counts - Social graph counts
+ * @param {string[]} [groups] - Group membership IDs
+ * @returns {object} socialGraph facet
  */
-function buildProtocolsFacet(profile) {
-  const protocols = {};
+function buildSocialGraphFacet(profile, counts, groups) {
+  return {
+    '@type': 'um:Facet',
+    name: 'socialGraph',
+    entity: {
+      '@id': `${profile.webid}#social-graph`,
+      '@type': 'um:Entity',
+      followers: counts.followers || 0,
+      following: counts.following || 0,
+      groups: groups || [],
+    },
+  };
+}
 
-  if (profile.ap_actor_uri) {
-    protocols.activitypub = {
-      actorUri: profile.ap_actor_uri,
-      active: true,
-    };
-  }
-
-  if (profile.at_did) {
-    protocols.atprotocol = {
-      did: profile.at_did,
-      active: true,
-    };
-  }
-
-  if (profile.nostr_npub) {
-    protocols.nostr = {
-      npub: profile.nostr_npub,
-      active: true,
-    };
-  }
-
-  if (profile.dsnp_user_id) {
-    protocols.dsnp = {
-      userId: profile.dsnp_user_id,
-      active: true,
-    };
-  }
-
-  if (profile.zot_channel_hash) {
-    protocols.zot = {
-      channelHash: profile.zot_channel_hash,
-      active: true,
-    };
-  }
-
-  if (profile.matrix_id) {
-    protocols.matrix = {
-      mxid: profile.matrix_id,
-      active: true,
-    };
-  }
+/**
+ * Build the protocolStatus facet — which protocols are active/stub/unavailable.
+ *
+ * @param {object} profile - Profile row
+ * @returns {object} protocolStatus facet
+ */
+function buildProtocolStatusFacet(profile) {
+  const protocols = {
+    activitypub: profile.ap_actor_uri
+      ? { status: 'active', actorUri: profile.ap_actor_uri }
+      : { status: 'unavailable' },
+    atprotocol: profile.at_did
+      ? { status: 'active', did: profile.at_did }
+      : { status: 'unavailable' },
+    nostr: profile.nostr_npub
+      ? { status: 'active', npub: profile.nostr_npub }
+      : { status: 'unavailable' },
+    dsnp: profile.dsnp_user_id
+      ? { status: 'active', userId: profile.dsnp_user_id }
+      : { status: 'unavailable' },
+    zot: profile.zot_channel_hash
+      ? { status: 'active', channelHash: profile.zot_channel_hash }
+      : { status: 'unavailable' },
+    matrix: profile.matrix_id
+      ? { status: 'active', mxid: profile.matrix_id }
+      : { status: 'unavailable' },
+  };
 
   return {
     '@type': 'um:Facet',
-    name: 'protocols',
+    name: 'protocolStatus',
     entity: {
-      '@type': ['um:ProtocolRegistry'],
+      '@id': `${profile.webid}#protocol-status`,
+      '@type': 'um:Entity',
       ...protocols,
     },
   };
 }
 
-/**
- * Build the spatial facet (placeholder pointers for Spatial Fabric).
- * Social Lab does not manage spatial data -- only carries pointers.
- * @param {object} profile - Profile row
- * @returns {object} Spatial facet
- */
-function buildSpatialFacet(profile) {
-  return {
-    '@type': 'um:Facet',
-    name: 'spatial',
-    entity: {
-      '@type': ['um:SpatialPresence'],
-      homeWorld: null,
-      supportedWorlds: [],
-      fabricRef: null,
-    },
-  };
-}
+
+// =============================================================================
+// Pointer Builders — Well-known pointers per UM registry
+// =============================================================================
 
 /**
- * Generate an unsigned Universal Manifest from profile data.
+ * Build well-known pointers array for the manifest.
+ *
+ * @param {object} profile - Profile row
+ * @returns {Array<object>} Array of pointer objects
+ */
+function buildPointers(profile) {
+  const pointers = [];
+
+  // Canonical profile URL
+  if (profile.username) {
+    pointers.push({
+      name: 'profile.canonical',
+      url: `${BASE_URL}/@${profile.username}`,
+    });
+  }
+
+  // Avatar URL
+  if (profile.avatar_url) {
+    pointers.push({
+      name: 'profile.avatar',
+      url: profile.avatar_url,
+    });
+  }
+
+  // Homepage
+  if (profile.homepage_url) {
+    pointers.push({
+      name: 'profile.homepage',
+      url: profile.homepage_url,
+    });
+  }
+
+  // RSS feed
+  if (profile.username) {
+    pointers.push({
+      name: 'feed.rss',
+      url: `${BASE_URL}/feeds/${profile.username}.rss`,
+    });
+  }
+
+  // Solid Pod
+  if (profile.source_pod_uri) {
+    pointers.push({
+      name: 'solidPod.creatorCanonical',
+      url: profile.source_pod_uri,
+    });
+  }
+
+  // ActivityPub actor
+  if (profile.ap_actor_uri) {
+    pointers.push({
+      name: 'activityPub.actor',
+      url: profile.ap_actor_uri,
+    });
+  }
+
+  // Universal Manifest self-reference
+  if (profile.username) {
+    pointers.push({
+      name: 'universalManifest.current',
+      url: `${BASE_URL}/.well-known/manifest/${profile.username}`,
+    });
+  }
+
+  return pointers;
+}
+
+
+// =============================================================================
+// Claims Builders — Protocol verifications
+// =============================================================================
+
+/**
+ * Build claims array from profile verification data.
+ *
+ * @param {object} profile - Profile row
+ * @returns {Array<object>} Array of claim objects
+ */
+function buildClaims(profile) {
+  const claims = [];
+
+  // Role claim
+  claims.push({
+    '@type': 'um:Claim',
+    name: 'role',
+    value: 'creator',
+  });
+
+  // Protocol verification claims
+  if (profile.ap_actor_uri) {
+    claims.push({
+      '@type': 'um:Claim',
+      name: 'verification.activitypub',
+      value: 'verified',
+      evidence: profile.ap_actor_uri,
+    });
+  }
+
+  if (profile.at_did) {
+    claims.push({
+      '@type': 'um:Claim',
+      name: 'verification.atprotocol',
+      value: 'verified',
+      evidence: profile.at_did,
+    });
+  }
+
+  if (profile.nostr_npub) {
+    claims.push({
+      '@type': 'um:Claim',
+      name: 'verification.nostr',
+      value: 'verified',
+      evidence: profile.nostr_npub,
+    });
+  }
+
+  return claims;
+}
+
+
+// =============================================================================
+// Consents — Default-deny model per ARCH-010 SSO mandate
+// =============================================================================
+
+/**
+ * Build consents array with default-deny model.
+ * Only explicitly allowed consents are present; everything else is denied by default.
+ *
+ * @param {object} [overrides] - Optional consent overrides
+ * @returns {Array<object>} Array of consent objects
+ */
+function buildConsents(overrides = {}) {
+  const defaults = {
+    'social.profilePublic': 'allowed',
+    'social.indexing': 'denied',
+    'publicDisplay': 'denied',
+    'analytics.proofOfPlay': 'denied',
+    'telemetry.proofOfPlay': 'denied',
+  };
+
+  const merged = { ...defaults, ...overrides };
+
+  return Object.entries(merged).map(([name, value]) => ({
+    '@type': 'um:Consent',
+    name,
+    value,
+  }));
+}
+
+
+// =============================================================================
+// Manifest Generation — UM v0.2
+// =============================================================================
+
+/**
+ * Generate an unsigned Universal Manifest v0.2 from profile data.
  *
  * @param {object} profile - Profile row from social_profiles.profile_index
- * @param {string} publicKeySpkiB64 - Ed25519 public key in SPKI base64url
+ * @param {string} publicKeySpkiB64 - Ed25519 public key in SPKI base64
  * @param {{ followers: number, following: number }} [socialCounts] - Social graph counts
  * @param {string} [existingUmid] - Existing UMID to preserve on regeneration
- * @param {number} [version] - Manifest version number
+ * @param {number} [version] - Internal manifest version number
+ * @param {{ ttlMs?: number, consents?: object }} [options] - Additional options
  * @returns {object} Unsigned manifest (JSON-LD)
  */
-function generateManifest(profile, publicKeySpkiB64, socialCounts, existingUmid, version) {
+function generateManifest(profile, publicKeySpkiB64, socialCounts, existingUmid, version, options = {}) {
   const umid = existingUmid || `urn:uuid:${randomUUID()}`;
-  const now = new Date().toISOString();
-  // Default TTL: 24 hours
-  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+  const now = new Date();
+  const ttlMs = options.ttlMs || DEFAULT_TTL_MS;
+  const issuedAt = now.toISOString();
+  const expiresAt = new Date(now.getTime() + ttlMs).toISOString();
 
   const counts = socialCounts || { followers: 0, following: 0 };
 
   const manifest = {
     '@context': UM_CONTEXT,
     '@id': umid,
-    '@type': ['um:Manifest'],
-    manifestVersion: '0.1',
+    '@type': 'um:Manifest',
+    manifestVersion: UM_MANIFEST_VERSION,
     subject: profile.webid,
-    issuedAt: now,
+    issuedAt,
     expiresAt,
-    version: version || 1,
     facets: [
-      buildIdentityFacet(profile, publicKeySpkiB64),
-      buildSocialFacet(profile, counts),
-      buildProtocolsFacet(profile),
-      buildSpatialFacet(profile),
+      buildPublicProfileFacet(profile),
+      buildSocialIdentityFacet(profile, publicKeySpkiB64),
+      buildSocialGraphFacet(profile, counts),
+      buildProtocolStatusFacet(profile),
     ],
-    consents: [
-      {
-        '@type': 'um:Consent',
-        name: 'socialLab.profilePublic',
-        value: 'allowed',
-      },
-    ],
+    claims: buildClaims(profile),
+    consents: buildConsents(options.consents),
+    pointers: buildPointers(profile),
   };
+
+  // Internal version tracking (not part of UM spec, but useful for persistence)
+  if (version) {
+    manifest._socialLabVersion = version;
+  }
 
   return manifest;
 }
 
 
 // =============================================================================
-// Manifest Signing (Ed25519 + JCS)
+// Manifest Signing (Ed25519 + JCS) — UM v0.2
 // =============================================================================
 
 /**
  * Sign a manifest with Ed25519 over JCS-canonicalized content.
  *
- * Process per F-030 Section 2:
+ * Process per UM v0.2 SIGNATURE-PROFILE Section 4:
  *   1. Build manifest without signature block
  *   2. JCS-canonicalize to deterministic UTF-8 bytes
  *   3. Ed25519 sign those bytes
- *   4. Attach signature block
+ *   4. Attach signature block with mandatory v0.2 fields
  *
  * @param {object} manifest - Unsigned manifest (must not have .signature)
  * @param {string} privateKeyPem - Ed25519 private key in PKCS8 PEM format
- * @param {string} publicKeySpkiB64 - Ed25519 public key in SPKI base64url
+ * @param {string} publicKeySpkiB64 - Ed25519 public key in SPKI base64
  * @param {string} [keyRef] - DID or URI reference for the signing key
  * @returns {object} Signed manifest (manifest + signature block)
  */
@@ -294,13 +471,13 @@ function signManifest(manifest, privateKeyPem, publicKeySpkiB64, keyRef) {
   const signatureBuffer = sign(null, payloadBytes, privateKey);
   const signatureB64url = signatureBuffer.toString('base64url');
 
-  // Step 3: Attach signature block
+  // Step 3: Attach v0.2 signature block (mandatory fields)
   const signed = {
     ...manifestWithoutSig,
     signature: {
       algorithm: 'Ed25519',
       canonicalization: 'JCS-RFC8785',
-      keyRef: keyRef || manifest.subject || null,
+      keyRef: keyRef || `${manifest.subject}#key-1`,
       publicKeySpkiB64,
       created: new Date().toISOString(),
       value: signatureB64url,
@@ -310,55 +487,109 @@ function signManifest(manifest, privateKeyPem, publicKeySpkiB64, keyRef) {
   return signed;
 }
 
+
+// =============================================================================
+// Manifest Verification — UM v0.2 Verifier Checklist
+// =============================================================================
+
 /**
- * Verify a signed manifest's Ed25519 signature.
+ * Verify a signed manifest per UM v0.2 verifier checklist.
  *
- * Process per F-030 Section 2:
+ * Per SIGNATURE-PROFILE Section 5:
  *   1. Confirm @type includes um:Manifest
- *   2. Check TTL (reject if expired)
- *   3. Check signature.algorithm and signature.canonicalization
- *   4. Extract public key from signature.publicKeySpkiB64
- *   5. Remove signature block, JCS-canonicalize, verify
+ *   2. Enforce TTL (reject if now > expiresAt)
+ *   3. Validate signature profile (algorithm + canonicalization)
+ *   4. Obtain public key (embedded or keyRef)
+ *   5. Recompute signing input and verify Ed25519
+ *
+ * Also validates:
+ *   - manifestVersion === '0.2'
+ *   - issuedAt <= expiresAt ordering
+ *   - Required structural fields
  *
  * @param {object} signedManifest - Manifest with signature block
  * @param {string} [publicKeySpkiB64Override] - Optional: override the embedded public key
- * @returns {{ valid: boolean, error?: string }}
+ * @returns {{ valid: boolean, error?: string, manifestVersion?: string }}
  */
 function verifyManifest(signedManifest, publicKeySpkiB64Override) {
   // Step 1: Confirm @type
   const types = signedManifest['@type'];
-  if (!types || !Array.isArray(types) || !types.includes('um:Manifest')) {
+  const hasUmManifest = types === 'um:Manifest'
+    || (Array.isArray(types) && types.includes('um:Manifest'));
+  if (!hasUmManifest) {
     return { valid: false, error: '@type must include um:Manifest' };
   }
 
+  // Validate v0.2 structural requirements
+  if (signedManifest.manifestVersion !== UM_MANIFEST_VERSION) {
+    return { valid: false, error: `manifestVersion must be ${UM_MANIFEST_VERSION}` };
+  }
+
+  if (!signedManifest.subject || typeof signedManifest.subject !== 'string') {
+    return { valid: false, error: 'Missing or invalid subject' };
+  }
+
+  // Validate issuedAt and expiresAt
+  if (!signedManifest.issuedAt || !signedManifest.expiresAt) {
+    return { valid: false, error: 'Missing issuedAt or expiresAt' };
+  }
+
+  const issuedMs = Date.parse(signedManifest.issuedAt);
+  const expiresMs = Date.parse(signedManifest.expiresAt);
+  if (!Number.isFinite(issuedMs) || !Number.isFinite(expiresMs)) {
+    return { valid: false, error: 'issuedAt or expiresAt is not a valid ISO date-time' };
+  }
+  if (issuedMs > expiresMs) {
+    return { valid: false, error: 'issuedAt must be <= expiresAt' };
+  }
+
   // Step 2: TTL check
-  if (signedManifest.expiresAt) {
-    const expires = new Date(signedManifest.expiresAt);
-    if (Date.now() > expires.getTime()) {
-      return { valid: false, error: 'Manifest has expired' };
+  if (Date.now() > expiresMs) {
+    return { valid: false, error: 'Manifest has expired' };
+  }
+
+  // Validate facets carry um:Facet @type
+  if (signedManifest.facets) {
+    if (!Array.isArray(signedManifest.facets)) {
+      return { valid: false, error: 'facets must be an array' };
+    }
+    for (const facet of signedManifest.facets) {
+      if (!facet || typeof facet !== 'object') {
+        return { valid: false, error: 'facet must be an object' };
+      }
+      const ft = facet['@type'];
+      const hasFacetType = ft === 'um:Facet'
+        || (Array.isArray(ft) && ft.includes('um:Facet'));
+      if (!hasFacetType) {
+        return { valid: false, error: 'Missing um:Facet in facet @type' };
+      }
     }
   }
 
-  // Step 3: Signature block checks
+  // Step 3: Signature block checks (v0.2 mandatory)
   const sig = signedManifest.signature;
   if (!sig) {
-    return { valid: false, error: 'Missing signature block' };
+    return { valid: false, error: 'Missing signature block (required in v0.2)' };
   }
   if (sig.algorithm !== 'Ed25519') {
-    return { valid: false, error: `Unsupported algorithm: ${sig.algorithm}` };
+    return { valid: false, error: `Unsupported algorithm: ${sig.algorithm}. v0.2 requires Ed25519` };
   }
   if (sig.canonicalization !== 'JCS-RFC8785') {
-    return { valid: false, error: `Unsupported canonicalization: ${sig.canonicalization}` };
+    return { valid: false, error: `Unsupported canonicalization: ${sig.canonicalization}. v0.2 requires JCS-RFC8785` };
+  }
+  if (!sig.value || typeof sig.value !== 'string') {
+    return { valid: false, error: 'Missing signature.value' };
   }
 
   // Step 4: Get public key
   const pubKeyB64 = publicKeySpkiB64Override || sig.publicKeySpkiB64;
   if (!pubKeyB64) {
-    return { valid: false, error: 'No public key available for verification' };
+    return { valid: false, error: 'No public key available (signature must include keyRef or publicKeySpkiB64)' };
   }
 
   try {
-    const pubKeyDer = Buffer.from(pubKeyB64, 'base64url');
+    // Accept both standard base64 and base64url
+    const pubKeyDer = Buffer.from(pubKeyB64, 'base64');
     const publicKey = createPublicKey({
       key: pubKeyDer,
       format: 'der',
@@ -377,7 +608,7 @@ function verifyManifest(signedManifest, publicKeySpkiB64Override) {
       return { valid: false, error: 'Ed25519 signature verification failed' };
     }
 
-    return { valid: true };
+    return { valid: true, manifestVersion: UM_MANIFEST_VERSION };
   } catch (err) {
     return { valid: false, error: `Verification error: ${err.message}` };
   }
@@ -414,13 +645,14 @@ async function getSocialCounts(webid) {
 }
 
 /**
- * Generate, sign, and store a Universal Manifest for a user.
+ * Generate, sign, and store a Universal Manifest v0.2 for a user.
  *
  * @param {object} profile - Profile row from social_profiles.profile_index
  * @param {{ publicKeySpkiB64: string, privateKeyPem: string }} keypair - Ed25519 keypair
+ * @param {{ ttlMs?: number, consents?: object }} [options] - Additional options
  * @returns {Promise<object>} The signed manifest
  */
-async function generateAndStoreManifest(profile, keypair) {
+async function generateAndStoreManifest(profile, keypair, options = {}) {
   const socialCounts = await getSocialCounts(profile.webid);
 
   // Check for existing manifest (to preserve UMID and increment version)
@@ -445,21 +677,22 @@ async function generateAndStoreManifest(profile, keypair) {
     );
   }
 
-  // Generate unsigned manifest
+  // Generate unsigned v0.2 manifest
   const manifest = generateManifest(
     profile,
     keypair.publicKeySpkiB64,
     socialCounts,
     umid,
-    version
+    version,
+    options
   );
 
-  // Sign it
+  // Sign it with v0.2 mandatory Ed25519
   const signedManifest = signManifest(
     manifest,
     keypair.privateKeyPem,
     keypair.publicKeySpkiB64,
-    profile.webid
+    `${profile.webid}#key-1`
   );
 
   // Store
@@ -481,7 +714,7 @@ async function generateAndStoreManifest(profile, keypair) {
     ]
   );
 
-  console.log(`[manifest] Generated v${version} manifest for ${profile.username || profile.webid} (UMID: ${manifestUmid})`);
+  console.log(`[manifest] Generated v0.2 manifest v${version} for ${profile.username || profile.webid} (UMID: ${manifestUmid})`);
 
   return signedManifest;
 }
@@ -525,11 +758,60 @@ async function getManifestByUmid(umid) {
   return JSON.parse(result.rows[0].signed_manifest);
 }
 
+
+// =============================================================================
+// Backward-compatible aliases
+// =============================================================================
+// These map old v0.1 facet builder names to v0.2 equivalents so that
+// any existing callers continue to work without modification.
+
+/** @deprecated Use buildPublicProfileFacet + buildSocialIdentityFacet */
+function buildIdentityFacet(profile, publicKeySpkiB64) {
+  return buildSocialIdentityFacet(profile, publicKeySpkiB64);
+}
+
+/** @deprecated Use buildSocialGraphFacet */
+function buildSocialFacet(profile, counts) {
+  return buildSocialGraphFacet(profile, counts);
+}
+
+/** @deprecated Use buildProtocolStatusFacet */
+function buildProtocolsFacet(profile) {
+  return buildProtocolStatusFacet(profile);
+}
+
+/** @deprecated Spatial facet removed in v0.2 — use pointers instead */
+function buildSpatialFacet(_profile) {
+  return {
+    '@type': 'um:Facet',
+    name: 'spatial',
+    entity: {
+      '@id': 'urn:placeholder:spatial',
+      '@type': 'um:Entity',
+      homeWorld: null,
+      supportedWorlds: [],
+      fabricRef: null,
+    },
+  };
+}
+
+
 export {
   // JCS canonicalization
   jcsCanonicalize,
 
-  // Facet builders
+  // v0.2 Facet builders
+  buildPublicProfileFacet,
+  buildSocialIdentityFacet,
+  buildSocialGraphFacet,
+  buildProtocolStatusFacet,
+
+  // Pointer, claim, consent builders
+  buildPointers,
+  buildClaims,
+  buildConsents,
+
+  // Backward-compatible aliases (v0.1 names)
   buildIdentityFacet,
   buildSocialFacet,
   buildProtocolsFacet,
@@ -548,4 +830,6 @@ export {
 
   // Constants
   UM_CONTEXT,
+  UM_MANIFEST_VERSION,
+  DEFAULT_TTL_MS,
 };

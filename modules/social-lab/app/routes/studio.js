@@ -7,7 +7,7 @@
 // GET  /studio/links       — Link Management
 // GET  /studio/customize   — Profile Customization
 // GET  /studio/settings    — Settings
-// GET  /studio/analytics   — Analytics (placeholder)
+// GET  /studio/analytics   — Analytics (real data)
 // POST /studio/post        — Create post from form submit
 // POST /studio/post/delete — Delete a post from form submit
 //
@@ -18,11 +18,12 @@ import { randomUUID } from 'node:crypto';
 import { pool } from '../db.js';
 import {
   html, json, parseUrl, escapeHtml, readFormBody, lookupProfileByHandle, getBioLinks,
-  BASE_URL, SUBDOMAIN, DOMAIN,
+  BASE_URL, INSTANCE_DOMAIN,
 } from '../lib/helpers.js';
 import { requireAuth } from '../lib/session.js';
 import { signedFetch } from '../lib/http-signatures.js';
 import { npubToHex, createNostrEvent } from '../lib/nostr-crypto.js';
+import { registry } from '../lib/protocol-registry.js';
 
 /**
  * Protocol display names and colors for badges.
@@ -30,12 +31,24 @@ import { npubToHex, createNostrEvent } from '../lib/nostr-crypto.js';
 const PROTOCOL_DISPLAY = {
   activitypub: { label: 'ActivityPub', color: 'var(--color-accent)' },
   nostr: { label: 'Nostr', color: 'var(--color-violet-500)' },
+  atproto: { label: 'AT Protocol', color: 'var(--color-blue-500)' },
   atprotocol: { label: 'AT Protocol', color: 'var(--color-blue-500)' },
   rss: { label: 'RSS', color: 'var(--color-orange-500)' },
+  indieweb: { label: 'IndieWeb', color: 'var(--color-cyan-400)' },
   matrix: { label: 'Matrix', color: 'var(--color-green-500)' },
   xmtp: { label: 'XMTP', color: 'var(--color-red-500)' },
   dsnp: { label: 'DSNP', color: 'var(--color-cyan-400)' },
   solid: { label: 'Solid', color: 'var(--color-accent)' },
+  holochain: { label: 'Holochain', color: 'var(--color-green-600)' },
+  ssb: { label: 'SSB', color: 'var(--color-amber-500)' },
+  zot: { label: 'Zot', color: 'var(--color-orange-500)' },
+  bonfire: { label: 'Bonfire', color: 'var(--color-rose-500)' },
+  hypercore: { label: 'Hypercore', color: 'var(--color-blue-400)' },
+  braid: { label: 'Braid', color: 'var(--color-violet-600)' },
+  willow: { label: 'Willow', color: 'var(--color-green-500)' },
+  ocapn: { label: 'OCapN', color: 'var(--color-amber-400)' },
+  keyhive: { label: 'Keyhive', color: 'var(--color-cyan-500)' },
+  vc: { label: 'VC', color: 'var(--color-blue-600)' },
 };
 
 // =============================================================================
@@ -864,62 +877,144 @@ const STUDIO_CSS = `
       background: var(--color-bg-secondary);
       border: 1px solid var(--color-border);
       border-radius: var(--radius-lg);
-      padding: 1.5rem;
-      margin-bottom: 1.5rem;
+      padding: var(--space-6);
+      margin-bottom: var(--space-6);
     }
-
+    .settings-section-header {
+      display: flex; align-items: center; gap: var(--space-3);
+      margin-bottom: var(--space-4); padding-bottom: var(--space-3);
+      border-bottom: 1px solid var(--color-border);
+    }
+    .settings-section-icon {
+      display: flex; align-items: center; justify-content: center;
+      width: 32px; height: 32px; border-radius: var(--radius-md);
+      background: var(--color-primary-light); color: var(--color-primary); flex-shrink: 0;
+    }
     .settings-section-title {
-      font-size: 1rem;
-      font-weight: 600;
-      color: var(--color-text-primary);
-      margin-bottom: 1rem;
-      padding-bottom: 0.75rem;
-      border-bottom: 1px solid var(--color-border);
+      font-size: var(--font-size-h3); font-weight: var(--font-weight-semibold);
+      color: var(--color-text-primary); margin: 0;
     }
-
+    .settings-section-desc {
+      font-size: var(--font-size-body-sm); color: var(--color-text-tertiary);
+      margin-bottom: var(--space-4); line-height: var(--line-height-relaxed);
+    }
     .settings-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 0.75rem 0;
-      border-bottom: 1px solid var(--color-border);
+      display: flex; align-items: center; justify-content: space-between;
+      padding: var(--space-3) 0; border-bottom: 1px solid var(--color-border); gap: var(--space-4);
     }
-
-    .settings-row:last-child {
-      border-bottom: none;
-    }
-
+    .settings-row:last-child { border-bottom: none; }
     .settings-label {
-      font-size: 0.875rem;
-      color: var(--color-text-primary);
+      font-size: var(--font-size-body-sm); color: var(--color-text-primary);
+      font-weight: var(--font-weight-medium);
     }
-
+    .settings-label-group { display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; flex: 1; }
+    .settings-label-hint { font-size: var(--font-size-caption); color: var(--color-text-tertiary); font-weight: var(--font-weight-regular); }
     .settings-value {
-      font-size: 0.875rem;
-      color: var(--color-text-secondary);
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
+      font-size: var(--font-size-body-sm); color: var(--color-text-secondary);
+      display: flex; align-items: center; gap: var(--space-2); flex-shrink: 0;
     }
-
     .settings-status-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      display: inline-block;
+      width: 8px; height: 8px; border-radius: var(--radius-full); display: inline-block; flex-shrink: 0;
     }
-
     .dot-active { background: var(--color-success); }
+    .dot-partial { background: var(--color-warning); }
+    .dot-stub { background: var(--color-text-tertiary); }
     .dot-inactive { background: var(--color-text-tertiary); }
+    .dot-unavailable { background: var(--color-error); }
 
-    .danger-zone {
-      background: var(--color-error-light);
-      border-color: var(--color-error);
+    /* Protocol card grid */
+    .settings-section .protocol-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: var(--space-3); }
+    .settings-section .protocol-card {
+      display: flex; align-items: flex-start; gap: var(--space-3); padding: var(--space-4);
+      background: var(--color-bg-tertiary); border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      transition: border-color var(--duration-fast), background var(--duration-fast);
+    }
+    .settings-section .protocol-card:hover { border-color: var(--color-border-strong); background: var(--color-bg-elevated); }
+    .protocol-card-icon {
+      width: 36px; height: 36px; border-radius: var(--radius-md);
+      display: flex; align-items: center; justify-content: center;
+      font-size: var(--font-size-body-sm); font-weight: var(--font-weight-bold);
+      flex-shrink: 0; color: var(--color-white);
+    }
+    .protocol-card-body { flex: 1; min-width: 0; }
+    .protocol-card-name {
+      font-size: var(--font-size-body-sm); font-weight: var(--font-weight-semibold);
+      color: var(--color-text-primary); display: flex; align-items: center; gap: var(--space-2);
+    }
+    .protocol-card-status {
+      display: inline-flex; align-items: center; gap: var(--space-1);
+      padding: 0.0625rem var(--space-2); border-radius: var(--radius-pill);
+      font-size: var(--font-size-overline); font-weight: var(--font-weight-medium);
+      text-transform: capitalize;
+    }
+    .status-active { background: var(--color-success-light); color: var(--color-success); }
+    .status-partial { background: var(--color-warning-light); color: var(--color-warning); }
+    .status-stub { background: var(--color-bg-hover); color: var(--color-text-tertiary); }
+    .status-unavailable { background: var(--color-error-light); color: var(--color-error); }
+    .protocol-card-identity {
+      font-size: var(--font-size-caption); color: var(--color-text-secondary);
+      margin-top: var(--space-1); font-family: var(--font-family-mono); word-break: break-all;
+    }
+    .protocol-card-desc {
+      font-size: var(--font-size-caption); color: var(--color-text-tertiary);
+      margin-top: var(--space-1); line-height: var(--line-height-relaxed);
     }
 
-    .danger-zone .settings-section-title {
-      color: var(--color-error);
+    /* Recovery warning */
+    .recovery-warning {
+      display: flex; align-items: flex-start; gap: var(--space-3); padding: var(--space-4);
+      background: var(--color-warning-light); border: 1px solid rgba(245, 158, 11, 0.30);
+      border-radius: var(--radius-md); margin-bottom: var(--space-4);
     }
+    .recovery-warning-icon { color: var(--color-warning); flex-shrink: 0; margin-top: 2px; }
+    .recovery-warning-text {
+      font-size: var(--font-size-body-sm); color: var(--color-text-primary);
+      line-height: var(--line-height-relaxed);
+    }
+
+    /* Toggle switch */
+    .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: var(--space-2) 0; }
+    .toggle-label { font-size: var(--font-size-body-sm); color: var(--color-text-primary); }
+    .toggle-switch {
+      position: relative; width: 40px; height: 22px;
+      background: var(--color-bg-tertiary); border: 1px solid var(--color-border-strong);
+      border-radius: var(--radius-pill); cursor: pointer;
+      transition: background var(--duration-fast), border-color var(--duration-fast); flex-shrink: 0;
+    }
+    .toggle-switch.is-on { background: var(--color-primary); border-color: var(--color-primary); }
+    .toggle-switch::after {
+      content: ''; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px;
+      background: var(--color-white); border-radius: var(--radius-full);
+      transition: transform var(--duration-fast);
+    }
+    .toggle-switch.is-on::after { transform: translateX(18px); }
+    .settings-actions { display: flex; flex-wrap: wrap; gap: var(--space-3); margin-top: var(--space-4); }
+    .instance-list { display: flex; flex-direction: column; gap: var(--space-2); }
+    .instance-item {
+      display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3);
+      background: var(--color-bg-tertiary); border-radius: var(--radius-md);
+      font-size: var(--font-size-body-sm);
+    }
+    .instance-item-dot { width: 8px; height: 8px; border-radius: var(--radius-full); background: var(--color-success); flex-shrink: 0; }
+
+    /* Delete confirmation dialog */
+    .confirm-overlay {
+      display: none; position: fixed; inset: 0; background: var(--color-bg-overlay);
+      z-index: 200; align-items: center; justify-content: center;
+    }
+    .confirm-dialog {
+      background: var(--color-bg-secondary); border: 1px solid var(--color-border);
+      border-radius: var(--radius-lg); padding: var(--space-8); max-width: 480px; width: 90%;
+    }
+    .confirm-title { font-size: var(--font-size-h2); font-weight: var(--font-weight-semibold); color: var(--color-error); margin-bottom: var(--space-3); }
+    .confirm-text { font-size: var(--font-size-body-sm); color: var(--color-text-secondary); line-height: var(--line-height-relaxed); margin-bottom: var(--space-6); }
+    .confirm-actions { display: flex; justify-content: flex-end; gap: var(--space-3); }
+
+    /* Danger zone */
+    .danger-zone { background: var(--color-error-light); border-color: var(--color-error); }
+    .danger-zone .settings-section-header .settings-section-icon { background: rgba(239, 68, 68, 0.18); color: var(--color-error); }
+    .danger-zone .settings-section-title { color: var(--color-error); }
 
     /* ===== Analytics Placeholder ===== */
     .placeholder-card {
@@ -949,32 +1044,42 @@ const STUDIO_CSS = `
       margin: 0 auto;
     }
 
-    .analytics-cards {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-      gap: 1rem;
-      margin-top: 1.5rem;
-    }
-
-    .analytics-card-placeholder {
-      background: var(--color-bg-secondary);
-      border: 1px solid var(--color-border);
-      border-radius: var(--radius-lg);
-      padding: 1.5rem;
-      text-align: center;
-    }
-
-    .analytics-card-title {
-      font-size: 0.875rem;
-      font-weight: 500;
-      color: var(--color-text-secondary);
-      margin-bottom: 0.5rem;
-    }
-
-    .analytics-card-value {
-      font-size: 0.75rem;
-      color: var(--color-text-tertiary);
-    }
+    /* ===== Analytics Page ===== */
+    .analytics-overview { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+    .analytics-stat-card { background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1.25rem; transition: box-shadow var(--duration-fast), border-color var(--duration-fast); }
+    .analytics-stat-card:hover { box-shadow: var(--shadow-sm); border-color: var(--color-border-strong); }
+    .analytics-stat-label { font-size: var(--font-size-body-sm); font-weight: var(--font-weight-medium); color: var(--color-text-secondary); margin-bottom: var(--space-2); }
+    .analytics-stat-value { font-size: var(--font-size-display); font-weight: var(--font-weight-semibold); color: var(--color-text-primary); line-height: var(--line-height-tight); letter-spacing: var(--letter-spacing-tight); }
+    .analytics-stat-sub { font-size: var(--font-size-caption); color: var(--color-text-tertiary); margin-top: var(--space-1); }
+    .analytics-table { width: 100%; border-collapse: collapse; margin-bottom: var(--space-4); }
+    .analytics-table th { text-align: left; font-size: var(--font-size-caption); font-weight: var(--font-weight-semibold); color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: var(--letter-spacing-wide); padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--color-border-strong); }
+    .analytics-table td { padding: var(--space-3) var(--space-4); font-size: var(--font-size-body-sm); color: var(--color-text-primary); border-bottom: 1px solid var(--color-border); }
+    .analytics-table tr:hover td { background: var(--color-bg-hover); }
+    .analytics-table .protocol-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: var(--space-2); vertical-align: middle; }
+    .analytics-table .rate-bar-bg { display: inline-block; width: 80px; height: 6px; border-radius: var(--radius-pill); background: var(--color-bg-tertiary); vertical-align: middle; margin-right: var(--space-2); position: relative; overflow: hidden; }
+    .analytics-table .rate-bar { position: absolute; top: 0; left: 0; height: 100%; border-radius: var(--radius-pill); background: var(--color-success); }
+    .analytics-feed-item { display: flex; align-items: flex-start; gap: var(--space-3); padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--color-border); }
+    .analytics-feed-item:last-child { border-bottom: none; }
+    .analytics-feed-icon { flex-shrink: 0; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: var(--font-size-caption); }
+    .analytics-feed-body { flex: 1; min-width: 0; }
+    .analytics-feed-text { font-size: var(--font-size-body-sm); color: var(--color-text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .analytics-feed-meta { font-size: var(--font-size-caption); color: var(--color-text-tertiary); margin-top: 2px; }
+    .analytics-feed-badge { display: inline-block; font-size: var(--font-size-overline); font-weight: var(--font-weight-medium); padding: 2px 8px; border-radius: var(--radius-pill); background: var(--color-protocol-badge-bg); color: var(--color-protocol-badge-text); }
+    .analytics-chart { display: flex; align-items: flex-end; gap: var(--space-2); height: 120px; padding: var(--space-4) 0; }
+    .analytics-chart-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: var(--space-1); height: 100%; justify-content: flex-end; }
+    .analytics-chart-bar { width: 100%; max-width: 48px; background: var(--color-primary); border-radius: var(--radius-sm) var(--radius-sm) 0 0; min-height: 4px; transition: background var(--duration-fast); }
+    .analytics-chart-col:hover .analytics-chart-bar { background: var(--color-primary-hover); }
+    .analytics-chart-label { font-size: var(--font-size-overline); color: var(--color-text-tertiary); text-align: center; }
+    .analytics-chart-count { font-size: var(--font-size-caption); color: var(--color-text-secondary); font-weight: var(--font-weight-medium); }
+    .analytics-group-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; }
+    .analytics-group-card { background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1.25rem; }
+    .analytics-group-name { font-size: var(--font-size-body-sm); font-weight: var(--font-weight-semibold); color: var(--color-text-primary); margin-bottom: var(--space-2); }
+    .analytics-group-meta { display: flex; gap: var(--space-6); font-size: var(--font-size-caption); color: var(--color-text-secondary); }
+    .analytics-group-meta span { display: flex; align-items: center; gap: var(--space-1); }
+    .analytics-feed { background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-lg); overflow: hidden; }
+    .analytics-feed-empty { padding: var(--space-8); text-align: center; color: var(--color-text-tertiary); font-size: var(--font-size-body-sm); }
+    .analytics-two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+    @media (max-width: 900px) { .analytics-two-col { grid-template-columns: 1fr; } }
 
     /* ===== Compose Box ===== */
     .compose-box {
@@ -1137,6 +1242,32 @@ const STUDIO_CSS = `
       color: var(--color-text-primary);
     }
 
+    .protocol-check.protocol-disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      border-style: dashed;
+    }
+
+    .protocol-check.protocol-disabled input[type="checkbox"] {
+      pointer-events: none;
+    }
+
+    .protocol-check .protocol-icon {
+      display: inline-flex;
+      align-items: center;
+      width: 14px;
+      height: 14px;
+      flex-shrink: 0;
+    }
+
+    .protocol-check .protocol-soon-tag {
+      font-size: 0.625rem;
+      text-transform: uppercase;
+      letter-spacing: var(--letter-spacing-wide);
+      color: var(--color-text-tertiary);
+      margin-left: 0.25rem;
+    }
+
     /* ===== Success Banner ===== */
     .success-banner {
       background: var(--color-success-light);
@@ -1186,6 +1317,20 @@ const STUDIO_CSS = `
       border-radius: var(--radius-pill);
       font-size: 0.6875rem;
       font-weight: 500;
+      letter-spacing: var(--letter-spacing-wide);
+    }
+
+    .dist-badge .protocol-icon {
+      display: inline-flex;
+      align-items: center;
+      width: 12px;
+      height: 12px;
+      flex-shrink: 0;
+    }
+
+    .dist-badge .protocol-icon svg {
+      width: 12px;
+      height: 12px;
     }
 
     .dist-badge-sent {
@@ -1389,7 +1534,7 @@ function studioShell({ title, activePage, profile, contentHtml, sessionUsername 
   const avatarUrl = profile ? profile.avatar_url : null;
   const initial = displayName.charAt(0).toUpperCase();
   const authUsername = sessionUsername ? escapeHtml(sessionUsername) : '';
-  const ourDomain = `${SUBDOMAIN}.${DOMAIN}`;
+  const ourDomain = INSTANCE_DOMAIN;
 
   const avatarHtml = avatarUrl
     ? `<img class="topbar-avatar" src="${escapeHtml(avatarUrl)}" alt="${displayName}" style="object-fit:cover">`
@@ -1502,7 +1647,7 @@ function dashboardContent(profile, links, { successMessage, distributions } = {}
   const handle = profile ? escapeHtml(profile.username || '') : '';
   const avatarUrl = profile ? profile.avatar_url : null;
   const initial = displayName.charAt(0).toUpperCase();
-  const ourDomain = `${SUBDOMAIN}.${DOMAIN}`;
+  const ourDomain = INSTANCE_DOMAIN;
   const linkCount = links ? links.length : 0;
 
   const avatarHtml = avatarUrl
@@ -1775,7 +1920,7 @@ function customizeContent(profile, links) {
   const avatarUrl = profile ? profile.avatar_url : null;
   const initial = displayName.charAt(0).toUpperCase();
   const profileId = profile ? profile.id : '';
-  const ourDomain = `${SUBDOMAIN}.${DOMAIN}`;
+  const ourDomain = INSTANCE_DOMAIN;
 
   const previewAvatar = avatarUrl
     ? `<img class="preview-avatar" src="${escapeHtml(avatarUrl)}" alt="${displayName}">`
@@ -1851,147 +1996,729 @@ function customizeContent(profile, links) {
 // Page: Settings
 // =============================================================================
 
+// ---------------------------------------------------------------------------
+// Protocol display metadata — icon abbreviations and brand colors
+// ---------------------------------------------------------------------------
+const PROTOCOL_ICON_MAP = {
+  activitypub:  { abbr: 'AP', bg: 'var(--color-accent)' },
+  nostr:        { abbr: 'N',  bg: 'var(--color-violet-500)' },
+  rss:          { abbr: 'RS', bg: 'var(--color-orange-500)' },
+  indieweb:     { abbr: 'IW', bg: 'var(--color-green-500)' },
+  atprotocol:   { abbr: 'AT', bg: 'var(--color-blue-500)' },
+  holochain:    { abbr: 'HC', bg: 'var(--color-cyan-400)' },
+  ssb:          { abbr: 'SB', bg: 'var(--color-green-600)' },
+  zot:          { abbr: 'ZT', bg: 'var(--color-amber-500)' },
+  bonfire:      { abbr: 'BF', bg: 'var(--color-orange-400)' },
+  hypercore:    { abbr: 'HY', bg: 'var(--color-violet-600)' },
+  braid:        { abbr: 'BR', bg: 'var(--color-blue-400)' },
+  willow:       { abbr: 'WL', bg: 'var(--color-green-500)' },
+  matrix:       { abbr: 'MX', bg: 'var(--color-green-600)' },
+  xmtp:         { abbr: 'XM', bg: 'var(--color-red-500)' },
+  ocapn:        { abbr: 'OC', bg: 'var(--color-cyan-500)' },
+  keyhive:      { abbr: 'KH', bg: 'var(--color-amber-400)' },
+  vc:           { abbr: 'VC', bg: 'var(--color-blue-600)' },
+};
+
+/**
+ * Render a single protocol card.
+ * @param {Object} adapter  — adapter.toJSON() result
+ * @param {string|null} identityText — user-facing identity string (or null)
+ */
+function protocolCardHtml(adapter, identityText) {
+  const icon = PROTOCOL_ICON_MAP[adapter.name] || { abbr: adapter.name.slice(0, 2).toUpperCase(), bg: 'var(--color-text-tertiary)' };
+  const statusLabel = adapter.status === 'stub' ? 'Coming Soon' : adapter.status;
+  const statusClass = `status-${adapter.status}`;
+
+  // Truncate description to first sentence for stub/unavailable
+  let descSnippet = '';
+  if (adapter.status !== 'active') {
+    const first = (adapter.description || '').split('.')[0];
+    descSnippet = first ? `<div class="protocol-card-desc">${escapeHtml(first)}.</div>` : '';
+  }
+
+  const identityHtml = identityText
+    ? `<div class="protocol-card-identity">${escapeHtml(identityText)}</div>`
+    : '';
+
+  return `
+        <div class="protocol-card">
+          <div class="protocol-card-icon" style="background: ${icon.bg};">${icon.abbr}</div>
+          <div class="protocol-card-body">
+            <div class="protocol-card-name">
+              ${escapeHtml(adapter.name)}
+              <span class="protocol-card-status ${statusClass}">${escapeHtml(statusLabel)}</span>
+            </div>
+            ${identityHtml}
+            ${descSnippet}
+          </div>
+        </div>`;
+}
+
+/**
+ * Build the identity display string for a given protocol + profile.
+ */
+function identityForProtocol(adapterName, profile) {
+  if (!profile) return null;
+  const handle = profile.username || '';
+  const domain = INSTANCE_DOMAIN;
+  switch (adapterName) {
+    case 'activitypub': return `@${handle}@${domain}`;
+    case 'nostr':       return profile.nostr_npub || null;
+    case 'atprotocol':  return profile.at_did || `did:web:${domain}:ap:actor:${handle}`;
+    case 'rss':         return `${BASE_URL}/rss/${handle}`;
+    case 'indieweb':    return `${BASE_URL}/@${handle}`;
+    case 'matrix':      return `@${handle}:${domain}`;
+    default:            return null;
+  }
+}
+
+// SVG icons used only in settings sections
+const SETTINGS_ICONS = {
+  shield: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>',
+  bell: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>',
+  user: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>',
+  warning: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+  download: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>',
+  trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>',
+  globe: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>',
+};
+
 function settingsContent(profile) {
   const handle = profile ? escapeHtml(profile.username || '') : '';
   const profileId = profile ? profile.id : '';
-  const ourDomain = `${SUBDOMAIN}.${DOMAIN}`;
+  const ourDomain = INSTANCE_DOMAIN;
+
+  // ---- 1. Protocol Connections (from registry) ----
+  const adapters = registry.listAdapters();
+  const protocolCardsHtml = adapters.map(a => {
+    const identity = identityForProtocol(a.name, profile);
+    return protocolCardHtml(a, identity);
+  }).join('');
+  const counts = registry.getStatusCounts();
+
+  // ---- 2. Recovery / Backup status (placeholder — no backup table yet) ----
+  const hasBackup = false; // TODO: query backup status from DB when available
+  const lastBackupDate = null;
+
+  // ---- 3. Notification preferences (placeholder defaults) ----
+  const pushEnabled = false;
+  const notifDefaults = {
+    follows: true, mentions: true, replies: true, boosts: true, group_posts: true,
+  };
+  const protoNotifDefaults = {};
+  adapters.filter(a => a.status === 'active' || a.status === 'partial').forEach(a => {
+    protoNotifDefaults[a.name] = true;
+  });
 
   return `
       <div class="page-header">
         <h1 class="page-title">Settings</h1>
       </div>
 
-      <!-- Protocol Connections -->
+      <!-- ============================================================ -->
+      <!-- 1. Protocol Connections                                      -->
+      <!-- ============================================================ -->
       <div class="settings-section">
-        <div class="settings-section-title">Protocol Connections</div>
-        <div class="settings-row">
-          <span class="settings-label">ActivityPub</span>
-          <span class="settings-value">
-            <span class="settings-status-dot dot-active"></span>
-            Active &mdash; @${handle}@${ourDomain}
-          </span>
+        <div class="settings-section-header">
+          <div class="settings-section-icon">${SETTINGS_ICONS.globe}</div>
+          <div class="settings-section-title">Protocol Connections</div>
         </div>
-        <div class="settings-row">
-          <span class="settings-label">Nostr</span>
-          <span class="settings-value">
-            <span class="settings-status-dot dot-active"></span>
-            Active
-          </span>
+        <div class="settings-section-desc">
+          ${counts.active + counts.partial} active protocol${counts.active + counts.partial !== 1 ? 's' : ''}, ${counts.stub} coming soon, ${counts.total} total registered.
+          Your identity is provisioned on each active protocol automatically.
         </div>
-        <div class="settings-row">
-          <span class="settings-label">IndieWeb / Webmention</span>
-          <span class="settings-value">
-            <span class="settings-status-dot dot-active"></span>
-            Active
-          </span>
-        </div>
-        <div class="settings-row">
-          <span class="settings-label">RSS / Atom / JSON Feed</span>
-          <span class="settings-value">
-            <span class="settings-status-dot dot-active"></span>
-            Active
-          </span>
-        </div>
-        <div class="settings-row">
-          <span class="settings-label">AT Protocol</span>
-          <span class="settings-value">
-            <span class="settings-status-dot dot-active"></span>
-            Active
-          </span>
-        </div>
-        <div class="settings-row">
-          <span class="settings-label">Solid Protocol</span>
-          <span class="settings-value">
-            <span class="settings-status-dot dot-inactive"></span>
-            Coming soon
-          </span>
-        </div>
-        <div class="settings-row">
-          <span class="settings-label">Holochain</span>
-          <span class="settings-value">
-            <span class="settings-status-dot dot-inactive"></span>
-            Coming soon
-          </span>
+        <div class="protocol-grid">
+          ${protocolCardsHtml}
         </div>
       </div>
 
-      <!-- Account -->
+      <!-- ============================================================ -->
+      <!-- 2. Security & Recovery                                       -->
+      <!-- ============================================================ -->
       <div class="settings-section">
-        <div class="settings-section-title">Account</div>
+        <div class="settings-section-header">
+          <div class="settings-section-icon">${SETTINGS_ICONS.shield}</div>
+          <div class="settings-section-title">Security &amp; Recovery</div>
+        </div>
+        ${!hasBackup ? `
+        <div class="recovery-warning">
+          <div class="recovery-warning-icon">${SETTINGS_ICONS.warning}</div>
+          <div class="recovery-warning-text">
+            <strong>Your keys are not backed up.</strong> If you lose access to this device, you may lose your identity permanently. Create a backup now.
+          </div>
+        </div>` : ''}
+        <div class="settings-row">
+          <div class="settings-label-group">
+            <span class="settings-label">Backup Status</span>
+            <span class="settings-label-hint">${hasBackup ? `Last backup: ${lastBackupDate}` : 'No backup configured'}</span>
+          </div>
+          <span class="settings-value">
+            <span class="settings-status-dot ${hasBackup ? 'dot-active' : 'dot-unavailable'}"></span>
+            ${hasBackup ? 'Protected' : 'Unprotected'}
+          </span>
+        </div>
+        <div class="settings-actions">
+          <a href="/api/recovery/passphrase" class="btn btn-secondary btn-sm">Create Passphrase Backup</a>
+          <a href="/api/recovery/social" class="btn btn-secondary btn-sm">Set Up Social Recovery</a>
+          <a href="/api/identity/export" class="btn btn-secondary btn-sm">${SETTINGS_ICONS.download} Export Identity Package</a>
+        </div>
+      </div>
+
+      <!-- ============================================================ -->
+      <!-- 3. Notification Preferences                                  -->
+      <!-- ============================================================ -->
+      <div class="settings-section">
+        <div class="settings-section-header">
+          <div class="settings-section-icon">${SETTINGS_ICONS.bell}</div>
+          <div class="settings-section-title">Notifications</div>
+        </div>
+        <div class="settings-section-desc">
+          Control which events trigger notifications and which protocols forward them.
+        </div>
+
+        <div class="settings-row">
+          <div class="settings-label-group">
+            <span class="settings-label">Push Notifications</span>
+            <span class="settings-label-hint">Receive browser push notifications for activity</span>
+          </div>
+          <span class="settings-value">
+            ${pushEnabled
+              ? '<span class="toggle-switch is-on" data-field="push"></span>'
+              : '<a href="/api/notifications/subscribe" class="btn btn-secondary btn-sm">Enable Push</a>'}
+          </span>
+        </div>
+
+        <div style="margin-top: var(--space-4);">
+          <div style="font-size: var(--font-size-body-sm); font-weight: var(--font-weight-semibold); color: var(--color-text-primary); margin-bottom: var(--space-2);">Event Types</div>
+          ${Object.entries(notifDefaults).map(([key, on]) => `
+          <div class="toggle-row">
+            <span class="toggle-label">${escapeHtml(key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()))}</span>
+            <span class="toggle-switch${on ? ' is-on' : ''}" data-field="notif-${escapeHtml(key)}"></span>
+          </div>`).join('')}
+        </div>
+
+        <div style="margin-top: var(--space-4);">
+          <div style="font-size: var(--font-size-body-sm); font-weight: var(--font-weight-semibold); color: var(--color-text-primary); margin-bottom: var(--space-2);">Per-Protocol</div>
+          ${Object.entries(protoNotifDefaults).map(([name, on]) => {
+            const icon = PROTOCOL_ICON_MAP[name] || { abbr: name.slice(0, 2).toUpperCase(), bg: 'var(--color-text-tertiary)' };
+            return `
+          <div class="toggle-row">
+            <span class="toggle-label" style="display: flex; align-items: center; gap: var(--space-2);">
+              <span style="display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: var(--radius-sm); background: ${icon.bg}; color: var(--color-white); font-size: 0.5625rem; font-weight: 700;">${icon.abbr}</span>
+              ${escapeHtml(name)} notifications
+            </span>
+            <span class="toggle-switch${on ? ' is-on' : ''}" data-field="proto-notif-${escapeHtml(name)}"></span>
+          </div>`;
+          }).join('')}
+        </div>
+      </div>
+
+      <!-- ============================================================ -->
+      <!-- 4. Account                                                   -->
+      <!-- ============================================================ -->
+      <div class="settings-section">
+        <div class="settings-section-header">
+          <div class="settings-section-icon">${SETTINGS_ICONS.user}</div>
+          <div class="settings-section-title">Account</div>
+        </div>
         <div class="settings-row">
           <span class="settings-label">Handle</span>
           <span class="settings-value">@${handle}</span>
         </div>
         <div class="settings-row">
           <span class="settings-label">Profile URL</span>
-          <span class="settings-value">${BASE_URL}/@${handle}</span>
+          <span class="settings-value"><a href="${BASE_URL}/@${handle}" style="color: var(--color-primary);">${BASE_URL}/@${handle}</a></span>
         </div>
         <div class="settings-row">
           <span class="settings-label">Profile ID</span>
-          <span class="settings-value" style="font-family: var(--font-family-mono); font-size: 0.75rem;">${escapeHtml(profileId)}</span>
+          <span class="settings-value" style="font-family: var(--font-family-mono); font-size: var(--font-size-caption);">${escapeHtml(profileId)}</span>
+        </div>
+
+        <div class="settings-row">
+          <div class="settings-label-group">
+            <span class="settings-label">Export Data</span>
+            <span class="settings-label-hint">Download all profile data, posts, and media as JSON</span>
+          </div>
+          <span class="settings-value">
+            <a href="/api/export/${handle}" class="btn btn-secondary btn-sm">${SETTINGS_ICONS.download} Export Profile Bundle</a>
+          </span>
+        </div>
+
+        <div class="settings-row">
+          <div class="settings-label-group">
+            <span class="settings-label">Connected Instances</span>
+            <span class="settings-label-hint">PeerMesh instances that have federated with your identity via SSO</span>
+          </div>
+        </div>
+        <div class="instance-list" style="margin-top: var(--space-2);">
+          <div class="instance-item">
+            <span class="instance-item-dot"></span>
+            <span>${escapeHtml(ourDomain)}</span>
+            <span style="margin-left: auto; font-size: var(--font-size-caption); color: var(--color-text-tertiary);">This instance</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============================================================ -->
+      <!-- 5. Danger Zone                                               -->
+      <!-- ============================================================ -->
+      <div class="settings-section danger-zone">
+        <div class="settings-section-header">
+          <div class="settings-section-icon">${SETTINGS_ICONS.trash}</div>
+          <div class="settings-section-title">Danger Zone</div>
+        </div>
+        <div class="settings-section-desc" style="color: var(--color-text-secondary);">
+          Actions here are destructive and cannot be undone. Deleting your account will revoke your ActivityPub actor, Nostr keypair, AT Protocol DID, and all associated data across every federated protocol.
         </div>
         <div class="settings-row">
-          <span class="settings-label">Export Data</span>
+          <div class="settings-label-group">
+            <span class="settings-label">Delete Account</span>
+            <span class="settings-label-hint">Permanently remove your identity and all content from this instance and federated networks</span>
+          </div>
           <span class="settings-value">
-            <button class="btn btn-secondary btn-sm">Export Profile Bundle</button>
+            <button class="btn btn-danger btn-sm" onclick="document.getElementById('delete-confirm').style.display='flex'">Delete Account</button>
           </span>
         </div>
       </div>
 
-      <!-- Danger Zone -->
-      <div class="settings-section danger-zone">
-        <div class="settings-section-title">Danger Zone</div>
-        <div class="settings-row">
-          <span class="settings-label">Delete Account</span>
-          <span class="settings-value">
-            <button class="btn btn-danger btn-sm">Delete Account</button>
-          </span>
+      <!-- Delete account confirmation dialog -->
+      <div class="confirm-overlay" id="delete-confirm">
+        <div class="confirm-dialog">
+          <div class="confirm-title">Delete your account?</div>
+          <div class="confirm-text">
+            This will permanently delete your profile, all posts, media, and protocol identities. Your ActivityPub actor will be tombstoned, Nostr keypair revoked, and AT Protocol DID deactivated. This cannot be undone.
+          </div>
+          <div class="confirm-actions">
+            <button class="btn btn-secondary btn-sm" onclick="document.getElementById('delete-confirm').style.display='none'">Cancel</button>
+            <form method="POST" action="/api/account/delete" style="display: inline;">
+              <button type="submit" class="btn btn-danger btn-sm">Yes, delete my account</button>
+            </form>
+          </div>
         </div>
       </div>`;
 }
 
 // =============================================================================
-// Page: Analytics (Placeholder)
+// Analytics Data Loader
 // =============================================================================
 
-function analyticsContent(profile) {
+/**
+ * Load all analytics data for a profile. Runs queries in parallel for efficiency.
+ * Returns { overview, protocolBreakdown, recentPosts, recentFollowers,
+ *           recentWebmentions, postsPerDay, groupAnalytics }.
+ */
+async function loadAnalyticsData(profile) {
+  if (!profile || !profile.webid) return null;
+
+  const actorUri = `${BASE_URL}/ap/actor/${profile.username}`;
+  const webid = profile.webid;
+
+  // Run all queries in parallel
+  const [
+    followersResult,
+    followingResult,
+    postsResult,
+    groupsResult,
+    protocolFollowersResult,
+    protocolDistResult,
+    recentPostsResult,
+    recentFollowersResult,
+    recentWebmentionsResult,
+    postsPerDayResult,
+    groupAnalyticsResult,
+  ] = await Promise.all([
+    // Total followers (accepted only)
+    pool.query(
+      `SELECT COUNT(*) AS count FROM social_graph.followers
+       WHERE actor_uri = $1 AND status = 'accepted'`,
+      [actorUri]
+    ),
+    // Total following (accepted only)
+    pool.query(
+      `SELECT COUNT(*) AS count FROM social_graph.following
+       WHERE actor_uri = $1 AND status = 'accepted'`,
+      [actorUri]
+    ),
+    // Total posts
+    pool.query(
+      `SELECT COUNT(*) AS count FROM social_profiles.posts WHERE webid = $1`,
+      [webid]
+    ),
+    // Total group memberships
+    pool.query(
+      `SELECT COUNT(*) AS count FROM social_profiles.group_memberships WHERE user_webid = $1`,
+      [webid]
+    ),
+    // Followers per protocol (followers table currently tracks AP followers;
+    // for future protocols, group by a protocol column or source heuristic)
+    pool.query(
+      `SELECT 'activitypub' AS protocol, COUNT(*) AS count
+       FROM social_graph.followers
+       WHERE actor_uri = $1 AND status = 'accepted'`,
+      [actorUri]
+    ),
+    // Distribution stats per protocol
+    pool.query(
+      `SELECT pd.protocol,
+              COUNT(*) AS total,
+              COUNT(*) FILTER (WHERE pd.status = 'sent') AS delivered,
+              COUNT(*) FILTER (WHERE pd.status = 'failed') AS failed
+       FROM social_federation.post_distribution pd
+       JOIN social_profiles.posts p ON p.id = pd.post_id
+       WHERE p.webid = $1
+       GROUP BY pd.protocol
+       ORDER BY total DESC`,
+      [webid]
+    ),
+    // Last 10 posts with distribution status
+    pool.query(
+      `SELECT p.id, p.content_text, p.created_at, p.group_id,
+              COALESCE(
+                json_agg(json_build_object(
+                  'protocol', pd.protocol,
+                  'status', pd.status
+                )) FILTER (WHERE pd.protocol IS NOT NULL),
+                '[]'::json
+              ) AS distributions
+       FROM social_profiles.posts p
+       LEFT JOIN social_federation.post_distribution pd ON pd.post_id = p.id
+       WHERE p.webid = $1
+       GROUP BY p.id, p.content_text, p.created_at, p.group_id
+       ORDER BY p.created_at DESC
+       LIMIT 10`,
+      [webid]
+    ),
+    // Last 10 followers gained
+    pool.query(
+      `SELECT follower_uri, created_at
+       FROM social_graph.followers
+       WHERE actor_uri = $1 AND status = 'accepted'
+       ORDER BY created_at DESC
+       LIMIT 10`,
+      [actorUri]
+    ),
+    // Last 10 webmentions received
+    pool.query(
+      `SELECT source_url, target_url, author_name, content_snippet, status, created_at
+       FROM social_federation.webmentions
+       WHERE target_handle = $1
+       ORDER BY created_at DESC
+       LIMIT 10`,
+      [profile.username]
+    ),
+    // Posts per day for last 7 days
+    pool.query(
+      `SELECT d::date AS day, COALESCE(c.count, 0) AS count
+       FROM generate_series(
+         CURRENT_DATE - INTERVAL '6 days',
+         CURRENT_DATE,
+         '1 day'
+       ) d
+       LEFT JOIN (
+         SELECT DATE(created_at) AS day, COUNT(*) AS count
+         FROM social_profiles.posts
+         WHERE webid = $1
+           AND created_at >= CURRENT_DATE - INTERVAL '6 days'
+         GROUP BY DATE(created_at)
+       ) c ON c.day = d::date
+       ORDER BY d ASC`,
+      [webid]
+    ),
+    // Group analytics: groups owned/moderated + member counts + post counts
+    pool.query(
+      `SELECT g.id, g.name, g.type, gm.role,
+              (SELECT COUNT(*) FROM social_profiles.group_memberships m2 WHERE m2.group_id = g.id) AS member_count,
+              (SELECT COUNT(*) FROM social_profiles.posts p2 WHERE p2.group_id = g.id) AS post_count
+       FROM social_profiles.group_memberships gm
+       JOIN social_profiles.groups g ON g.id = gm.group_id
+       WHERE gm.user_webid = $1
+       ORDER BY gm.role ASC, g.name ASC
+       LIMIT 20`,
+      [webid]
+    ),
+  ]);
+
+  return {
+    overview: {
+      followers: parseInt(followersResult.rows[0]?.count || '0', 10),
+      following: parseInt(followingResult.rows[0]?.count || '0', 10),
+      posts: parseInt(postsResult.rows[0]?.count || '0', 10),
+      groups: parseInt(groupsResult.rows[0]?.count || '0', 10),
+    },
+    protocolBreakdown: {
+      followers: protocolFollowersResult.rows,
+      distribution: protocolDistResult.rows,
+    },
+    recentPosts: recentPostsResult.rows,
+    recentFollowers: recentFollowersResult.rows,
+    recentWebmentions: recentWebmentionsResult.rows,
+    postsPerDay: postsPerDayResult.rows,
+    groupAnalytics: groupAnalyticsResult.rows,
+  };
+}
+
+// =============================================================================
+// Page: Analytics (Real Data)
+// =============================================================================
+
+function analyticsContent(profile, data) {
+  if (!data) {
+    return `
+      <div class="page-header">
+        <h1 class="page-title">Analytics</h1>
+      </div>
+      <div class="placeholder-card">
+        <div class="placeholder-icon">${ICONS.analytics}</div>
+        <div class="placeholder-title">No analytics data</div>
+        <div class="placeholder-desc">Analytics will appear once you have a profile set up.</div>
+      </div>`;
+  }
+
+  const { overview, protocolBreakdown, recentPosts, recentFollowers,
+          recentWebmentions, postsPerDay, groupAnalytics } = data;
+
+  // --- Section 1: Overview Cards ---
+  const overviewHtml = `
+      <div class="analytics-overview">
+        <div class="analytics-stat-card">
+          <div class="analytics-stat-label">Followers</div>
+          <div class="analytics-stat-value">${overview.followers}</div>
+          <div class="analytics-stat-sub">Accepted follows</div>
+        </div>
+        <div class="analytics-stat-card">
+          <div class="analytics-stat-label">Following</div>
+          <div class="analytics-stat-value">${overview.following}</div>
+          <div class="analytics-stat-sub">Outbound follows</div>
+        </div>
+        <div class="analytics-stat-card">
+          <div class="analytics-stat-label">Posts</div>
+          <div class="analytics-stat-value">${overview.posts}</div>
+          <div class="analytics-stat-sub">Total published</div>
+        </div>
+        <div class="analytics-stat-card">
+          <div class="analytics-stat-label">Groups</div>
+          <div class="analytics-stat-value">${overview.groups}</div>
+          <div class="analytics-stat-sub">Memberships</div>
+        </div>
+        <div class="analytics-stat-card">
+          <div class="analytics-stat-label">Profile Views</div>
+          <div class="analytics-stat-value">&mdash;</div>
+          <div class="analytics-stat-sub">Tracking coming soon</div>
+        </div>
+      </div>`;
+
+  // --- Section 2: Protocol Breakdown ---
+  // Merge followers + distribution into protocol rows
+  const protocolMap = {};
+  for (const row of protocolBreakdown.followers) {
+    const p = row.protocol;
+    if (!protocolMap[p]) protocolMap[p] = { followers: 0, total: 0, delivered: 0, failed: 0 };
+    protocolMap[p].followers = parseInt(row.count, 10);
+  }
+  for (const row of protocolBreakdown.distribution) {
+    const p = row.protocol;
+    if (!protocolMap[p]) protocolMap[p] = { followers: 0, total: 0, delivered: 0, failed: 0 };
+    protocolMap[p].total = parseInt(row.total, 10);
+    protocolMap[p].delivered = parseInt(row.delivered, 10);
+    protocolMap[p].failed = parseInt(row.failed, 10);
+  }
+
+  const protocolKeys = Object.keys(protocolMap);
+  let protocolHtml = '';
+  if (protocolKeys.length > 0) {
+    const rows = protocolKeys.map(key => {
+      const info = PROTOCOL_DISPLAY[key] || { label: key, color: 'var(--color-text-secondary)' };
+      const d = protocolMap[key];
+      const rate = d.total > 0 ? Math.round((d.delivered / d.total) * 100) : 0;
+      return `
+            <tr>
+              <td><span class="protocol-dot" style="background:${info.color}"></span>${escapeHtml(info.label)}</td>
+              <td>${d.followers}</td>
+              <td>${d.total}</td>
+              <td>
+                <span class="rate-bar-bg"><span class="rate-bar" style="width:${rate}%"></span></span>
+                ${rate}%
+              </td>
+            </tr>`;
+    }).join('');
+
+    protocolHtml = `
+      <div class="section">
+        <h2 class="section-title">Protocol Breakdown</h2>
+        <div class="analytics-feed">
+          <table class="analytics-table">
+            <thead><tr><th>Protocol</th><th>Followers</th><th>Posts Distributed</th><th>Success Rate</th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+      </div>`;
+  } else {
+    protocolHtml = `
+      <div class="section">
+        <h2 class="section-title">Protocol Breakdown</h2>
+        <div class="analytics-feed">
+          <div class="analytics-feed-empty">No protocol activity yet. Compose a post to start distributing.</div>
+        </div>
+      </div>`;
+  }
+
+  // --- Section 3: Posts Per Day Chart (CSS-only bar chart, last 7 days) ---
+  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const maxPosts = Math.max(1, ...postsPerDay.map(r => parseInt(r.count, 10)));
+
+  const chartBars = postsPerDay.map(row => {
+    const count = parseInt(row.count, 10);
+    const pct = Math.round((count / maxPosts) * 100);
+    const d = new Date(row.day);
+    const label = dayNames[d.getUTCDay()];
+    return `
+          <div class="analytics-chart-col">
+            <div class="analytics-chart-count">${count}</div>
+            <div class="analytics-chart-bar" style="height:${Math.max(4, pct)}%"></div>
+            <div class="analytics-chart-label">${label}</div>
+          </div>`;
+  }).join('');
+
+  const chartHtml = `
+      <div class="section">
+        <h2 class="section-title">Posts &mdash; Last 7 Days</h2>
+        <div class="analytics-feed" style="padding: 0 1rem;">
+          <div class="analytics-chart">
+            ${chartBars}
+          </div>
+        </div>
+      </div>`;
+
+  // --- Section 4: Recent Activity (two columns) ---
+  // Recent Posts
+  let recentPostsHtml = '';
+  if (recentPosts.length > 0) {
+    recentPostsHtml = recentPosts.map(post => {
+      const snippet = escapeHtml((post.content_text || '').slice(0, 80)) + (post.content_text.length > 80 ? '...' : '');
+      const timeStr = new Date(post.created_at).toLocaleString('en-US', {
+        month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
+      });
+      const dists = (Array.isArray(post.distributions) ? post.distributions : [])
+        .map(d => {
+          const color = d.status === 'sent' ? 'var(--color-success)' : d.status === 'failed' ? 'var(--color-error)' : 'var(--color-text-tertiary)';
+          return `<span class="analytics-feed-badge" style="color:${color}">${escapeHtml(d.protocol)}</span>`;
+        }).join(' ');
+      return `
+            <div class="analytics-feed-item">
+              <div class="analytics-feed-icon" style="background:var(--color-primary-light);color:var(--color-primary);">${ICONS.content}</div>
+              <div class="analytics-feed-body">
+                <div class="analytics-feed-text">${snippet}</div>
+                <div class="analytics-feed-meta">${timeStr} ${dists}</div>
+              </div>
+            </div>`;
+    }).join('');
+  } else {
+    recentPostsHtml = '<div class="analytics-feed-empty">No posts yet</div>';
+  }
+
+  // Recent Followers
+  let recentFollowersHtml = '';
+  if (recentFollowers.length > 0) {
+    recentFollowersHtml = recentFollowers.map(f => {
+      const uri = escapeHtml(f.follower_uri);
+      // Extract display name from URI (last segment)
+      const parts = f.follower_uri.split('/');
+      const name = parts[parts.length - 1] || uri;
+      const timeStr = new Date(f.created_at).toLocaleString('en-US', {
+        month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
+      });
+      return `
+            <div class="analytics-feed-item">
+              <div class="analytics-feed-icon" style="background:var(--color-success-light);color:var(--color-success);">${ICONS.groups}</div>
+              <div class="analytics-feed-body">
+                <div class="analytics-feed-text">${escapeHtml(name)}</div>
+                <div class="analytics-feed-meta">${timeStr} <span class="analytics-feed-badge">ActivityPub</span></div>
+              </div>
+            </div>`;
+    }).join('');
+  } else {
+    recentFollowersHtml = '<div class="analytics-feed-empty">No followers yet</div>';
+  }
+
+  const recentActivityHtml = `
+      <div class="section">
+        <h2 class="section-title">Recent Activity</h2>
+        <div class="analytics-two-col">
+          <div>
+            <h3 style="font-size:var(--font-size-body-sm);font-weight:var(--font-weight-semibold);color:var(--color-text-secondary);margin-bottom:var(--space-3);">Recent Posts</h3>
+            <div class="analytics-feed">${recentPostsHtml}</div>
+          </div>
+          <div>
+            <h3 style="font-size:var(--font-size-body-sm);font-weight:var(--font-weight-semibold);color:var(--color-text-secondary);margin-bottom:var(--space-3);">Recent Followers</h3>
+            <div class="analytics-feed">${recentFollowersHtml}</div>
+          </div>
+        </div>
+      </div>`;
+
+  // --- Section 5: Recent Webmentions ---
+  let webmentionsHtml = '';
+  if (recentWebmentions.length > 0) {
+    const wmRows = recentWebmentions.map(wm => {
+      const source = escapeHtml(wm.source_url);
+      const author = wm.author_name ? escapeHtml(wm.author_name) : source;
+      const snippet = wm.content_snippet ? escapeHtml(wm.content_snippet.slice(0, 100)) : '';
+      const timeStr = new Date(wm.created_at).toLocaleString('en-US', {
+        month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
+      });
+      const statusColor = wm.status === 'verified' ? 'var(--color-success)' : 'var(--color-text-tertiary)';
+      return `
+            <div class="analytics-feed-item">
+              <div class="analytics-feed-icon" style="background:var(--color-secondary-light);color:var(--color-secondary);">${ICONS.globe}</div>
+              <div class="analytics-feed-body">
+                <div class="analytics-feed-text">${author}${snippet ? ': ' + snippet : ''}</div>
+                <div class="analytics-feed-meta">${timeStr} <span class="analytics-feed-badge" style="color:${statusColor}">${escapeHtml(wm.status)}</span></div>
+              </div>
+            </div>`;
+    }).join('');
+
+    webmentionsHtml = `
+      <div class="section">
+        <h2 class="section-title">Recent Webmentions</h2>
+        <div class="analytics-feed">${wmRows}</div>
+      </div>`;
+  }
+
+  // --- Section 6: Group Analytics ---
+  let groupsHtml = '';
+  if (groupAnalytics.length > 0) {
+    const groupCards = groupAnalytics.map(g => {
+      const roleBadge = (g.role === 'owner' || g.role === 'admin' || g.role === 'moderator')
+        ? `<span class="analytics-feed-badge" style="color:var(--color-primary);">${escapeHtml(g.role)}</span>`
+        : '';
+      return `
+          <div class="analytics-group-card">
+            <div class="analytics-group-name">${escapeHtml(g.name)} ${roleBadge}</div>
+            <div class="analytics-group-meta">
+              <span>${ICONS.groups} ${g.member_count} members</span>
+              <span>${ICONS.content} ${g.post_count} posts</span>
+              <span style="text-transform:capitalize;">${escapeHtml(g.type)}</span>
+            </div>
+          </div>`;
+    }).join('');
+
+    groupsHtml = `
+      <div class="section">
+        <h2 class="section-title">Group Analytics</h2>
+        <div class="analytics-group-grid">${groupCards}</div>
+      </div>`;
+  }
+
   return `
       <div class="page-header">
         <h1 class="page-title">Analytics</h1>
       </div>
 
-      <div class="placeholder-card">
-        <div class="placeholder-icon">${ICONS.analytics}</div>
-        <div class="placeholder-title">Analytics coming soon</div>
-        <div class="placeholder-desc">Analytics will appear once your page gets its first visitor. Track profile views, link clicks, and follower growth.</div>
-      </div>
-
-      <div class="analytics-cards">
-        <div class="analytics-card-placeholder">
-          <div class="analytics-card-title">Profile Views</div>
-          <div class="analytics-card-value">${ICONS.clock} Coming soon</div>
-        </div>
-        <div class="analytics-card-placeholder">
-          <div class="analytics-card-title">Link Clicks</div>
-          <div class="analytics-card-value">${ICONS.clock} Coming soon</div>
-        </div>
-        <div class="analytics-card-placeholder">
-          <div class="analytics-card-title">Follower Growth</div>
-          <div class="analytics-card-value">${ICONS.clock} Coming soon</div>
-        </div>
-        <div class="analytics-card-placeholder">
-          <div class="analytics-card-title">Protocol Reach</div>
-          <div class="analytics-card-value">${ICONS.clock} Coming soon</div>
-        </div>
-        <div class="analytics-card-placeholder">
-          <div class="analytics-card-title">Top Links</div>
-          <div class="analytics-card-value">${ICONS.clock} Coming soon</div>
-        </div>
-        <div class="analytics-card-placeholder">
-          <div class="analytics-card-title">Referral Sources</div>
-          <div class="analytics-card-value">${ICONS.clock} Coming soon</div>
-        </div>
-      </div>`;
+      ${overviewHtml}
+      ${protocolHtml}
+      ${chartHtml}
+      ${recentActivityHtml}
+      ${webmentionsHtml}
+      ${groupsHtml}`;
 }
 
 // =============================================================================
@@ -2146,6 +2873,86 @@ function feedContent(profile, items) {
 }
 
 // =============================================================================
+// Protocol Checkbox Builder (registry-driven)
+// =============================================================================
+
+/**
+ * Protocol icons — small SVG icons for each known protocol.
+ * Used in compose checkboxes and distribution badges.
+ */
+const PROTOCOL_ICONS = {
+  activitypub: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><circle cx="12" cy="5" r="3"/><circle cx="5" cy="19" r="3"/><circle cx="19" cy="19" r="3"/><line x1="12" y1="8" x2="5" y2="16"/><line x1="12" y1="8" x2="19" y2="16"/></svg>',
+  nostr: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>',
+  rss: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M4 11a9 9 0 019 9"/><path d="M4 4a16 16 0 0116 16"/><circle cx="5" cy="19" r="1"/></svg>',
+  indieweb: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>',
+  atproto: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>',
+  holochain: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="3" r="1.5"/><circle cx="21" cy="12" r="1.5"/><circle cx="12" cy="21" r="1.5"/><circle cx="3" cy="12" r="1.5"/></svg>',
+  ssb: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/></svg>',
+  zot: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>',
+  bonfire: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M12 22c-4-3-8-7-8-12a8 8 0 0116 0c0 5-4 9-8 12z"/></svg>',
+  hypercore: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polygon points="12 2 22 22 2 22"/></svg>',
+  braid: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M4 4c4 4 4 12 8 16"/><path d="M12 4c0 4-4 12-4 16"/><path d="M20 4c-4 4-4 12-8 16"/></svg>',
+  willow: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M12 2v20"/><path d="M4 8c4 0 6 4 8 4s4-4 8-4"/><path d="M4 14c4 0 6 4 8 4s4-4 8-4"/></svg>',
+  matrix: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6v6H9z"/></svg>',
+  xmtp: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>',
+  ocapn: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>',
+  keyhive: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 11-7.778 7.778 5.5 5.5 0 017.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>',
+  vc: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
+};
+
+/**
+ * Build protocol checkboxes from the protocol registry.
+ * Active/partial adapters get enabled, checked checkboxes.
+ * Stub/unavailable adapters get disabled checkboxes with "coming soon" tag.
+ * @returns {string} HTML string of checkbox labels
+ */
+function buildProtocolCheckboxes() {
+  const allAdapters = registry.listAdapters();
+  // Known distributable protocols — the ones the studio post handler can distribute to
+  const distributableNames = ['activitypub', 'nostr', 'rss', 'indieweb', 'atproto'];
+
+  let html = '';
+
+  for (const adapter of allAdapters) {
+    const isDistributable = distributableNames.includes(adapter.name);
+    const isActive = adapter.status === 'active' || adapter.status === 'partial';
+    const icon = PROTOCOL_ICONS[adapter.name] || '';
+    const displayLabel = PROTOCOL_DISPLAY[adapter.name]?.label || adapter.name;
+
+    if (isDistributable && isActive) {
+      // Active distributable protocol — enabled checkbox, checked by default
+      html += `
+              <label class="protocol-check">
+                <input type="checkbox" name="protocols" value="${escapeHtml(adapter.name)}" checked>
+                ${icon ? `<span class="protocol-icon">${icon}</span>` : ''}
+                <span>${escapeHtml(displayLabel)}</span>
+              </label>`;
+    } else if (isDistributable && !isActive) {
+      // Stub/unavailable distributable protocol — disabled with "coming soon"
+      html += `
+              <label class="protocol-check protocol-disabled" title="${escapeHtml(adapter.description || adapter.name + ' — coming soon')}">
+                <input type="checkbox" name="protocols" value="${escapeHtml(adapter.name)}" disabled>
+                ${icon ? `<span class="protocol-icon">${icon}</span>` : ''}
+                <span>${escapeHtml(displayLabel)}</span>
+                <span class="protocol-soon-tag">soon</span>
+              </label>`;
+    } else if (!isDistributable && isActive) {
+      // Active non-distributable protocol (e.g., Matrix, XMTP) — show as coming-soon for post distribution
+      html += `
+              <label class="protocol-check protocol-disabled" title="${escapeHtml(displayLabel)} — post distribution coming soon">
+                <input type="checkbox" name="protocols" value="${escapeHtml(adapter.name)}" disabled>
+                ${icon ? `<span class="protocol-icon">${icon}</span>` : ''}
+                <span>${escapeHtml(displayLabel)}</span>
+                <span class="protocol-soon-tag">soon</span>
+              </label>`;
+    }
+    // Skip stub + non-distributable — too noisy to show all stubs
+  }
+
+  return html;
+}
+
+// =============================================================================
 // Page: Compose (Full Page)
 // =============================================================================
 
@@ -2154,7 +2961,7 @@ function composeContent(profile, { successMessage, distributions } = {}) {
   const handle = profile ? escapeHtml(profile.username || '') : '';
   const avatarUrl = profile ? profile.avatar_url : null;
   const initial = displayName.charAt(0).toUpperCase();
-  const ourDomain = `${SUBDOMAIN}.${DOMAIN}`;
+  const ourDomain = INSTANCE_DOMAIN;
 
   const composeAvatarHtml = avatarUrl
     ? `<img class="compose-avatar" src="${escapeHtml(avatarUrl)}" alt="${displayName}">`
@@ -2208,30 +3015,11 @@ function composeContent(profile, { successMessage, distributions } = {}) {
           <textarea class="compose-textarea" name="content" placeholder="What's on your mind? Write your post here..." maxlength="500" required style="min-height: 160px;"
             oninput="this.form.querySelector('.char-count').textContent = this.value.length + ' / 500'; var c = this.form.querySelector('.char-count'); c.className = 'char-count' + (this.value.length > 450 ? (this.value.length >= 500 ? ' over' : ' warn') : ''); this.form.querySelector('.post-preview-content').textContent = this.value || 'Your post will appear here...';"></textarea>
 
-          <!-- Protocol Distribution Checkboxes -->
+          <!-- Protocol Distribution Checkboxes (registry-driven) -->
           <div style="margin-top: 1rem;">
             <div style="font-size: 0.8125rem; font-weight: 500; color: var(--color-text-secondary); margin-bottom: 0.5rem;">Distribute to:</div>
             <div class="protocol-checks">
-              <label class="protocol-check">
-                <input type="checkbox" name="proto_ap" value="1" checked>
-                <span>ActivityPub</span>
-              </label>
-              <label class="protocol-check">
-                <input type="checkbox" name="proto_nostr" value="1" checked>
-                <span>Nostr</span>
-              </label>
-              <label class="protocol-check">
-                <input type="checkbox" name="proto_rss" value="1" checked>
-                <span>RSS</span>
-              </label>
-              <label class="protocol-check">
-                <input type="checkbox" name="proto_indieweb" value="1" checked>
-                <span>IndieWeb</span>
-              </label>
-              <label class="protocol-check">
-                <input type="checkbox" name="proto_atproto" value="1" checked>
-                <span>AT Protocol</span>
-              </label>
+              ${buildProtocolCheckboxes()}
             </div>
           </div>
 
@@ -2341,14 +3129,19 @@ function contentPageContent(profile, posts, distributions, { before, hasMore, de
         hour: 'numeric', minute: '2-digit',
       });
 
-      // Distribution badges
+      // Distribution badges — color-coded: green (delivered/sent), amber (pending), red (failed), dashed (skipped)
       const dists = distributions[post.id] || [];
       const distBadgesHtml = dists.map(d => {
         const cls = d.status === 'sent' ? 'dist-badge-sent'
           : d.status === 'pending' ? 'dist-badge-pending'
           : d.status === 'skipped' ? 'dist-badge-skipped'
           : 'dist-badge-failed';
-        return `<span class="dist-badge ${cls}">${escapeHtml(d.protocol)}</span>`;
+        const statusIcon = d.status === 'sent' ? ICONS.check
+          : d.status === 'pending' ? ICONS.clock
+          : '';
+        const displayLabel = PROTOCOL_DISPLAY[d.protocol]?.label || d.protocol;
+        const icon = PROTOCOL_ICONS[d.protocol] || '';
+        return `<span class="dist-badge ${cls}" title="${escapeHtml(d.protocol)}: ${escapeHtml(d.status)}">${icon ? `<span class="protocol-icon">${icon}</span>` : ''}${escapeHtml(displayLabel)} ${statusIcon}</span>`;
       }).join('');
 
       return `
@@ -2506,11 +3299,14 @@ async function studioDistributeNostr(post, profile) {
 
 /**
  * Run cross-protocol distribution for a post created from the Studio form.
+ * @param {object} post — The post record from DB
+ * @param {object} profile — The user's profile
+ * @param {string[]|null} selectedProtocols — Array of protocol names to distribute to, or null for all
  */
-async function studioDistributePost(post, profile) {
+async function studioDistributePost(post, profile, selectedProtocols = null) {
   const distributions = [];
 
-  const protocols = [
+  const allProtocols = [
     { name: 'activitypub', fn: () => studioDistributeAP(post, profile) },
     { name: 'nostr', fn: () => studioDistributeNostr(post, profile) },
     { name: 'rss', fn: () => ({ status: 'sent', remoteId: 'auto-included-in-feed' }) },
@@ -2519,6 +3315,11 @@ async function studioDistributePost(post, profile) {
         ? { status: 'pending', error: 'AT Protocol PDS not yet implemented' }
         : { status: 'skipped', error: 'No AT DID configured' } },
   ];
+
+  // Filter to only selected protocols if provided
+  const protocols = selectedProtocols
+    ? allProtocols.filter(p => selectedProtocols.includes(p.name))
+    : allProtocols;
 
   for (const proto of protocols) {
     try {
@@ -2542,6 +3343,14 @@ async function studioDistributePost(post, profile) {
     } catch (err) {
       console.error(`[studio] Distribution error for ${proto.name}:`, err.message);
       distributions.push({ protocol: proto.name, status: 'failed', error: err.message });
+    }
+  }
+
+  // Log which protocols were selected vs skipped
+  if (selectedProtocols) {
+    const skipped = allProtocols.filter(p => !selectedProtocols.includes(p.name)).map(p => p.name);
+    if (skipped.length > 0) {
+      console.log(`[studio] Post ${post.id}: skipped protocols (user deselected): ${skipped.join(', ')}`);
     }
   }
 
@@ -2946,7 +3755,7 @@ export default function registerRoutes(routes) {
     },
   });
 
-  // GET /studio/analytics — Analytics (placeholder)
+  // GET /studio/analytics — Analytics (real data)
   routes.push({
     method: 'GET',
     pattern: '/studio/analytics',
@@ -2954,7 +3763,13 @@ export default function registerRoutes(routes) {
       const session = authGate(req, res);
       if (!session) return;
       const profile = await loadProfileFromSession(session);
-      const content = analyticsContent(profile);
+      let analyticsData = null;
+      try {
+        analyticsData = await loadAnalyticsData(profile);
+      } catch (err) {
+        console.error('[studio] analytics data load error:', err.message);
+      }
+      const content = analyticsContent(profile, analyticsData);
       html(res, 200, studioShell({
         title: 'Analytics',
         activePage: 'analytics',
@@ -3119,8 +3934,14 @@ export default function registerRoutes(routes) {
       const post = insertResult.rows[0];
       console.log(`[studio] Created post ${post.id} by @${profile.username}${groupId ? ` in group ${groupId}` : ''}`);
 
-      // Distribute to protocols
-      const distributions = await studioDistributePost(post, profile);
+      // Parse selected protocols from form checkboxes
+      // readFormBody returns multi-value fields as arrays when using the same name
+      let selectedProtocols = body.protocols;
+      if (typeof selectedProtocols === 'string') selectedProtocols = [selectedProtocols];
+      if (!selectedProtocols || !Array.isArray(selectedProtocols)) selectedProtocols = null;
+
+      // Distribute to selected protocols (null = all)
+      const distributions = await studioDistributePost(post, profile, selectedProtocols);
 
       // Render success page depending on redirect param
       const redirect = body.redirect || 'dashboard';

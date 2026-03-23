@@ -5,7 +5,14 @@
 
 set -euo pipefail
 
-BASE_URL="${BASE_URL:-https://social.dockerlab.peermesh.org}"
+DOMAIN="${DOMAIN:-peers.social}"
+SUBDOMAIN="${SOCIAL_LAB_SUBDOMAIN:-}"
+if [ -n "$SUBDOMAIN" ]; then
+  INSTANCE_DOMAIN="${SUBDOMAIN}.${DOMAIN}"
+else
+  INSTANCE_DOMAIN="${DOMAIN}"
+fi
+BASE_URL="${BASE_URL:-https://${INSTANCE_DOMAIN}}"
 
 # ── Counters ──────────────────────────────────────────────────────────
 PASS=0
@@ -282,7 +289,7 @@ fi
 # ── WebFinger ─────────────────────────────────────────────────────────
 section "WebFinger"
 test_endpoint "GET /.well-known/webfinger" 200 '"subject"' '' \
-  '/.well-known/webfinger?resource=acct:alice@social.dockerlab.peermesh.org'
+  "/.well-known/webfinger?resource=acct:alice@${INSTANCE_DOMAIN}"
 
 # ── ActivityPub Actor ─────────────────────────────────────────────────
 section "ActivityPub"
@@ -315,7 +322,7 @@ test_endpoint "GET /@alice/feed.json" 200 '"version"' '' '/@alice/feed.json'
 # ── AT Protocol ───────────────────────────────────────────────────────
 section "AT Protocol"
 test_endpoint "GET /.well-known/atproto-did" 200 'did:web' '' \
-  '/.well-known/atproto-did?handle=alice.social.dockerlab.peermesh.org'
+  "/.well-known/atproto-did?handle=alice.${INSTANCE_DOMAIN}"
 test_endpoint "GET /.well-known/did.json" 200 '"did:web:' '' \
   '/.well-known/did.json'
 

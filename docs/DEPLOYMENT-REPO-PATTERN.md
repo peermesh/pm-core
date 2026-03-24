@@ -320,6 +320,115 @@ git remote rename origin upstream-old  # if you cloned directly
 # You now have the upstream remote and can start merging
 ```
 
+## Upstream Update Notifications
+
+Docker Lab includes an automated system that tells you when upstream updates are available. It never auto-merges -- it only notifies. You decide when and how to update.
+
+### How It Works
+
+The update system has three layers:
+
+1. **Manual check** -- Run on demand to see if you are behind upstream
+2. **Nightly cron** -- The security audit cron job also checks for upstream updates
+3. **Deploy-time advisory** -- The deploy script warns if you are deploying on an older foundation
+
+All three layers use the same script: `scripts/check-upstream-updates.sh`. It compares your local HEAD against `upstream/main`, counts how many commits you are behind, and checks for new release tags. If any tag annotation contains "security" or "critical", the status escalates to `CRITICAL UPDATE`.
+
+### Manual Check
+
+```bash
+# From your deployment repo
+./launch_docker_lab_core.sh check-updates
+
+# Or call the script directly
+./scripts/check-upstream-updates.sh
+```
+
+Example output:
+
+```
+=== Docker Lab Core Update Check ===
+Local:    abc1234 (merged upstream at v7.41.0)
+Upstream: def5678 (latest: v7.42.0)
+Status:   UPDATES AVAILABLE
+Behind:   12 commits
+New tags:
+  v7.42.0 (2026-03-24)
+
+To update:
+  git fetch upstream
+  git merge upstream/main
+  # Review changes, then redeploy
+```
+
+For scripting, use `--quiet` (minimal output) or `--json` (structured output):
+
+```bash
+./scripts/check-upstream-updates.sh --json
+```
+
+Exit codes: `0` = up to date, `1` = updates available, `2` = critical update, `3` = check skipped (no git, no upstream remote).
+
+### Nightly Cron Notifications
+
+If you have the nightly security audit cron installed (see `scripts/security/nightly-audit-cron.sh`), it automatically runs the upstream check after the security audit. When updates are available, they are appended to the daily alert file at `/var/log/security-audit/ALERT-YYYY-MM-DD.txt`.
+
+The cron handles non-git deployments gracefully -- if the deploy path has no `.git` directory (e.g., files were SCP'd), the upstream check is skipped with a log message.
+
+### Deploy-Time Warnings
+
+The `scripts/deploy.sh` deployment script runs an upstream check during its initialization phase. If updates are available, it logs a WARNING but never blocks the deployment. The upstream status is recorded in the evidence bundle manifest as `UPSTREAM_STATUS` (values: `CURRENT`, `BEHIND`, `CRITICAL`, `SKIPPED-NO-GIT`, `SKIPPED-NO-SCRIPT`).
+
+### Non-Git Deployments
+
+If your deploy target does not have a `.git` directory (common for SCP-based deployments), all upstream checks are skipped gracefully with an informational message. To enable upstream checking on such a host:
+
+```bash
+cd /opt/docker-lab
+git init
+git add -A
+git commit -m "initial state"
+git remote add upstream https://github.com/peermesh/docker-lab.git
+git fetch upstream
+```
+
+### Merging Upstream Updates Safely
+
+When the check reports updates are available:
+
+```bash
+# 1. Fetch the latest upstream state
+git fetch upstream
+
+# 2. Review what changed before merging
+git log --oneline HEAD..upstream/main
+
+# 3. Merge upstream into your branch
+git merge upstream/main
+
+# 4. Resolve conflicts if any (see "When Conflicts Happen" above)
+
+# 5. Validate after merge
+docker compose config --quiet
+./launch_docker_lab_core.sh module validate my-app
+
+# 6. Rebuild and redeploy
+docker compose build dashboard
+./launch_docker_lab_core.sh down
+./launch_docker_lab_core.sh up
+./launch_docker_lab_core.sh module enable my-app
+```
+
+If the merge introduces issues, you can always abort:
+
+```bash
+git merge --abort
+```
+
+### Offline Behavior
+
+If the network is unavailable when the check runs (e.g., `git fetch upstream` fails), the script falls back to the last cached upstream state from a previous fetch. It reports the findings with a `Network: OFFLINE` note so you know the data may be stale.
+
 ## Summary
 
 1. Fork Docker Lab into your own repo

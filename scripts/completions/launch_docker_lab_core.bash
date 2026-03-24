@@ -1,18 +1,18 @@
 # ==============================================================
-# Bash completion for launch_peermesh.sh
+# Bash completion for launch_docker_lab_core.sh
 # ==============================================================
 # Installation:
 #   # Option 1: Source directly in your .bashrc
-#   source /path/to/scripts/completions/launch_peermesh.bash
+#   source /path/to/scripts/completions/launch_docker_lab_core.bash
 #
 #   # Option 2: Copy to bash-completion directory
-#   sudo cp scripts/completions/launch_peermesh.bash /etc/bash_completion.d/launch_peermesh
+#   sudo cp scripts/completions/launch_docker_lab_core.bash /etc/bash_completion.d/launch_docker_lab_core
 #
 #   # Option 3: macOS with Homebrew
-#   cp scripts/completions/launch_peermesh.bash $(brew --prefix)/etc/bash_completion.d/
+#   cp scripts/completions/launch_docker_lab_core.bash $(brew --prefix)/etc/bash_completion.d/
 # ==============================================================
 
-_launch_peermesh_completions() {
+_launch_docker_lab_core_completions() {
     local cur prev words cword
     _init_completion || return
 
@@ -37,7 +37,7 @@ _launch_peermesh_completions() {
 
     # Handle different completion contexts
     case "${prev}" in
-        launch_peermesh.sh|./launch_peermesh.sh)
+        launch_docker_lab_core.sh|./launch_docker_lab_core.sh)
             COMPREPLY=($(compgen -W "${commands} ${global_opts}" -- "${cur}"))
             return 0
             ;;
@@ -170,9 +170,9 @@ _launch_peermesh_completions() {
 }
 
 # Register completion for both script names
-complete -F _launch_peermesh_completions launch_peermesh.sh
-complete -F _launch_peermesh_completions ./launch_peermesh.sh
+complete -F _launch_docker_lab_core_completions launch_docker_lab_core.sh
+complete -F _launch_docker_lab_core_completions ./launch_docker_lab_core.sh
 
 # Also register for common aliases
-complete -F _launch_peermesh_completions pmdl
-complete -F _launch_peermesh_completions peermesh
+complete -F _launch_docker_lab_core_completions pmdl
+complete -F _launch_docker_lab_core_completions peermesh

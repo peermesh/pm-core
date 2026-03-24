@@ -1,4 +1,4 @@
-# Shell Completions for launch_peermesh.sh
+# Shell Completions for launch_docker_lab_core.sh
 
 This directory contains shell completion scripts for the PeerMeshCore CLI.
 
@@ -9,17 +9,17 @@ This directory contains shell completion scripts for the PeerMeshCore CLI.
 **Option 1: Source directly in .bashrc**
 ```bash
 # Add to ~/.bashrc
-source /path/to/peer-mesh-docker-lab/scripts/completions/launch_peermesh.bash
+source /path/to/peer-mesh-docker-lab/scripts/completions/launch_docker_lab_core.bash
 ```
 
 **Option 2: System-wide installation**
 ```bash
-sudo cp scripts/completions/launch_peermesh.bash /etc/bash_completion.d/launch_peermesh
+sudo cp scripts/completions/launch_docker_lab_core.bash /etc/bash_completion.d/launch_docker_lab_core
 ```
 
 **Option 3: macOS with Homebrew**
 ```bash
-cp scripts/completions/launch_peermesh.bash $(brew --prefix)/etc/bash_completion.d/
+cp scripts/completions/launch_docker_lab_core.bash $(brew --prefix)/etc/bash_completion.d/
 ```
 
 ### Reload
@@ -42,12 +42,12 @@ autoload -Uz compinit && compinit
 
 **Option 2: System-wide installation**
 ```zsh
-sudo cp scripts/completions/launch_peermesh.zsh /usr/local/share/zsh/site-functions/_launch_peermesh
+sudo cp scripts/completions/launch_docker_lab_core.zsh /usr/local/share/zsh/site-functions/_launch_docker_lab_core
 ```
 
 **Option 3: macOS with Homebrew**
 ```zsh
-cp scripts/completions/launch_peermesh.zsh $(brew --prefix)/share/zsh/site-functions/_launch_peermesh
+cp scripts/completions/launch_docker_lab_core.zsh $(brew --prefix)/share/zsh/site-functions/_launch_docker_lab_core
 ```
 
 ### Reload
@@ -79,14 +79,14 @@ To set up aliases, add to your shell config:
 
 ```bash
 # .bashrc or .zshrc
-alias pmdl='./launch_peermesh.sh'
-alias peermesh='./launch_peermesh.sh'
+alias pmdl='./launch_docker_lab_core.sh'
+alias peermesh='./launch_docker_lab_core.sh'
 ```
 
 ## Troubleshooting
 
 **Completions not working:**
-1. Check if completions are loaded: `complete -p launch_peermesh.sh` (bash) or `_launch_peermesh` (zsh)
+1. Check if completions are loaded: `complete -p launch_docker_lab_core.sh` (bash) or `_launch_docker_lab_core` (zsh)
 2. Ensure script is sourced after bash-completion is loaded
 3. For zsh, ensure compinit is called after adding to fpath
 

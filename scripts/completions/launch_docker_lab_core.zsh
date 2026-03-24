@@ -1,7 +1,7 @@
-#compdef launch_peermesh.sh pmdl peermesh
+#compdef launch_docker_lab_core.sh pmdl peermesh
 
 # ==============================================================
-# Zsh completion for launch_peermesh.sh
+# Zsh completion for launch_docker_lab_core.sh
 # ==============================================================
 # Installation:
 #   # Option 1: Add to your fpath in .zshrc (before compinit)
@@ -9,16 +9,16 @@
 #   autoload -Uz compinit && compinit
 #
 #   # Option 2: Copy to zsh site-functions
-#   sudo cp scripts/completions/launch_peermesh.zsh /usr/local/share/zsh/site-functions/_launch_peermesh
+#   sudo cp scripts/completions/launch_docker_lab_core.zsh /usr/local/share/zsh/site-functions/_launch_docker_lab_core
 #
 #   # Option 3: macOS with Homebrew
-#   cp scripts/completions/launch_peermesh.zsh $(brew --prefix)/share/zsh/site-functions/_launch_peermesh
+#   cp scripts/completions/launch_docker_lab_core.zsh $(brew --prefix)/share/zsh/site-functions/_launch_docker_lab_core
 #
 #   # Reload completions
 #   autoload -U compinit && compinit
 # ==============================================================
 
-_launch_peermesh() {
+_launch_docker_lab_core() {
     local -a commands
     local -a global_opts
     local -a profiles
@@ -213,4 +213,4 @@ _launch_peermesh() {
 }
 
 # Register the completion function
-_launch_peermesh "$@"
+_launch_docker_lab_core "$@"

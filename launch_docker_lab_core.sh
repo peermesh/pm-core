@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
 # ==============================================================
 # PeerMesh Docker Lab - Unified Deployment CLI
+# Previously: launch_peermesh.sh
 # ==============================================================
 # Single entry point for all deployment operations.
 #
 # Usage:
-#   ./launch_peermesh.sh                    # Interactive menu
-#   ./launch_peermesh.sh [command] [args]   # Direct command
-#   ./launch_peermesh.sh --help             # Show help
+#   ./launch_docker_lab_core.sh                    # Interactive menu
+#   ./launch_docker_lab_core.sh [command] [args]   # Direct command
+#   ./launch_docker_lab_core.sh --help             # Show help
 #
 # Commands:
 #   status   - Show deployment status
@@ -21,6 +22,7 @@
 #   module   - Module management
 #   config   - Configuration management
 #   env      - Switch environment (local/staging/production)
+#   check-updates - Check for upstream Docker Lab updates
 #
 # Documentation: docs/cli.md
 # ==============================================================
@@ -31,7 +33,7 @@ set -euo pipefail
 # Configuration
 # ==============================================================
 
-readonly SCRIPT_NAME="launch_peermesh.sh"
+readonly SCRIPT_NAME="launch_docker_lab_core.sh"
 readonly SCRIPT_VERSION="1.0.0"
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -819,7 +821,7 @@ cmd_backup() {
                         if docker ps --format '{{.Names}}' | grep -q "pmdl_backup"; then
                             docker exec pmdl_backup /usr/local/bin/backup-postgres.sh all
                         else
-                            log_warn "Backup container not running. Start with: ./launch_peermesh.sh up --profile=backup"
+                            log_warn "Backup container not running. Start with: ./launch_docker_lab_core.sh up --profile=backup"
                         fi
                     fi
                     ;;
@@ -884,6 +886,72 @@ cmd_backup() {
             echo "  Volumes:    ./scripts/backup/backup-volumes.sh restore --volume=<name>"
             ;;
     esac
+}
+
+# ==============================================================
+# Post-Deployment Security Gate (advisory, never blocks)
+# ==============================================================
+
+post_deploy_security_check() {
+    local container_name="$1"
+    local score=0
+    local max=70
+
+    # Check 1: cap_drop ALL (+10)
+    if docker inspect "$container_name" --format '{{.HostConfig.CapDrop}}' 2>/dev/null | grep -q "ALL"; then
+        score=$((score + 10))
+    else
+        log_warn "Security: $container_name missing cap_drop ALL"
+    fi
+
+    # Check 2: no-new-privileges (+10)
+    if docker inspect "$container_name" --format '{{.HostConfig.SecurityOpt}}' 2>/dev/null | grep -q "no-new-privileges"; then
+        score=$((score + 10))
+    else
+        log_warn "Security: $container_name missing no-new-privileges"
+    fi
+
+    # Check 3: resource limits (+10)
+    local mem_limit
+    mem_limit=$(docker inspect "$container_name" --format '{{.HostConfig.Memory}}' 2>/dev/null) || mem_limit="0"
+    if [[ "$mem_limit" != "0" && -n "$mem_limit" ]]; then
+        score=$((score + 10))
+    else
+        log_warn "Security: $container_name has no memory limit"
+    fi
+
+    # Check 4: healthcheck (+10)
+    local hc
+    hc=$(docker inspect "$container_name" --format '{{.Config.Healthcheck}}' 2>/dev/null) || hc=""
+    if [[ "$hc" != "<nil>" && -n "$hc" ]]; then
+        score=$((score + 10))
+    else
+        log_warn "Security: $container_name has no healthcheck"
+    fi
+
+    # Check 5: non-root user (+10)
+    local user
+    user=$(docker inspect "$container_name" --format '{{.Config.User}}' 2>/dev/null) || user=""
+    if [[ -n "$user" && "$user" != "0" && "$user" != "root" ]]; then
+        score=$((score + 10))
+    fi
+
+    # Check 6: read_only rootfs (+10)
+    if docker inspect "$container_name" --format '{{.HostConfig.ReadonlyRootfs}}' 2>/dev/null | grep -q "true"; then
+        score=$((score + 10))
+    fi
+
+    # Check 7: image digest pinned (+10)
+    local image
+    image=$(docker inspect "$container_name" --format '{{.Config.Image}}' 2>/dev/null) || image=""
+    if echo "$image" | grep -q "@sha256:"; then
+        score=$((score + 10))
+    fi
+
+    echo "  Security score: ${score}/${max}"
+    if [[ $score -lt 30 ]]; then
+        log_warn "Security score is LOW (${score}/${max}). Review container hardening."
+    fi
 }
 
 # ==============================================================
@@ -1144,6 +1212,17 @@ cmd_module() {
                 else
                     log_error "No start hook or docker-compose.yml found in module: $dep_module"
                     return 1
+                fi
+                # Post-deployment security gate (advisory, non-blocking)
+                local containers_for_gate
+                containers_for_gate=$(docker compose -f "$dep_module_dir/docker-compose.yml" \
+                    ps --format '{{.Names}}' 2>/dev/null) || containers_for_gate=""
+                if [[ -n "$containers_for_gate" ]]; then
+                    log_info "  Running post-deployment security checks for $dep_module..."
+                    while IFS= read -r gate_container; do
+                        [[ -z "$gate_container" ]] && continue
+                        post_deploy_security_check "$gate_container" || true
+                    done <<< "$containers_for_gate"
                 fi
             done
 
@@ -1592,12 +1671,106 @@ cmd_module() {
             log_info "  4. Enable the module: ./$SCRIPT_NAME module enable $module"
             ;;
 
+        update)
+            local module="${1:-}"
+            if [[ -z "$module" ]]; then
+                log_error "Module name required"
+                echo "Usage: $SCRIPT_NAME module update <name>"
+                return 1
+            fi
+
+            local module_dir="$project_dir/modules/$module"
+            if [[ ! -d "$module_dir" ]]; then
+                log_error "Module not found: $module"
+                return 1
+            fi
+
+            local compose_file="$module_dir/docker-compose.yml"
+            if [[ ! -f "$compose_file" ]]; then
+                log_error "No docker-compose.yml found for module: $module"
+                return 1
+            fi
+
+            # Verify the module is currently running
+            if ! docker compose -f "$compose_file" ps --format '{{.Name}}' 2>/dev/null | grep -q .; then
+                log_error "Module $module is not running. Start it first with: $SCRIPT_NAME module enable $module"
+                return 1
+            fi
+
+            log_info "Updating module: $module"
+
+            # Pull latest images
+            log_info "Pulling latest images..."
+            if ! (cd "$module_dir" && docker compose pull 2>&1); then
+                log_error "Failed to pull images for module: $module"
+                return 1
+            fi
+
+            # Recreate containers with new images
+            log_info "Recreating containers..."
+            if ! (cd "$module_dir" && docker compose up -d 2>&1); then
+                log_error "Failed to restart module: $module"
+                return 1
+            fi
+
+            # Wait for health
+            log_info "Waiting for health..."
+            local max_wait=60
+            local waited=0
+            while [[ $waited -lt $max_wait ]]; do
+                if (cd "$module_dir" && docker compose ps --format json 2>/dev/null | grep -q '"healthy"'); then
+                    break
+                fi
+                sleep 5
+                waited=$((waited + 5))
+                log_info "  Waiting... ${waited}s/${max_wait}s"
+            done
+
+            if [[ $waited -ge $max_wait ]]; then
+                log_warn "Module $module may not be healthy yet (timeout after ${max_wait}s)"
+            else
+                log_success "Module $module is healthy"
+            fi
+
+            # Post-deployment security gate (advisory, non-blocking)
+            local containers_for_gate
+            containers_for_gate=$(docker compose -f "$compose_file" \
+                ps --format '{{.Names}}' 2>/dev/null) || containers_for_gate=""
+            if [[ -n "$containers_for_gate" ]]; then
+                log_info "Running post-deployment security checks..."
+                while IFS= read -r gate_container; do
+                    [[ -z "$gate_container" ]] && continue
+                    post_deploy_security_check "$gate_container" || true
+                done <<< "$containers_for_gate"
+            fi
+
+            log_success "Module $module updated"
+            ;;
+
         *)
             log_error "Unknown module action: $action"
-            echo "Usage: $SCRIPT_NAME module [list|enable|disable|status|health|validate|create] [name]"
+            echo "Usage: $SCRIPT_NAME module [list|enable|disable|status|health|validate|create|update] [name]"
             return 1
             ;;
     esac
+}
+
+# ==============================================================
+# Check Updates Command
+# ==============================================================
+
+cmd_check_updates() {
+    local project_dir
+    project_dir="$(get_project_dir)"
+
+    local check_script="$project_dir/scripts/check-upstream-updates.sh"
+
+    if [[ ! -f "$check_script" ]]; then
+        log_error "check-upstream-updates.sh not found at: $check_script"
+        return 1
+    fi
+
+    bash "$check_script" "$project_dir" "$@"
 }
 
 # ==============================================================
@@ -1845,8 +2018,8 @@ show_help() {
 PeerMesh Docker Lab - Unified Deployment CLI
 
 USAGE:
-    ./launch_peermesh.sh                        Interactive menu
-    ./launch_peermesh.sh [COMMAND] [OPTIONS]    Direct command
+    ./launch_docker_lab_core.sh                        Interactive menu
+    ./launch_docker_lab_core.sh [COMMAND] [OPTIONS]    Direct command
 
 COMMANDS:
     status              Show current deployment status
@@ -1860,6 +2033,7 @@ COMMANDS:
     module              Module management
     config              Configuration management
     env                 Switch environment (local/staging/production)
+    check-updates       Check for upstream Docker Lab core updates
 
 COMMAND OPTIONS:
 
@@ -1902,6 +2076,7 @@ COMMAND OPTIONS:
         list                List available modules
         enable NAME         Enable a module (with dependency resolution and lifecycle hooks)
         disable NAME        Disable a module (reverse order, teardown hooks)
+        update NAME         Update a running module to its latest image (pull + recreate)
         status NAME         Show module status
         health [NAME]       Run health check (specific module or all enabled)
         validate [NAME]     Validate module.json (specific module or all)
@@ -1918,28 +2093,40 @@ COMMAND OPTIONS:
         staging             Switch to staging environment
         production          Switch to production environment
 
+    check-updates [OPTIONS]
+        --quiet             Machine-readable output
+        --json              JSON output
+        --remote NAME       Upstream remote name (default: upstream)
+        --branch NAME       Upstream branch name (default: main)
+
 EXAMPLES:
     # Start with PostgreSQL and Redis profiles
-    ./launch_peermesh.sh up --profile=postgresql,redis
+    ./launch_docker_lab_core.sh up --profile=postgresql,redis
 
     # Deploy to production
-    ./launch_peermesh.sh deploy --target=prod
+    ./launch_docker_lab_core.sh deploy --target=prod
 
     # View Traefik logs in real-time
-    ./launch_peermesh.sh logs traefik -f
+    ./launch_docker_lab_core.sh logs traefik -f
 
     # Run health check with verbose output
-    ./launch_peermesh.sh health -v
+    ./launch_docker_lab_core.sh health -v
 
     # Enable backup module
-    ./launch_peermesh.sh module enable backup
+    ./launch_docker_lab_core.sh module enable backup
+
+    # Update a running module to latest image
+    ./launch_docker_lab_core.sh module update backup
 
     # Switch to staging environment
-    ./launch_peermesh.sh env staging
+    ./launch_docker_lab_core.sh env staging
+
+    # Check for upstream Docker Lab updates
+    ./launch_docker_lab_core.sh check-updates
 
     # Initialize and validate configuration
-    ./launch_peermesh.sh config init
-    ./launch_peermesh.sh config validate
+    ./launch_docker_lab_core.sh config init
+    ./launch_docker_lab_core.sh config validate
 
 CONFIGURATION FILES:
     .peermesh.yml           Project configuration (preferred)
@@ -2026,7 +2213,8 @@ main() {
         backup)    cmd_backup "${args[@]:-}" ;;
         module|mod) cmd_module "${args[@]:-}" ;;
         config|cfg) cmd_config "${args[@]:-}" ;;
-        env)        cmd_env "${args[@]:-}" ;;
+        env)            cmd_env "${args[@]:-}" ;;
+        check-updates)  cmd_check_updates "${args[@]:-}" ;;
         *)
             log_error "Unknown command: $command"
             echo ""

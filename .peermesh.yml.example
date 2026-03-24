@@ -35,7 +35,7 @@ project:
 # --------------------------------------------------------------
 # Default Profiles
 # --------------------------------------------------------------
-# Profiles to enable by default when running `./launch_peermesh.sh up`
+# Profiles to enable by default when running `./launch_docker_lab_core.sh up`
 
 profiles:
   default:

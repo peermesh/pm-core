@@ -7,8 +7,8 @@
 #   cp config/targets.yml.example config/targets.yml
 #
 # Usage:
-#   ./launch_peermesh.sh deploy --target=staging
-#   ./launch_peermesh.sh sync --target=production
+#   ./launch_docker_lab_core.sh deploy --target=staging
+#   ./launch_docker_lab_core.sh sync --target=production
 #
 # Documentation: docs/cli.md
 # ==============================================================
@@ -45,7 +45,7 @@ defaults:
 # --------------------------------------------------------------
 # Local Development Target
 # --------------------------------------------------------------
-# Used when running: ./launch_peermesh.sh deploy --target=local
+# Used when running: ./launch_docker_lab_core.sh deploy --target=local
 
 local:
   description: "Local development environment"
@@ -71,7 +71,7 @@ local:
 # --------------------------------------------------------------
 # Staging Target
 # --------------------------------------------------------------
-# Used when running: ./launch_peermesh.sh deploy --target=staging
+# Used when running: ./launch_docker_lab_core.sh deploy --target=staging
 
 staging:
   description: "Staging/testing environment"
@@ -114,7 +114,7 @@ staging:
 # --------------------------------------------------------------
 # Production Target
 # --------------------------------------------------------------
-# Used when running: ./launch_peermesh.sh deploy --target=production
+# Used when running: ./launch_docker_lab_core.sh deploy --target=production
 
 production:
   description: "Production environment"

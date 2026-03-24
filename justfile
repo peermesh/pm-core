@@ -97,10 +97,10 @@ validate-image-policy:
     ./scripts/security/validate-image-policy.sh
 
 module-plan module:
-    ./launch_peermesh.sh module enable {{module}} --dry-run
+    ./launch_docker_lab_core.sh module enable {{module}} --dry-run
 
 module-enable module:
-    ./launch_peermesh.sh module enable {{module}}
+    ./launch_docker_lab_core.sh module enable {{module}}
 
 check-links format="text":
     if [[ "{{format}}" == "json" ]]; then \

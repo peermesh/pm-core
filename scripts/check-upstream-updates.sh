@@ -180,7 +180,7 @@ if [[ "$LOCAL_HEAD_FULL" != "unknown" && "$UPSTREAM_HEAD_FULL" != "unknown" ]]; 
         else
             NEW_TAG_DETAILS+=("$tag_name ($tag_date)")
         fi
-    done < <(git rev-list --no-walk --tags --stdin 2>/dev/null <<< "$(git rev-list "${LOCAL_HEAD_FULL}..${UPSTREAM_HEAD_FULL}" 2>/dev/null)" 2>/dev/null || true)
+    done < <(git rev-list "${LOCAL_HEAD_FULL}..${UPSTREAM_HEAD_FULL}" 2>/dev/null | git rev-list --no-walk --tags --stdin 2>/dev/null || true)
 fi
 
 # Fallback: if no tags found via rev-list, compare tag lists

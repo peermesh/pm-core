@@ -48,7 +48,7 @@ git clone https://github.com/YOUR-ORG/your-project-deploy.git
 cd your-project-deploy
 git remote add upstream https://github.com/peermesh/docker-lab.git
 cp .env.example .env && ./scripts/generate-secrets.sh
-./launch_peermesh.sh module create my-app
+./launch_docker_lab_core.sh module create my-app
 ```
 
 See [Deployment Repo Pattern](docs/DEPLOYMENT-REPO-PATTERN.md) for the complete step-by-step guide, conflict avoidance rules, and a real-world example (peers.social).
@@ -70,38 +70,38 @@ git clone https://github.com/peermesh/docker-lab.git
 cd docker-lab
 
 # Initialize configuration
-./launch_peermesh.sh config init
+./launch_docker_lab_core.sh config init
 
 # Start services
-./launch_peermesh.sh up --profile=postgresql,redis
+./launch_docker_lab_core.sh up --profile=postgresql,redis
 
 # Check status
-./launch_peermesh.sh status
+./launch_docker_lab_core.sh status
 ```
 
 Your PeerMeshCore runtime is now running with Traefik reverse proxy at ports 80/443.
 
 ## Unified CLI
 
-The `launch_peermesh.sh` script is the PeerMeshCore CLI and provides a single entry point for all deployment operations:
+The `launch_docker_lab_core.sh` script is the PeerMeshCore CLI and provides a single entry point for all deployment operations:
 
 ```bash
 # Interactive menu (run without arguments)
-./launch_peermesh.sh
+./launch_docker_lab_core.sh
 
 # Direct commands
-./launch_peermesh.sh status              # Show deployment status
-./launch_peermesh.sh up --profile=redis  # Start with specific profiles
-./launch_peermesh.sh down                # Stop services
-./launch_peermesh.sh logs traefik -f     # Follow service logs
-./launch_peermesh.sh health -v           # Run health checks
-./launch_peermesh.sh deploy --target=prod # Deploy to production
-./launch_peermesh.sh backup run          # Run backup
-./launch_peermesh.sh module list         # List available modules
-./launch_peermesh.sh config validate     # Validate configuration
+./launch_docker_lab_core.sh status              # Show deployment status
+./launch_docker_lab_core.sh up --profile=redis  # Start with specific profiles
+./launch_docker_lab_core.sh down                # Stop services
+./launch_docker_lab_core.sh logs traefik -f     # Follow service logs
+./launch_docker_lab_core.sh health -v           # Run health checks
+./launch_docker_lab_core.sh deploy --target=prod # Deploy to production
+./launch_docker_lab_core.sh backup run          # Run backup
+./launch_docker_lab_core.sh module list         # List available modules
+./launch_docker_lab_core.sh config validate     # Validate configuration
 
 # Help
-./launch_peermesh.sh --help
+./launch_docker_lab_core.sh --help
 ```
 
 See [CLI Documentation](docs/cli.md) for complete usage.

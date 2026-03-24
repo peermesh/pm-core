@@ -1,6 +1,6 @@
 # PeerMeshCore CLI
 
-The `launch_peermesh.sh` script is the unified command-line interface for managing PeerMeshCore deployments.
+The `launch_docker_lab_core.sh` script is the unified command-line interface for managing PeerMeshCore deployments.
 
 ## Installation
 
@@ -8,10 +8,10 @@ The CLI is included in the repository. No additional installation required.
 
 ```bash
 # Make executable (if needed)
-chmod +x launch_peermesh.sh
+chmod +x launch_docker_lab_core.sh
 
 # Verify
-./launch_peermesh.sh --version
+./launch_docker_lab_core.sh --version
 ```
 
 ### Shell Completions
@@ -20,7 +20,7 @@ For tab completion support, install the completion scripts:
 
 **Bash:**
 ```bash
-source scripts/completions/launch_peermesh.bash
+source scripts/completions/launch_docker_lab_core.bash
 # Or add to ~/.bashrc for persistent completion
 ```
 
@@ -39,7 +39,7 @@ See [scripts/completions/README.md](../scripts/completions/README.md) for detail
 Run without arguments to launch the interactive menu:
 
 ```bash
-./launch_peermesh.sh
+./launch_docker_lab_core.sh
 ```
 
 This presents a menu-driven interface for all operations.
@@ -49,7 +49,7 @@ This presents a menu-driven interface for all operations.
 Run with commands for direct execution:
 
 ```bash
-./launch_peermesh.sh [command] [options]
+./launch_docker_lab_core.sh [command] [options]
 ```
 
 ## Commands
@@ -59,7 +59,7 @@ Run with commands for direct execution:
 Show current deployment status including environment, Docker, services, networks, and volumes.
 
 ```bash
-./launch_peermesh.sh status
+./launch_docker_lab_core.sh status
 ```
 
 ### up
@@ -68,19 +68,19 @@ Start services with optional profiles.
 
 ```bash
 # Start with default profiles
-./launch_peermesh.sh up
+./launch_docker_lab_core.sh up
 
 # Start with specific profiles
-./launch_peermesh.sh up --profile=postgresql,redis
+./launch_docker_lab_core.sh up --profile=postgresql,redis
 
 # Start with build
-./launch_peermesh.sh up --profile=postgresql --build
+./launch_docker_lab_core.sh up --profile=postgresql --build
 
 # Wait for healthy state
-./launch_peermesh.sh up --wait
+./launch_docker_lab_core.sh up --wait
 
 # Include additional compose file
-./launch_peermesh.sh up -f docker-compose.webhook.yml
+./launch_docker_lab_core.sh up -f docker-compose.webhook.yml
 ```
 
 **Options:**
@@ -99,13 +99,13 @@ Stop services.
 
 ```bash
 # Stop services
-./launch_peermesh.sh down
+./launch_docker_lab_core.sh down
 
 # Stop and remove volumes
-./launch_peermesh.sh down --volumes
+./launch_docker_lab_core.sh down --volumes
 
 # Custom timeout
-./launch_peermesh.sh down --timeout=30
+./launch_docker_lab_core.sh down --timeout=30
 ```
 
 **Options:**
@@ -121,16 +121,16 @@ Deploy to a target environment.
 
 ```bash
 # Deploy locally (default)
-./launch_peermesh.sh deploy
+./launch_docker_lab_core.sh deploy
 
 # Deploy to staging
-./launch_peermesh.sh deploy --target=staging
+./launch_docker_lab_core.sh deploy --target=staging
 
 # Deploy to production
-./launch_peermesh.sh deploy --target=production
+./launch_docker_lab_core.sh deploy --target=production
 
 # Skip pre-deployment backup
-./launch_peermesh.sh deploy --target=prod --skip-backup
+./launch_docker_lab_core.sh deploy --target=prod --skip-backup
 ```
 
 **Options:**
@@ -152,10 +152,10 @@ Trigger synchronization on a remote target.
 
 ```bash
 # Sync using configured target
-./launch_peermesh.sh sync --target=staging
+./launch_docker_lab_core.sh sync --target=staging
 
 # Direct webhook call
-./launch_peermesh.sh sync --url=https://webhook.example.com/hooks/deploy --secret=TOKEN
+./launch_docker_lab_core.sh sync --url=https://webhook.example.com/hooks/deploy --secret=TOKEN
 ```
 
 **Options:**
@@ -172,16 +172,16 @@ View service logs.
 
 ```bash
 # All services
-./launch_peermesh.sh logs
+./launch_docker_lab_core.sh logs
 
 # Specific service
-./launch_peermesh.sh logs traefik
+./launch_docker_lab_core.sh logs traefik
 
 # Follow logs
-./launch_peermesh.sh logs traefik -f
+./launch_docker_lab_core.sh logs traefik -f
 
 # Last 50 lines with timestamps
-./launch_peermesh.sh logs traefik -n 50 -t
+./launch_docker_lab_core.sh logs traefik -n 50 -t
 ```
 
 **Options:**
@@ -197,13 +197,13 @@ Run health checks on services.
 
 ```bash
 # Basic health check
-./launch_peermesh.sh health
+./launch_docker_lab_core.sh health
 
 # Verbose with endpoint checks
-./launch_peermesh.sh health -v
+./launch_docker_lab_core.sh health -v
 
 # Check specific service
-./launch_peermesh.sh health postgres
+./launch_docker_lab_core.sh health postgres
 ```
 
 **Options:**
@@ -217,19 +217,19 @@ Manage backups.
 
 ```bash
 # Run backup
-./launch_peermesh.sh backup run
+./launch_docker_lab_core.sh backup run
 
 # Backup PostgreSQL only
-./launch_peermesh.sh backup run --target=postgres
+./launch_docker_lab_core.sh backup run --target=postgres
 
 # Backup volumes only
-./launch_peermesh.sh backup run --target=volumes
+./launch_docker_lab_core.sh backup run --target=volumes
 
 # Show backup status
-./launch_peermesh.sh backup status
+./launch_docker_lab_core.sh backup status
 
 # List available backups
-./launch_peermesh.sh backup list
+./launch_docker_lab_core.sh backup list
 ```
 
 **Actions:**
@@ -251,16 +251,16 @@ Manage modules. For the full module architecture (what modules are, how they int
 
 ```bash
 # List modules
-./launch_peermesh.sh module list
+./launch_docker_lab_core.sh module list
 
 # Enable a module
-./launch_peermesh.sh module enable backup
+./launch_docker_lab_core.sh module enable backup
 
 # Disable a module
-./launch_peermesh.sh module disable backup
+./launch_docker_lab_core.sh module disable backup
 
 # Show module status
-./launch_peermesh.sh module status backup
+./launch_docker_lab_core.sh module status backup
 ```
 
 **Actions:**
@@ -277,17 +277,17 @@ Manage configuration.
 
 ```bash
 # Show configuration
-./launch_peermesh.sh config show
+./launch_docker_lab_core.sh config show
 
 # Initialize configuration
-./launch_peermesh.sh config init
+./launch_docker_lab_core.sh config init
 
 # Validate configuration
-./launch_peermesh.sh config validate
+./launch_docker_lab_core.sh config validate
 
 # Edit configuration
-./launch_peermesh.sh config edit
-./launch_peermesh.sh config edit config/targets.yml
+./launch_docker_lab_core.sh config edit
+./launch_docker_lab_core.sh config edit config/targets.yml
 ```
 
 **Actions:**
@@ -341,20 +341,20 @@ See [config/targets.yml.example](../config/targets.yml.example) for all options.
 
 ```bash
 # Initialize new deployment
-./launch_peermesh.sh config init
-./launch_peermesh.sh config validate
+./launch_docker_lab_core.sh config init
+./launch_docker_lab_core.sh config validate
 
 # Start with dev profile
-./launch_peermesh.sh up --profile=postgresql,redis,dev
+./launch_docker_lab_core.sh up --profile=postgresql,redis,dev
 
 # Check health
-./launch_peermesh.sh health -v
+./launch_docker_lab_core.sh health -v
 
 # View logs
-./launch_peermesh.sh logs -f
+./launch_docker_lab_core.sh logs -f
 
 # Stop when done
-./launch_peermesh.sh down
+./launch_docker_lab_core.sh down
 ```
 
 ### Production Deployment
@@ -364,32 +364,32 @@ See [config/targets.yml.example](../config/targets.yml.example) for all options.
 vim config/targets.yml
 
 # Deploy to staging first
-./launch_peermesh.sh deploy --target=staging
+./launch_docker_lab_core.sh deploy --target=staging
 
 # Check staging health
-./launch_peermesh.sh health -v
+./launch_docker_lab_core.sh health -v
 
 # Deploy to production
-./launch_peermesh.sh deploy --target=production
+./launch_docker_lab_core.sh deploy --target=production
 
 # Monitor logs
-./launch_peermesh.sh logs traefik -f
+./launch_docker_lab_core.sh logs traefik -f
 ```
 
 ### Backup Operations
 
 ```bash
 # Enable backup module
-./launch_peermesh.sh module enable backup
+./launch_docker_lab_core.sh module enable backup
 
 # Run manual backup
-./launch_peermesh.sh backup run
+./launch_docker_lab_core.sh backup run
 
 # Check backup status
-./launch_peermesh.sh backup status
+./launch_docker_lab_core.sh backup status
 
 # List backups
-./launch_peermesh.sh backup list
+./launch_docker_lab_core.sh backup list
 ```
 
 ## Troubleshooting
@@ -408,7 +408,7 @@ docker compose version
 Run validation to see specific errors:
 
 ```bash
-./launch_peermesh.sh config validate
+./launch_docker_lab_core.sh config validate
 ```
 
 Common issues:
@@ -431,7 +431,7 @@ curl -X POST https://webhook.example.com/hooks/deploy \
 Check service logs:
 
 ```bash
-./launch_peermesh.sh logs <service> -n 200
+./launch_docker_lab_core.sh logs <service> -n 200
 ```
 
 Check Docker daemon:

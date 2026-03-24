@@ -55,11 +55,11 @@ Prevention:
 Fix:
 ```bash
 # Inspect first
-./launch_peermesh.sh logs postgres -n 200
+./launch_docker_lab_core.sh logs postgres -n 200
 
 # If this is a disposable environment, reset volumes
-./launch_peermesh.sh down --volumes
-./launch_peermesh.sh up --profile=postgresql -d
+./launch_docker_lab_core.sh down --volumes
+./launch_docker_lab_core.sh up --profile=postgresql -d
 ```
 
 ## 4) URL / Domain Mismatch
@@ -279,4 +279,4 @@ docker compose -f docker-compose.yml -f docker-compose.hardening.yml up -d minio
 1. `./scripts/deploy.sh --validate`
 2. `./scripts/init-volumes.sh --check`
 3. `docker compose ps`
-4. `./launch_peermesh.sh logs <service> -n 200`
+4. `./launch_docker_lab_core.sh logs <service> -n 200`

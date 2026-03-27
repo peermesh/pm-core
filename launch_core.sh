@@ -6,9 +6,9 @@
 # Single entry point for all deployment operations.
 #
 # Usage:
-#   ./launch_docker_lab_core.sh                    # Interactive menu
-#   ./launch_docker_lab_core.sh [command] [args]   # Direct command
-#   ./launch_docker_lab_core.sh --help             # Show help
+#   ./launch_core.sh                    # Interactive menu
+#   ./launch_core.sh [command] [args]   # Direct command
+#   ./launch_core.sh --help             # Show help
 #
 # Commands:
 #   status   - Show deployment status
@@ -33,7 +33,7 @@ set -euo pipefail
 # Configuration
 # ==============================================================
 
-readonly SCRIPT_NAME="launch_docker_lab_core.sh"
+readonly SCRIPT_NAME="launch_core.sh"
 readonly SCRIPT_VERSION="1.0.0"
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -751,16 +751,18 @@ cmd_health() {
         echo ""
         echo "${BOLD}Endpoint Checks:${NC}"
 
-        # Check Traefik
-        if curl -sf "http://localhost:${TRAEFIK_DASHBOARD_PORT:-8080}/ping" &>/dev/null; then
+        # check traefik ping from inside container for deterministic local health
+        if docker compose exec -T traefik wget --no-verbose --tries=1 --spider "http://localhost:8080/ping" &>/dev/null; then
             echo "  ${GREEN}[OK]${NC} Traefik API"
         else
             echo "  ${RED}[FAIL]${NC} Traefik API"
         fi
 
-        # Check Dashboard
-        if curl -sf "http://localhost:8080/health" &>/dev/null 2>&1; then
+        # check dashboard health directly in the dashboard container
+        if docker compose exec -T dashboard wget --no-verbose --tries=1 --spider "http://localhost:8080/health" &>/dev/null 2>&1; then
             echo "  ${GREEN}[OK]${NC} Dashboard"
+        else
+            echo "  ${RED}[FAIL]${NC} Dashboard"
         fi
     fi
 
@@ -821,7 +823,7 @@ cmd_backup() {
                         if docker ps --format '{{.Names}}' | grep -q "pmdl_backup"; then
                             docker exec pmdl_backup /usr/local/bin/backup-postgres.sh all
                         else
-                            log_warn "Backup container not running. Start with: ./launch_docker_lab_core.sh up --profile=backup"
+                            log_warn "Backup container not running. Start with: ./launch_core.sh up --profile=backup"
                         fi
                     fi
                     ;;
@@ -2018,8 +2020,8 @@ show_help() {
 PeerMesh Core - Unified Deployment CLI
 
 USAGE:
-    ./launch_docker_lab_core.sh                        Interactive menu
-    ./launch_docker_lab_core.sh [COMMAND] [OPTIONS]    Direct command
+    ./launch_core.sh                        Interactive menu
+    ./launch_core.sh [COMMAND] [OPTIONS]    Direct command
 
 COMMANDS:
     status              Show current deployment status
@@ -2101,32 +2103,32 @@ COMMAND OPTIONS:
 
 EXAMPLES:
     # Start with PostgreSQL and Redis profiles
-    ./launch_docker_lab_core.sh up --profile=postgresql,redis
+    ./launch_core.sh up --profile=postgresql,redis
 
     # Deploy to production
-    ./launch_docker_lab_core.sh deploy --target=prod
+    ./launch_core.sh deploy --target=prod
 
     # View Traefik logs in real-time
-    ./launch_docker_lab_core.sh logs traefik -f
+    ./launch_core.sh logs traefik -f
 
     # Run health check with verbose output
-    ./launch_docker_lab_core.sh health -v
+    ./launch_core.sh health -v
 
     # Enable backup module
-    ./launch_docker_lab_core.sh module enable backup
+    ./launch_core.sh module enable backup
 
     # Update a running module to latest image
-    ./launch_docker_lab_core.sh module update backup
+    ./launch_core.sh module update backup
 
     # Switch to staging environment
-    ./launch_docker_lab_core.sh env staging
+    ./launch_core.sh env staging
 
     # Check for upstream Core updates
-    ./launch_docker_lab_core.sh check-updates
+    ./launch_core.sh check-updates
 
     # Initialize and validate configuration
-    ./launch_docker_lab_core.sh config init
-    ./launch_docker_lab_core.sh config validate
+    ./launch_core.sh config init
+    ./launch_core.sh config validate
 
 CONFIGURATION FILES:
     .peermesh.yml           Project configuration (preferred)

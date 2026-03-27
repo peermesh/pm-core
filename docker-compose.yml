@@ -180,6 +180,7 @@ services:
       - "--entrypoints.web.address=:80"
       - "--entrypoints.websecure.address=:443"
       - "--entrypoints.matrix-fed.address=:8448"
+      - "--entrypoints.traefik.address=:8080"
 
       # HTTP to HTTPS redirect
       - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
@@ -197,7 +198,7 @@ services:
 
       # Health check endpoint
       - "--ping=true"
-      - "--ping.entrypoint=web"  # Use the web entrypoint for ping
+      - "--ping.entrypoint=traefik"
 
       # Logging
       - "--log.level=${TRAEFIK_LOG_LEVEL:-INFO}"
@@ -205,9 +206,9 @@ services:
       - "--accesslog.format=json"
 
     ports:
-      - "80:80"
-      - "443:443"
-      - "8448:8448"
+      - "${TRAEFIK_WEB_PORT:-80}:80"
+      - "${TRAEFIK_WEBSECURE_PORT:-443}:443"
+      - "${TRAEFIK_MATRIX_FED_PORT:-8448}:8448"
       - "127.0.0.1:${TRAEFIK_DASHBOARD_PORT:-8080}:8080"  # Dashboard on localhost only
 
     volumes:
@@ -467,20 +468,20 @@ services:
       - source: redis_password
         mode: 0444  # Redis runs as non-root user 999
     command:
-      - redis-server
-      - --maxmemory
-      - ${REDIS_MAXMEMORY:-128mb}
-      - --maxmemory-policy
-      - allkeys-lru
-      - --appendonly
-      - "yes"
-      - --requirepass
-      - ${REDIS_PASSWORD:-changeme}
+      - /bin/sh
+      - -ec
+      - |
+        REDIS_PASSWORD="$$(cat /run/secrets/redis_password)"
+        exec redis-server \
+          --maxmemory ${REDIS_MAXMEMORY:-128mb} \
+          --maxmemory-policy allkeys-lru \
+          --appendonly yes \
+          --requirepass "$$REDIS_PASSWORD"
     volumes:
       - pmdl_redis_data:/data
     healthcheck:
       <<: *healthcheck-defaults
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-changeme}", "ping"]
+      test: ["CMD-SHELL", "redis-cli -a \"$$(cat /run/secrets/redis_password)\" ping"]
       start_period: 30s
     networks:
       - app-internal

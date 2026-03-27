@@ -1,4 +1,4 @@
-.PHONY: lint validate security-scan integration ci dashboard-dev dashboard-build dashboard-test
+.PHONY: lint validate security-scan integration ci dashboard-dev dashboard-build dashboard-test smoke-local
 
 # Dashboard directory
 DASHBOARD_DIR := services/dashboard
@@ -37,6 +37,10 @@ dashboard-build:
 dashboard-test:
 	@echo "Running dashboard tests..."
 	cd $(DASHBOARD_DIR) && go test -v ./...
+
+smoke-local:
+	@echo "Running local runtime smoke checks..."
+	./scripts/smoke-local-stack.sh
 
 dashboard-docker:
 	@echo "Building dashboard Docker image..."

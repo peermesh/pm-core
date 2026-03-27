@@ -1,6 +1,6 @@
-# Docker Lab Test Suite
+# Core Test Suite
 
-This directory contains the comprehensive test suite for the PeerMesh Docker Lab.
+This directory contains the comprehensive test suite for the PeerMesh Core.
 
 ## Test Framework
 

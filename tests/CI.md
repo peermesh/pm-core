@@ -1,6 +1,6 @@
 # CI Integration Guide
 
-This document describes how to integrate the Docker Lab test suite into CI/CD pipelines.
+This document describes how to integrate the Core test suite into CI/CD pipelines.
 
 ## Quick Start
 

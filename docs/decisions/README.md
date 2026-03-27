@@ -1,6 +1,6 @@
 # Architecture Decision Records
 
-This directory contains Architecture Decision Records (ADRs) documenting significant technical decisions made in the docker-lab project.
+This directory contains Architecture Decision Records (ADRs) documenting significant technical decisions made in the core project.
 
 ## What Are ADRs?
 

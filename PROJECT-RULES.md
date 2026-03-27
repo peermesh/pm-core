@@ -7,7 +7,7 @@ Project-specific agent governance has been redacted from this public boundary. N
 ### Migrated from CLAUDE.md (2026-03-16-20-00-02)
 
 Previous CLAUDE.md content extracted during sync.
-Backup: `/Users/grig/work/peermesh/repo/peermesh-docker-lab/sub-repos/docker-lab/.dev/ai/agents-backup/CLAUDE-2026-03-16-20-00-02.md`
+Backup: `/Users/grig/work/peermesh/repo/peermesh-core/sub-repos/core/.dev/ai/agents-backup/CLAUDE-2026-03-16-20-00-02.md`
 
 # CLAUDE.md
 

@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # ==============================================================
-# Upstream Update Check for Docker Lab Deployment Repos
+# Upstream Update Check for Core Deployment Repos
 # ==============================================================
 # Checks if the local deployment repo is behind the upstream
-# Docker Lab core repository. Reports available updates, new
+# Core core repository. Reports available updates, new
 # release tags, and critical/security releases.
 #
 # Designed to run from any deployment repo that follows the
@@ -61,7 +61,7 @@ if [[ ! -d "$PROJECT_DIR/.git" ]]; then
     if [[ "$JSON" == true ]]; then
         printf '{"status":"SKIPPED","reason":"not a git repository","path":"%s"}\n' "$PROJECT_DIR"
     else
-        info "=== Docker Lab Core Update Check ==="
+        info "=== Core Core Update Check ==="
         info "Path:     $PROJECT_DIR"
         info "Status:   SKIPPED"
         info "Reason:   Not a git repository (files may have been SCP'd)"
@@ -69,7 +69,7 @@ if [[ ! -d "$PROJECT_DIR/.git" ]]; then
         info "To enable upstream checks, initialize git and add upstream remote:"
         info "  cd $PROJECT_DIR"
         info "  git init && git add -A && git commit -m 'initial'"
-        info "  git remote add upstream https://github.com/peermesh/docker-lab.git"
+        info "  git remote add upstream https://github.com/peermesh/core.git"
     fi
     exit 3
 fi
@@ -83,13 +83,13 @@ if ! git remote get-url "$UPSTREAM_REMOTE" >/dev/null 2>&1; then
     if [[ "$JSON" == true ]]; then
         printf '{"status":"SKIPPED","reason":"no upstream remote","remote":"%s"}\n' "$UPSTREAM_REMOTE"
     else
-        info "=== Docker Lab Core Update Check ==="
+        info "=== Core Core Update Check ==="
         info "Path:     $PROJECT_DIR"
         info "Status:   SKIPPED"
         info "Reason:   No '$UPSTREAM_REMOTE' remote configured"
         info ""
         info "To add the upstream remote:"
-        info "  git remote add $UPSTREAM_REMOTE https://github.com/peermesh/docker-lab.git"
+        info "  git remote add $UPSTREAM_REMOTE https://github.com/peermesh/core.git"
         info "  git fetch $UPSTREAM_REMOTE"
     fi
     exit 3
@@ -123,7 +123,7 @@ if ! git rev-parse "$UPSTREAM_REF" >/dev/null 2>&1; then
     if [[ "$JSON" == true ]]; then
         printf '{"status":"SKIPPED","reason":"upstream branch not found","ref":"%s"}\n' "$UPSTREAM_REF"
     else
-        info "=== Docker Lab Core Update Check ==="
+        info "=== Core Core Update Check ==="
         info "Path:     $PROJECT_DIR"
         info "Status:   SKIPPED"
         info "Reason:   Upstream branch '$UPSTREAM_REF' not found"
@@ -234,7 +234,7 @@ if [[ "$JSON" == true ]]; then
     exit $EXIT_CODE
 fi
 
-info "=== Docker Lab Core Update Check ==="
+info "=== Core Core Update Check ==="
 info "Local:    $LOCAL_HEAD (merged upstream at ${LOCAL_LAST_TAG:-unknown})"
 info "Upstream: $UPSTREAM_HEAD (latest: ${UPSTREAM_LATEST_TAG:-unknown})"
 info "Status:   $STATUS"

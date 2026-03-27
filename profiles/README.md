@@ -1,6 +1,6 @@
 # Supporting Tech Profiles
 
-This directory contains production-ready configurations for common infrastructure services. Each profile is a complete, self-contained specification for deploying a specific technology within the PeerMesh Docker Lab foundation.
+This directory contains production-ready configurations for common infrastructure services. Each profile is a complete, self-contained specification for deploying a specific technology within the PeerMesh Core foundation.
 
 ---
 
@@ -47,7 +47,7 @@ profiles/
 ├── minio/
 ├── observability-lite/
 │
-└── identity/                     # Identity provider (Social Lab)
+└── identity/                     # Identity provider (Social)
     ├── PROFILE-SPEC.md          # Identity profile specification
     ├── docker-compose.identity.yml
     ├── .env.example
@@ -129,7 +129,7 @@ These profiles are complete with all sections:
 
 | Profile | Status | Use Case |
 |---------|--------|----------|
-| Identity | Available | WebID/Solid identity provider (Social Lab) |
+| Identity | Available | WebID/Solid identity provider (Social) |
 
 ### Tier 4: Specialized Profiles (Future)
 
@@ -264,4 +264,4 @@ Profiles are **built on** the foundation decisions:
 ---
 
 *Created: 2025-12-31*
-*Part of PeerMesh Docker Lab*
+*Part of PeerMesh Core*

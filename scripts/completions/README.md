@@ -9,7 +9,7 @@ This directory contains shell completion scripts for the PeerMeshCore CLI.
 **Option 1: Source directly in .bashrc**
 ```bash
 # Add to ~/.bashrc
-source /path/to/peermesh-docker-lab/scripts/completions/launch_docker_lab_core.bash
+source /path/to/peermesh-core/scripts/completions/launch_docker_lab_core.bash
 ```
 
 **Option 2: System-wide installation**
@@ -36,7 +36,7 @@ exec bash
 **Option 1: Add to fpath in .zshrc**
 ```zsh
 # Add to ~/.zshrc BEFORE compinit
-fpath=(/path/to/peermesh-docker-lab/scripts/completions $fpath)
+fpath=(/path/to/peermesh-core/scripts/completions $fpath)
 autoload -Uz compinit && compinit
 ```
 

@@ -29,7 +29,7 @@ OPENTOFU_PILOT_APPLY_APPROVED=true \
 OPENTOFU_PILOT_CHANGE_REF=WO-PMDL-2026-02-20-035 \
 ./infra/opentofu/scripts/pilot-apply-readiness.sh \
   --var-file /path/to/pilot-single-vps.auto.tfvars \
-  --env-file "${XDG_CONFIG_HOME:-$HOME/.config}/docker-lab/opentofu/pilot-single-vps.credentials.env" \
+  --env-file "${XDG_CONFIG_HOME:-$HOME/.config}/core/opentofu/pilot-single-vps.credentials.env" \
   --backend-config /path/to/backend.hcl
 ```
 
@@ -39,4 +39,4 @@ Notes:
 2. Provider env requirements are auto-derived from `compute_provider` and `dns_provider` values in the var file.
 3. `pilot-credentials.sh` manages the operator credential file with hidden input prompts and private file permissions.
 4. For dry-run evidence only, use `--allow-example-inputs`.
-5. Runtime boundary remains strict: OpenTofu provisions infra resources only; Docker Lab runtime remains Compose/webhook authoritative.
+5. Runtime boundary remains strict: OpenTofu provisions infra resources only; Core runtime remains Compose/webhook authoritative.

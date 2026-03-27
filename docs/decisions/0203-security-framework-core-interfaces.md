@@ -12,7 +12,7 @@
 
 ## Context
 
-The Docker Lab module system needs security capabilities -- identity verification, encryption, and capability-based access control -- but the foundation cannot mandate specific security providers. Modules run on commodity VPS hardware where heavyweight solutions like HashiCorp Vault or full SPIFFE/SPIRE deployments are impractical. At the same time, modules need a consistent way to declare and consume security services regardless of which provider (if any) is installed.
+The Core module system needs security capabilities -- identity verification, encryption, and capability-based access control -- but the foundation cannot mandate specific security providers. Modules run on commodity VPS hardware where heavyweight solutions like HashiCorp Vault or full SPIFFE/SPIRE deployments are impractical. At the same time, modules need a consistent way to declare and consume security services regardless of which provider (if any) is installed.
 
 The existing foundation already uses an "interfaces over implementations" pattern successfully:
 
@@ -86,7 +86,7 @@ Modules declare their security requirements in the `security` section of `module
 - Tight coupling between library version and module version
 - No runtime provider swapping without recompilation/reinstallation
 
-**Why not chosen**: Docker Lab modules are containerized and polyglot. Security contracts must work across container boundaries and language runtimes, which requires protocol-level interfaces, not library imports.
+**Why not chosen**: Core modules are containerized and polyglot. Security contracts must work across container boundaries and language runtimes, which requires protocol-level interfaces, not library imports.
 
 ---
 

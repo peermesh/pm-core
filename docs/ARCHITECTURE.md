@@ -1,15 +1,15 @@
 # System Architecture
 
-Docker Lab follows a **four-tier modular architecture** designed for composability, security, and maintainability.
+Core follows a **four-tier modular architecture** designed for composability, security, and maintainability.
 
 ## Provisioning and Runtime Boundary
 
-Docker Lab architecture intentionally separates infrastructure provisioning from runtime operations:
+Core architecture intentionally separates infrastructure provisioning from runtime operations:
 
 1. Infrastructure layer (OpenTofu):
    - manages VPS/network/firewall/DNS resources via provider APIs
    - runs `plan/apply` workflows with explicit evidence
-2. Runtime layer (Docker Lab foundation + modules):
+2. Runtime layer (Core foundation + modules):
    - runs container services on provisioned hosts
    - handles deployment, promotion gates, backups, and runtime validation
 

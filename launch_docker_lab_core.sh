@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==============================================================
-# PeerMesh Docker Lab - Unified Deployment CLI
+# PeerMesh Core - Unified Deployment CLI
 # Previously: launch_peermesh.sh
 # ==============================================================
 # Single entry point for all deployment operations.
@@ -22,7 +22,7 @@
 #   module   - Module management
 #   config   - Configuration management
 #   env      - Switch environment (local/staging/production)
-#   check-updates - Check for upstream Docker Lab updates
+#   check-updates - Check for upstream Core updates
 #
 # Documentation: docs/cli.md
 # ==============================================================
@@ -234,7 +234,7 @@ load_target_config() {
 # ==============================================================
 
 cmd_status() {
-    print_header "PeerMesh Docker Lab - Status"
+    print_header "PeerMesh Core - Status"
 
     local project_dir
     project_dir="$(get_project_dir)"
@@ -1960,7 +1960,7 @@ cmd_config() {
 
 show_menu() {
     clear
-    print_header "PeerMesh Docker Lab v$SCRIPT_VERSION"
+    print_header "PeerMesh Core v$SCRIPT_VERSION"
 
     load_env
 
@@ -2015,7 +2015,7 @@ interactive_menu() {
 
 show_help() {
     cat << 'EOF'
-PeerMesh Docker Lab - Unified Deployment CLI
+PeerMesh Core - Unified Deployment CLI
 
 USAGE:
     ./launch_docker_lab_core.sh                        Interactive menu
@@ -2033,7 +2033,7 @@ COMMANDS:
     module              Module management
     config              Configuration management
     env                 Switch environment (local/staging/production)
-    check-updates       Check for upstream Docker Lab core updates
+    check-updates       Check for upstream Core core updates
 
 COMMAND OPTIONS:
 
@@ -2121,7 +2121,7 @@ EXAMPLES:
     # Switch to staging environment
     ./launch_docker_lab_core.sh env staging
 
-    # Check for upstream Docker Lab updates
+    # Check for upstream Core updates
     ./launch_docker_lab_core.sh check-updates
 
     # Initialize and validate configuration

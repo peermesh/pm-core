@@ -9,7 +9,7 @@
     "email": "test@peermesh.local"
   },
   "license": "MIT",
-  "repository": "https://github.com/peermesh/docker-lab",
+  "repository": "https://github.com/peermesh/core",
   "tags": ["test", "foundation", "validation"],
   "foundation": {
     "minVersion": "1.0.0"

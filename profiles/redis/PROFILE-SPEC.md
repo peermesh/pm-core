@@ -1235,4 +1235,4 @@ docker logs pmdl_redis --tail 100 -f
 
 *Profile Template Version: 1.0*
 *Last Updated: 2025-12-31*
-*Part of PeerMesh Docker Lab*
+*Part of PeerMesh Core*

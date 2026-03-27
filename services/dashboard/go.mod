@@ -1,3 +1,3 @@
-module github.com/peermesh/docker-lab/services/dashboard
+module github.com/peermesh/core/services/dashboard
 
 go 1.21

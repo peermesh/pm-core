@@ -68,8 +68,8 @@ jobs:
             ## Quick Start
 
             ```bash
-            git clone https://github.com/grigb/peermesh-docker-lab.git
-            cd peermesh-docker-lab
+            git clone https://github.com/grigb/peermesh-core.git
+            cd peermesh-core
             cp .env.example .env
             docker compose --profile core up -d
             ```

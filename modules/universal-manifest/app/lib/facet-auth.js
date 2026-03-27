@@ -15,10 +15,10 @@ import { pool } from '../db.js';
  * These match the migration seed data.
  */
 const WELL_KNOWN_FACETS = [
-  { name: 'publicProfile', authorizedModule: 'social-lab', description: 'Display name, bio, avatar, handle' },
-  { name: 'socialIdentity', authorizedModule: 'social-lab', description: 'Protocol identities (AP, Nostr, AT, etc.)' },
-  { name: 'socialGraph', authorizedModule: 'social-lab', description: 'Follower/following counts, group memberships' },
-  { name: 'protocolStatus', authorizedModule: 'social-lab', description: 'Active/stub/unavailable protocol status' },
+  { name: 'publicProfile', authorizedModule: 'social', description: 'Display name, bio, avatar, handle' },
+  { name: 'socialIdentity', authorizedModule: 'social', description: 'Protocol identities (AP, Nostr, AT, etc.)' },
+  { name: 'socialGraph', authorizedModule: 'social', description: 'Follower/following counts, group memberships' },
+  { name: 'protocolStatus', authorizedModule: 'social', description: 'Active/stub/unavailable protocol status' },
   { name: 'credentials', authorizedModule: 'did-wallet', description: 'Verifiable credentials' },
   { name: 'verifiableCredentials', authorizedModule: 'did-wallet', description: 'W3C Verifiable Credentials' },
   { name: 'spatialAnchors', authorizedModule: 'spatial-fabric', description: 'Spatial anchor locations' },

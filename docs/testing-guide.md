@@ -1,10 +1,10 @@
-# Docker Lab Testing Guide
+# Core Testing Guide
 
-Complete guide to the Docker Lab test suite and testing practices.
+Complete guide to the Core test suite and testing practices.
 
 ## Overview
 
-The Docker Lab uses a comprehensive test suite built on [bats-core](https://github.com/bats-core/bats-core) (Bash Automated Testing System). The test suite provides:
+The Core uses a comprehensive test suite built on [bats-core](https://github.com/bats-core/bats-core) (Bash Automated Testing System). The test suite provides:
 
 - **Unit tests** - Individual script and function validation
 - **Integration tests** - Module lifecycle and component interaction tests

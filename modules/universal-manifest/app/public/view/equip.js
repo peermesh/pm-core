@@ -22,11 +22,11 @@
 
   /** Facet metadata: maps facet names to display info and module ownership */
   const FACET_META = {
-    // Social Lab (blue)
-    publicProfile:   { label: 'Public Profile',   icon: '\u{1F464}', module: 'social',     category: 'Social Lab',      desc: 'Display name, avatar, bio' },
-    socialIdentity:  { label: 'Social Identity',  icon: '\u{1F511}', module: 'social',     category: 'Social Lab',      desc: 'DIDs, WebID, protocol keys' },
-    socialGraph:     { label: 'Social Graph',     icon: '\u{1F310}', module: 'social',     category: 'Social Lab',      desc: 'Followers, following, groups' },
-    protocolStatus:  { label: 'Protocol Status',  icon: '\u{1F4E1}', module: 'social',     category: 'Social Lab',      desc: 'Active protocol connections' },
+    // Social (blue)
+    publicProfile:   { label: 'Public Profile',   icon: '\u{1F464}', module: 'social',     category: 'Social',      desc: 'Display name, avatar, bio' },
+    socialIdentity:  { label: 'Social Identity',  icon: '\u{1F511}', module: 'social',     category: 'Social',      desc: 'DIDs, WebID, protocol keys' },
+    socialGraph:     { label: 'Social Graph',     icon: '\u{1F310}', module: 'social',     category: 'Social',      desc: 'Followers, following, groups' },
+    protocolStatus:  { label: 'Protocol Status',  icon: '\u{1F4E1}', module: 'social',     category: 'Social',      desc: 'Active protocol connections' },
     // DID Wallet (gold)
     credentials:             { label: 'Credentials',             icon: '\u{1F3AB}', module: 'credential', category: 'DID Wallet',      desc: 'Verifiable credentials' },
     verifiableCredentials:   { label: 'Verifiable Credentials',  icon: '\u{1F4DC}', module: 'credential', category: 'DID Wallet',      desc: 'W3C verifiable credentials' },
@@ -394,7 +394,7 @@
 
   function buildCategories(facetMap) {
     var cats = [
-      { label: 'Social Lab', module: 'social', facets: [] },
+      { label: 'Social', module: 'social', facets: [] },
       { label: 'DID Wallet', module: 'credential', facets: [] },
       { label: 'Spatial Fabric', module: 'spatial', facets: [] },
     ];

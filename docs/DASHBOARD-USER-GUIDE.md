@@ -1,8 +1,8 @@
-# Docker Lab Dashboard - User Guide
+# Core Dashboard - User Guide
 
 ## Overview
 
-The Docker Lab Dashboard is a web-based monitoring and management interface for your Docker Compose infrastructure. It provides real-time visibility into container health, resource usage, volumes, and system metrics through a modern, responsive UI.
+The Core Dashboard is a web-based monitoring and management interface for your Docker Compose infrastructure. It provides real-time visibility into container health, resource usage, volumes, and system metrics through a modern, responsive UI.
 
 **Key Features:**
 
@@ -96,11 +96,11 @@ For each container, you'll see:
 
 **Profile Detection:**
 
-The dashboard intelligently detects which Docker Lab profile or project each container belongs to by examining Docker Compose labels:
+The dashboard intelligently detects which Core profile or project each container belongs to by examining Docker Compose labels:
 
 - `com.docker.compose.service`
 - `com.docker.compose.project`
-- `pmdl.profile` (custom Docker Lab label)
+- `pmdl.profile` (custom Core label)
 
 ## Volumes Page
 
@@ -115,7 +115,7 @@ The Volumes page lists all Docker volumes with usage information.
 - **Used By**: List of container names using the volume
 - **Mount Point**: Host filesystem path where volume is stored
 - **Created**: Volume creation timestamp
-- **Labels**: Docker labels attached to the volume
+- **Labels**: Coreels attached to the volume
 
 **Features:**
 
@@ -165,18 +165,18 @@ The System Info page displays host system details and Docker environment informa
 
 ## Multi-Instance Management
 
-The Multi-Instance Management feature allows you to monitor multiple Docker Lab deployments from a single dashboard.
+The Multi-Instance Management feature allows you to monitor multiple Core deployments from a single dashboard.
 
 ### What is an "Instance"?
 
-An **instance** is a remote Docker Lab deployment running its own dashboard. When you register an instance, your primary dashboard can:
+An **instance** is a remote Core deployment running its own dashboard. When you register an instance, your primary dashboard can:
 
 - View remote container lists
 - Check health status of the remote deployment
 - Trigger remote sync operations
 - Aggregate monitoring across multiple servers
 
-**Common Use Case**: You have Docker Lab running on multiple VPS servers (e.g., production, staging, development). Instead of logging into each dashboard separately, you can register all instances with your primary dashboard and monitor them centrally.
+**Common Use Case**: You have Core running on multiple VPS servers (e.g., production, staging, development). Instead of logging into each dashboard separately, you can register all instances with your primary dashboard and monitor them centrally.
 
 ### The "This Instance" Card
 
@@ -194,13 +194,13 @@ When you open the Instances page, you'll see a card labeled **"This Instance"** 
 
 ### How to Add a Remote Instance
 
-To monitor another Docker Lab deployment from your primary dashboard:
+To monitor another Core deployment from your primary dashboard:
 
 **Step 1: Prepare the Remote Dashboard**
 
 The remote server must:
 
-1. Have Docker Lab Dashboard running and accessible via URL
+1. Have Core Dashboard running and accessible via URL
 2. Use the **same password** as your primary dashboard (via `DOCKERLAB_PASSWORD`)
 
 The password acts as a shared secret for secure instance-to-instance communication.

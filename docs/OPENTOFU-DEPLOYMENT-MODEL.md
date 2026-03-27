@@ -1,15 +1,15 @@
 # OpenTofu Deployment Model
 
-This document defines the canonical deployment model for Docker Lab.
+This document defines the canonical deployment model for Core.
 
 ## Core Idea
 
-Docker Lab uses a split control model:
+Core uses a split control model:
 
 1. OpenTofu manages infrastructure through provider APIs (for example, Hetzner and DNS).
-2. Docker Lab manages runtime containers on that infrastructure (foundation first, then modules/apps).
+2. Core manages runtime containers on that infrastructure (foundation first, then modules/apps).
 
-This keeps provisioning reproducible while keeping container operations in the existing Docker Lab runtime workflows.
+This keeps provisioning reproducible while keeping container operations in the existing Core runtime workflows.
 
 ## Terminology
 
@@ -18,7 +18,7 @@ This keeps provisioning reproducible while keeping container operations in the e
 2. OpenTofu provider:
    The plugin OpenTofu uses to call a vendor API (for example, `hcloud` for Hetzner).
 3. Foundation runtime:
-   Docker Lab base services (Traefik, socket-proxy, networks, secrets, deployment controls).
+   Core base services (Traefik, socket-proxy, networks, secrets, deployment controls).
 4. Modules:
    Optional OSS systems added on top of the foundation (databases, federation adapter, example apps).
 
@@ -35,7 +35,7 @@ This keeps provisioning reproducible while keeping container operations in the e
 3. It does not run application lifecycle tasks for modules unless explicitly modeled.
 4. It does not autoscale by itself; scaling happens only through declared config changes and apply runs.
 
-## What Docker Lab Runtime Does
+## What Core Runtime Does
 
 1. Deploys and operates container stacks on the provisioned host.
 2. Enforces deployment promotion gates and evidence outputs.
@@ -50,17 +50,17 @@ This keeps provisioning reproducible while keeping container operations in the e
    - run readiness gate
    - review plan
    - run apply
-3. Deploy Docker Lab foundation runtime on the provisioned host:
+3. Deploy Core foundation runtime on the provisioned host:
    - bootstrap host
-   - run Docker Lab deploy flow
+   - run Core deploy flow
 4. Add module profiles and OSS apps as needed.
 5. Operate continuously:
    - OpenTofu for infra changes
-   - Docker Lab deploy/validation for runtime changes
+   - Core deploy/validation for runtime changes
 
 ## Alternative Paths
 
-1. Manual VPS provisioning + Docker Lab runtime:
+1. Manual VPS provisioning + Core runtime:
    - fastest start, less IaC control
 2. Hybrid:
    - OpenTofu for networking/DNS/firewall, manual host lifecycle

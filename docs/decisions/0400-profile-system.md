@@ -192,7 +192,7 @@ Document profiles in compose.yaml header:
 
 ```yaml
 # ==============================================================
-# PeerMesh Docker Lab
+# PeerMesh Core
 # ==============================================================
 #
 # PROFILES AVAILABLE:

@@ -9,7 +9,7 @@ Tracked examples:
 
 Canonical credential file (live, untracked):
 
-- `${XDG_CONFIG_HOME:-$HOME/.config}/docker-lab/opentofu/pilot-single-vps.credentials.env`
+- `${XDG_CONFIG_HOME:-$HOME/.config}/core/opentofu/pilot-single-vps.credentials.env`
 
 Usage:
 
@@ -17,10 +17,10 @@ Usage:
 ./infra/opentofu/scripts/tofu.sh -chdir=infra/opentofu/stacks/pilot-single-vps validate
 
 # 0) Create credential file from tracked example (outside git)
-mkdir -p "${XDG_CONFIG_HOME:-$HOME/.config}/docker-lab/opentofu"
+mkdir -p "${XDG_CONFIG_HOME:-$HOME/.config}/core/opentofu"
 cp ./infra/opentofu/env/pilot-single-vps.credentials.env.example \
-  "${XDG_CONFIG_HOME:-$HOME/.config}/docker-lab/opentofu/pilot-single-vps.credentials.env"
-chmod 600 "${XDG_CONFIG_HOME:-$HOME/.config}/docker-lab/opentofu/pilot-single-vps.credentials.env"
+  "${XDG_CONFIG_HOME:-$HOME/.config}/core/opentofu/pilot-single-vps.credentials.env"
+chmod 600 "${XDG_CONFIG_HOME:-$HOME/.config}/core/opentofu/pilot-single-vps.credentials.env"
 
 # For apply-path readiness evidence:
 # 1) Capture/update required provider keys in a secure local file (outside git by default)
@@ -32,7 +32,7 @@ OPENTOFU_PILOT_APPLY_APPROVED=true \
 OPENTOFU_PILOT_CHANGE_REF=WO-PMDL-2026-02-20-036 \
 ./infra/opentofu/scripts/pilot-apply-readiness.sh \
   --var-file /absolute/path/to/pilot-single-vps.auto.tfvars \
-  --env-file "${XDG_CONFIG_HOME:-$HOME/.config}/docker-lab/opentofu/pilot-single-vps.credentials.env"
+  --env-file "${XDG_CONFIG_HOME:-$HOME/.config}/core/opentofu/pilot-single-vps.credentials.env"
 ```
 
 Credential file format (Hetzner-only pilot):
@@ -57,4 +57,4 @@ Strict apply-readiness rule:
 
 Required variable names and defaults policy are defined in:
 
-- `/Users/grig/work/peermesh/repo/peermesh-docker-lab/.dev/ai/research/opentofu-integration/OPENTOFU-PILOT-SCAFFOLD-AND-STATE-POLICY.md`
+- `/Users/grig/work/peermesh/repo/peermesh-core/.dev/ai/research/opentofu-integration/OPENTOFU-PILOT-SCAFFOLD-AND-STATE-POLICY.md`

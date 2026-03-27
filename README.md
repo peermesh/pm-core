@@ -1,4 +1,4 @@
-# PeerMeshCore Docker Lab
+# PeerMeshCore Core
 
 PeerMeshCore's runtime foundation for self-hosted applications. Clone it, configure it, deploy it.
 
@@ -19,19 +19,19 @@ This is infrastructure boilerplate for PeerMeshCore – clone it and layer your 
 
 ## Public Boundary
 
-This repository is the PeerMeshCore public boundary, exposed at https://github.com/peermesh/docker-lab. It hosts the public documentation, automation, and runtime assets, so follow the canonical quick-start guide in `docs/QUICKSTART.md` whenever you need public install or onboarding instructions.
+This repository is the PeerMeshCore public boundary, exposed at https://github.com/peermesh/core. It hosts the public documentation, automation, and runtime assets, so follow the canonical quick-start guide in `docs/QUICKSTART.md` whenever you need public install or onboarding instructions.
 
 ## Canonical Deployment Model
 
-PeerMeshCore Docker Lab uses a two-layer model:
+PeerMeshCore Core uses a two-layer model:
 
 1. OpenTofu provisions infrastructure through provider APIs (for example, Hetzner VPS + DNS prerequisites).
-2. Docker Lab deploys and operates the runtime foundation and modules on that infrastructure.
+2. Core deploys and operates the runtime foundation and modules on that infrastructure.
 
 This means:
 
 1. OpenTofu is the infrastructure control plane.
-2. Docker Lab is the runtime/container control plane.
+2. Core is the runtime/container control plane.
 3. Modules are layered onto the foundation after the base runtime is up.
 4. OpenTofu providers are API connectors used during plan/apply, not always-on autoscaling agents.
 
@@ -40,13 +40,13 @@ See [Enterprise Version Immutability Standard](docs/ENTERPRISE-VERSION-IMMUTABIL
 
 ## Start Your Project
 
-Docker Lab is designed to be forked. The recommended way to build on Docker Lab is the **fork + upstream remote** pattern: fork this repo into your own, add your modules, and periodically merge upstream improvements.
+Core is designed to be forked. The recommended way to build on Core is the **fork + upstream remote** pattern: fork this repo into your own, add your modules, and periodically merge upstream improvements.
 
 ```bash
-# Fork peermesh/docker-lab on GitHub, then:
+# Fork peermesh/core on GitHub, then:
 git clone https://github.com/YOUR-ORG/your-project-deploy.git
 cd your-project-deploy
-git remote add upstream https://github.com/peermesh/docker-lab.git
+git remote add upstream https://github.com/peermesh/core.git
 cp .env.example .env && ./scripts/generate-secrets.sh
 ./launch_docker_lab_core.sh module create my-app
 ```
@@ -62,12 +62,12 @@ See [Deployment Repo Pattern](docs/DEPLOYMENT-REPO-PATTERN.md) for the complete 
 
 ## Quick Start
 
-The canonical public install path is maintained in [docs/QUICKSTART.md](docs/QUICKSTART.md). That guide walks through cloning `https://github.com/peermesh/docker-lab.git`, configuring your `.env`, generating secrets, and starting the foundation services so you can treat it as the single source of truth for onboarding the `docker-lab` public repository.
+The canonical public install path is maintained in [docs/QUICKSTART.md](docs/QUICKSTART.md). That guide walks through cloning `https://github.com/peermesh/core.git`, configuring your `.env`, generating secrets, and starting the foundation services so you can treat it as the single source of truth for onboarding the `core` public repository.
 
 ```bash
 # Clone the repository
-git clone https://github.com/peermesh/docker-lab.git
-cd docker-lab
+git clone https://github.com/peermesh/core.git
+cd core
 
 # Initialize configuration
 ./launch_docker_lab_core.sh config init
@@ -206,4 +206,6 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, validation command
 
 ## License
 
-MIT License - Use it for anything.
+Original source code and documentation in this repository are licensed under the **PolyForm Noncommercial License 1.0.0** ([`LICENSE`](LICENSE)). See [`COPYRIGHT`](COPYRIGHT), [`COMMERCIAL-LICENSE.md`](COMMERCIAL-LICENSE.md) for commercial use, [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) for third-party components, and [`DEPENDENCY-LICENSE-POLICY.md`](DEPENDENCY-LICENSE-POLICY.md) for how project and dependency licenses interact.
+
+Third-party components (including container images, libraries, and upstream applications) remain under their respective licenses; the project license does not replace them.

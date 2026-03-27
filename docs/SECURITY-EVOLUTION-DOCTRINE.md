@@ -1,6 +1,6 @@
 # Security Evolution Doctrine
 
-Docker Lab's foundational philosophy for continuous security improvement.
+Core's foundational philosophy for continuous security improvement.
 
 **Version**: 1.0.0
 **Created**: 2026-03-23
@@ -10,18 +10,18 @@ Docker Lab's foundational philosophy for continuous security improvement.
 
 ## 1. Why Security Must Be Evolutionary
 
-Docker Lab is not an application. It is the foundation that other applications run on. Every project built on Docker Lab inherits its security posture — its strengths and its weaknesses.
+Core is not an application. It is the foundation that other applications run on. Every project built on Core inherits its security posture — its strengths and its weaknesses.
 
 This creates a multiplier effect in both directions:
 
-- **A fix in Docker Lab protects every consumer.** When we harden the foundation, every project built on it gets harder to attack.
-- **A vulnerability in Docker Lab is a zero-day for every consumer.** If an attacker finds a weakness in the foundation, they can exploit it against every project that uses Docker Lab before anyone knows the weakness exists.
+- **A fix in Core protects every consumer.** When we harden the foundation, every project built on it gets harder to attack.
+- **A vulnerability in Core is a zero-day for every consumer.** If an attacker finds a weakness in the foundation, they can exploit it against every project that uses Core before anyone knows the weakness exists.
 
 This is why static security is not enough.
 
 ### The Attack Surface Grows With Every Module
 
-When Docker Lab ships with three foundation services (socket-proxy, traefik, dashboard), the attack surface is known and bounded. The moment a module is deployed on top — a CMS, a chat server, a database-backed API — new surfaces appear that did not exist when the foundation was designed:
+When Core ships with three foundation services (socket-proxy, traefik, dashboard), the attack surface is known and bounded. The moment a module is deployed on top — a CMS, a chat server, a database-backed API — new surfaces appear that did not exist when the foundation was designed:
 
 - New network connections between containers
 - New public endpoints exposed through Traefik
@@ -231,7 +231,7 @@ These artifacts are created by humans (developers, operators, reviewers) when th
 | Findings registry | `.dev/ai/findings/` | Security and architectural findings with FIND-* identifiers and status tracking |
 | External reviewer methodology | `.dev/ai/findings/2026-03-21-external-reviewer-security-methodology.md` | Professional security testing patterns from third-party reviewers (Matsuri/Signus) |
 | Security checklist | `docs/SECURITY-CHECKLIST.md` | CIS + OWASP control-by-control compliance status |
-| Module author friction reports | Work orders referencing module deployment issues | Real-world gaps discovered when someone tries to build on Docker Lab |
+| Module author friction reports | Work orders referencing module deployment issues | Real-world gaps discovered when someone tries to build on Core |
 
 ### 4c. Structural Feedback (design-driven)
 
@@ -251,7 +251,7 @@ These governance mechanisms ensure that design decisions are preserved and that 
 
 This section provides step-by-step response procedures. A new contributor who discovers a security issue should be able to follow these instructions without asking anyone for guidance.
 
-### 5a. Vulnerability in Docker Lab Foundation
+### 5a. Vulnerability in Core Foundation
 
 1. **Assess severity** using standard ratings:
    - **CRITICAL**: Remote code execution, authentication bypass, data exfiltration without credentials
@@ -275,14 +275,14 @@ This section provides step-by-step response procedures. A new contributor who di
    - Update `docs/SECURITY-CHECKLIST.md` if a CIS/OWASP control status changed
 
 6. **Notify consumers**:
-   - All downstream deployment repos that track Docker Lab as an upstream remote receive the fix via `git fetch upstream && git merge upstream/main`
+   - All downstream deployment repos that track Core as an upstream remote receive the fix via `git fetch upstream && git merge upstream/main`
    - If the fix requires manual action (secret rotation, config change), document it in the commit message and in GOTCHAS.md
 
 ### 5b. Vulnerability in a Module
 
 1. Module author files a finding or reports the issue.
-2. Docker Lab maintainers assess: **Is this a foundation gap or a module-specific issue?**
-   - **Foundation gap** (e.g., missing network isolation, template missing a hardening default): Docker Lab creates a work order and fixes the foundation.
+2. Core maintainers assess: **Is this a foundation gap or a module-specific issue?**
+   - **Foundation gap** (e.g., missing network isolation, template missing a hardening default): Core creates a work order and fixes the foundation.
    - **Module-specific** (e.g., application SQL injection, missing input validation): Guidance provided to the module author; module author fixes.
 3. **If the pattern could affect other modules**: Add a check to `run-full-audit.sh` and update `docs/module-authoring-guide.md` with prevention guidance.
 
@@ -298,7 +298,7 @@ This section provides step-by-step response procedures. A new contributor who di
 
 ## 6. Module Monitoring Requirements
 
-Every module added to Docker Lab exposes new attack surfaces. The foundation monitors the following categories for every module, regardless of what the module does.
+Every module added to Core exposes new attack surfaces. The foundation monitors the following categories for every module, regardless of what the module does.
 
 ### Resource Exhaustion
 
@@ -351,7 +351,7 @@ The system improves when any of these events occur. Each trigger follows the lea
 
 | Trigger | Example | Learning Loop Output |
 |---------|---------|---------------------|
-| New module deployed | Social Lab module added | New attack surfaces audited, module rubric applied, network policy verified |
+| New module deployed | Social module added | New attack surfaces audited, module rubric applied, network policy verified |
 | Vulnerability discovered | CVE in upstream Traefik image | Digest updated, check added to `check-stale-digests.sh`, finding documented |
 | Operational incident | Accidentally locked ourselves out by setting a restrictive variable | Gotcha added to `GOTCHAS.md`, audit check prevents recurrence |
 | Security tool improves | New Trivy feature for secret scanning | Integrated into `validate-supply-chain.sh`, documented in audit script |
@@ -373,7 +373,7 @@ These are deliberate constraints. They are as important as what we do.
 
 **We will NOT sacrifice usability by default.** The base configuration must be usable by a new contributor without security expertise. Hardened configurations are provided as overlays (`docker-compose.hardening.yml`) and opt-in enforcement modes (`enforcementMode: "fail-closed"` in `module.json`). Security that nobody uses because it is too hard is security that does not exist.
 
-**We will NOT assume modules are trustworthy.** Every module runs inside Docker Lab's constraints: network isolation, capability drops, resource limits, secret scoping. A module cannot opt out of foundation-level security controls. It can only declare additional requirements through `module.json`.
+**We will NOT assume modules are trustworthy.** Every module runs inside Core's constraints: network isolation, capability drops, resource limits, secret scoping. A module cannot opt out of foundation-level security controls. It can only declare additional requirements through `module.json`.
 
 **We will NOT stop evolving.** The moment we think the security posture is "done," we are vulnerable. The learning loop has no terminal state. Every new module, every new CVE, every new attack technique is an input to the loop.
 
@@ -464,4 +464,4 @@ Every abstract concept in this doctrine maps to a concrete file. This is the com
 
 ---
 
-*This doctrine is a living document. It evolves as Docker Lab evolves. Every security incident, every module deployment, every external review makes it more complete. There is no version of this document that is "final" — only the current version, which is better than the last.*
+*This doctrine is a living document. It evolves as Core evolves. Every security incident, every module deployment, every external review makes it more complete. There is no version of this document that is "final" — only the current version, which is better than the last.*

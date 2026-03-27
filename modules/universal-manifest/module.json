@@ -10,7 +10,7 @@
     "name": "PeerMesh Team"
   },
   "license": "MIT",
-  "repository": "https://github.com/peermesh/peermesh-docker-lab",
+  "repository": "https://github.com/peermesh/peermesh-core",
   "tags": ["identity", "manifest", "signing", "resolver", "facets", "ed25519"],
 
   "foundation": {
@@ -129,7 +129,7 @@
     "properties": {
       "domain": {
         "type": "string",
-        "description": "The domain where Docker Lab is hosted",
+        "description": "The domain where Core is hosted",
         "env": "DOMAIN"
       },
       "subdomain": {

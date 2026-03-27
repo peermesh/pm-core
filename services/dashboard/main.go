@@ -9,7 +9,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/peermesh/docker-lab/services/dashboard/handlers"
+	"github.com/peermesh/core/services/dashboard/handlers"
 )
 
 const (

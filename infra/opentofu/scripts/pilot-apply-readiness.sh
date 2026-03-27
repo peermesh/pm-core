@@ -10,7 +10,7 @@ VAR_FILE="$ROOT_DIR/env/pilot-single-vps.auto.tfvars.example"
 BACKEND_CONFIG=""
 SUMMARY_FILE=""
 PLAN_FILE="/tmp/pilot-single-vps-readiness-$(date -u +%Y%m%dT%H%M%SZ).tfplan"
-DEFAULT_ENV_FILE="${XDG_CONFIG_HOME:-$HOME/.config}/docker-lab/opentofu/pilot-single-vps.credentials.env"
+DEFAULT_ENV_FILE="${XDG_CONFIG_HOME:-$HOME/.config}/core/opentofu/pilot-single-vps.credentials.env"
 ENV_FILE="$DEFAULT_ENV_FILE"
 ALLOW_EXAMPLE_INPUTS=false
 SKIP_PLAN=false
@@ -28,7 +28,7 @@ Options:
   --stack-dir PATH          OpenTofu stack directory (default: stacks/pilot-single-vps)
   --var-file PATH           Variable file to use for readiness checks
   --backend-config PATH     Backend config profile for init (optional)
-  --env-file PATH           Credential env file (default: \$XDG_CONFIG_HOME/docker-lab/opentofu/pilot-single-vps.credentials.env)
+  --env-file PATH           Credential env file (default: \$XDG_CONFIG_HOME/core/opentofu/pilot-single-vps.credentials.env)
   --require-env NAME        Required environment variable (repeatable)
   --summary-file PATH       Write key/value summary output (.env format)
   --plan-file PATH          Plan output path

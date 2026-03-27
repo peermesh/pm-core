@@ -2,7 +2,7 @@
 
 Last updated: 2026-02-22
 
-This file records the immutable image references currently used by Docker Lab compose definitions.
+This file records the immutable image references currently used by Core compose definitions.
 
 ## External Images (Digest-Pinned)
 

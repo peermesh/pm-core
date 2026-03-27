@@ -3,8 +3,8 @@
 ## Development Setup
 
 ```bash
-git clone https://github.com/peermesh/docker-lab.git
-cd docker-lab
+git clone https://github.com/peermesh/core.git
+cd core
 cp .env.example .env
 ./scripts/generate-secrets.sh
 ```

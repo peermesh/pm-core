@@ -1,6 +1,6 @@
 # Security Architecture
 
-Comprehensive security architecture documentation for PeerMesh Docker Lab.
+Comprehensive security architecture documentation for PeerMesh Core.
 
 **Version**: 1.2.0
 **Last Updated**: 2026-03-20
@@ -10,7 +10,7 @@ Comprehensive security architecture documentation for PeerMesh Docker Lab.
 
 ## Executive Summary
 
-PeerMesh Docker Lab implements defense-in-depth security with:
+PeerMesh Core implements defense-in-depth security with:
 
 - **Network Isolation**: Four-tier network topology
 - **Secrets Management**: File-based secrets, never environment variables
@@ -20,7 +20,7 @@ PeerMesh Docker Lab implements defense-in-depth security with:
 - **Webhook Deployment**: Pull-based deployment without SSH keys in CI
 - **Supply-Chain Gates**: Image policy + SBOM + vulnerability threshold validation
 - **Encrypted Secrets Workflow**: SOPS+age support for encrypted-at-rest secret bundles
-- **Provisioning Boundary**: OpenTofu handles infra provisioning, Docker Lab handles runtime operations
+- **Provisioning Boundary**: OpenTofu handles infra provisioning, Core handles runtime operations
 
 ---
 
@@ -567,12 +567,12 @@ socket-proxy:
 Infrastructure provisioning and runtime operations are intentionally separated:
 
 1. OpenTofu controls infrastructure resources (VPS/network/firewall/DNS) through provider APIs.
-2. Docker Lab runtime controls container lifecycle (Compose/webhook deploy, promotion, backups, validation).
+2. Core runtime controls container lifecycle (Compose/webhook deploy, promotion, backups, validation).
 
 Security implications:
 
 1. Infrastructure credentials (for example, `HCLOUD_TOKEN`, DNS API token) are used only in scoped plan/apply sessions.
-2. Runtime secrets remain in Docker Lab secrets flow and are not moved into OpenTofu state.
+2. Runtime secrets remain in Core secrets flow and are not moved into OpenTofu state.
 3. No runtime container/module lifecycle ownership is delegated to OpenTofu in this cycle.
 
 References:

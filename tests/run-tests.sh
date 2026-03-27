@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Test runner for Docker Lab test suite
+# Test runner for Core test suite
 # Runs bats tests with proper configuration and output formatting
 
 set -euo pipefail
@@ -21,7 +21,7 @@ usage() {
   cat <<EOF
 Usage: $(basename "$0") [OPTIONS] [TEST_SUITE]
 
-Run Docker Lab test suite using bats-core.
+Run Core test suite using bats-core.
 
 TEST_SUITE:
   all             Run all tests (default)
@@ -166,7 +166,7 @@ case "$TEST_SUITE" in
 esac
 
 # Print test run info
-echo -e "${BLUE}Docker Lab Test Suite${NC}"
+echo -e "${BLUE}Core Test Suite${NC}"
 echo -e "${BLUE}=====================${NC}"
 echo "Suite: $TEST_SUITE"
 echo "Verbose: $VERBOSE"

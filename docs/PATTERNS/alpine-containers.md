@@ -1,6 +1,6 @@
 # Alpine-Based Containers
 
-Pattern guide for deploying and configuring Alpine Linux-based containers in Docker Lab.
+Pattern guide for deploying and configuring Alpine Linux-based containers in Core.
 
 ---
 
@@ -12,7 +12,7 @@ Alpine-based containers are common in the FOSS ecosystem due to their minimal fo
 
 - **Tag keywords**: `alpine`, `slim`, `minimal`, `scratch`
 - **Base image**: Alpine Linux (typically 5-10MB)
-- **Common examples in Docker Lab**:
+- **Common examples in Core**:
   - `almir/webhook` - Webhook automation
   - `gotosocial` - ActivityPub server
   - Many Node.js apps using `node:alpine`

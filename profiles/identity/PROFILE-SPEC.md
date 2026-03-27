@@ -144,11 +144,11 @@ docker compose -f docker-compose.yml \
 
 ---
 
-## Integration with Social Lab
+## Integration with Social
 
 ### Internal Service Access
 
-Other services in the Social Lab project can authenticate against the identity provider:
+Other services in the Social project can authenticate against the identity provider:
 
 ```yaml
 # In your app's docker-compose fragment

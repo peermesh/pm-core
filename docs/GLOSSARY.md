@@ -4,7 +4,7 @@
 **Last Updated**: 2026-01-23
 **Maintainer**: All contributors
 
-This document defines the authoritative terms, naming conventions, and namespaces used throughout the PeerMeshCore project (the runtime still uses the legacy Docker Lab identifiers for backward compatibility). **All code, configuration, and documentation MUST use these terms consistently.**
+This document defines the authoritative terms, naming conventions, and namespaces used throughout the PeerMeshCore project (the runtime still uses the legacy Core identifiers for backward compatibility). **All code, configuration, and documentation MUST use these terms consistently.**
 
 ---
 
@@ -12,7 +12,7 @@ This document defines the authoritative terms, naming conventions, and namespace
 
 | Prefix | Scope | Example |
 |--------|-------|---------|
-| `DOCKERLAB_` | PeerMeshCore Dashboard (main UI, internally known as the Docker Lab Dashboard) | `DOCKERLAB_USERNAME` |
+| `DOCKERLAB_` | PeerMeshCore Dashboard (main UI, internally known as the Core Dashboard) | `DOCKERLAB_USERNAME` |
 | `TRAEFIK_` | Traefik reverse proxy | `TRAEFIK_DASHBOARD_PORT` |
 | `POSTGRES_` | PostgreSQL database | `POSTGRES_PASSWORD` |
 | `REDIS_` | Redis cache/queue | `REDIS_PASSWORD` |
@@ -28,7 +28,7 @@ This document defines the authoritative terms, naming conventions, and namespace
 ### PeerMeshCore Dashboard
 
 **Canonical Name**: PeerMeshCore Dashboard
-**Internal Alias**: Docker Lab Dashboard
+**Internal Alias**: Core Dashboard
 **Service Name**: `dashboard`
 **Config Prefix**: `DOCKERLAB_`
 **URL**: `https://${DOMAIN}/` (root)
@@ -184,7 +184,7 @@ Modules are PeerMeshCore infrastructure extensions with formal lifecycle managem
 {NAMESPACE}_{COMPONENT}_{SETTING}
 
 Examples:
-  DOCKERLAB_SESSION_SECRET     # PeerMeshCore dashboard session secret (internal: Docker Lab Dashboard)
+  DOCKERLAB_SESSION_SECRET     # PeerMeshCore dashboard session secret (internal: Core Dashboard)
   TRAEFIK_DASHBOARD_PORT       # Traefik Dashboard port
   POSTGRES_SHARED_BUFFERS      # PostgreSQL memory setting
   MASTODON_DB_PASSWORD         # Mastodon's database password
@@ -216,7 +216,7 @@ Examples:
 {component}[-{qualifier}]
 
 Examples:
-  dashboard          # Main PeerMeshCore Dashboard (internal: Docker Lab Dashboard)
+  dashboard          # Main PeerMeshCore Dashboard (internal: Core Dashboard)
   traefik            # Reverse proxy
   postgres           # Database
   redis              # Cache
@@ -250,13 +250,13 @@ Examples:
 
 | Term | Refers To | NOT |
 |------|-----------|-----|
-| "Dashboard" (capitalized) | PeerMeshCore Dashboard (internal: Docker Lab Dashboard) | Traefik Dashboard |
-| "Traefik Dashboard" | Traefik's admin UI | PeerMeshCore Dashboard (internal: Docker Lab Dashboard) |
-| `dashboard` service | PeerMeshCore Dashboard (internal alias: Docker Lab Dashboard) | Any other dashboard |
+| "Dashboard" (capitalized) | PeerMeshCore Dashboard (internal: Core Dashboard) | Traefik Dashboard |
+| "Traefik Dashboard" | Traefik's admin UI | PeerMeshCore Dashboard (internal: Core Dashboard) |
+| `dashboard` service | PeerMeshCore Dashboard (internal alias: Core Dashboard) | Any other dashboard |
 | `DASHBOARD_*` vars | **DEPRECATED** - use `DOCKERLAB_*` | - |
 | "the dashboard" | Context-dependent - be specific | - |
 
-> NOTE: The DOCKERLAB_ prefix and the historical Docker Lab dashboard name remain the internal identifiers for the PeerMeshCore dashboard; use them for config but refer to the product externally as PeerMeshCore.
+> NOTE: The DOCKERLAB_ prefix and the historical Core dashboard name remain the internal identifiers for the PeerMeshCore dashboard; use them for config but refer to the product externally as PeerMeshCore.
 
 ---
 

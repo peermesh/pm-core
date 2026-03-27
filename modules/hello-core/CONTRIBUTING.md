@@ -1,7 +1,7 @@
 # Contributing to Hello Core Module
 
 Welcome! `modules/hello-core` is a near-stock example of the standalone hello module that ships with
-PeerMesh Docker Lab. If you would like to improve it:
+PeerMesh Core. If you would like to improve it:
 
 1. Keep the manifest aligned with `foundation/schemas/module.schema.json` and the rest of the module
    system (`lifecycle`, `dashboard`, `config`, `provides`, `requires`, `security`).

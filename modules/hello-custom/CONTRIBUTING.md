@@ -1,6 +1,6 @@
 # Contributing to Hello Module
 
-Thank you for your interest in improving the Hello Module example. This repository serves as a reference implementation for the PeerMesh Docker Lab module system, so clarity and correctness are the top priorities.
+Thank you for your interest in improving the Hello Module example. This repository serves as a reference implementation for the PeerMesh Core module system, so clarity and correctness are the top priorities.
 
 ## How to Contribute
 
@@ -13,7 +13,7 @@ If you find a bug, unclear documentation, or something that does not work as des
    - A clear title describing the problem
    - Steps to reproduce
    - Expected vs. actual behavior
-   - Your Docker Lab version and OS
+   - Your Core version and OS
 
 ### Suggesting Improvements
 
@@ -21,7 +21,7 @@ Ideas for making the example clearer or more useful are welcome:
 
 1. Open an issue describing the improvement
 2. Explain why the change would help module authors
-3. If possible, reference the Docker Lab documentation that supports your suggestion
+3. If possible, reference the Core documentation that supports your suggestion
 
 ### Submitting Pull Requests
 
@@ -44,13 +44,13 @@ Ideas for making the example clearer or more useful are welcome:
 
 - **Clarity over cleverness.** This is a teaching example. Straightforward code is better than elegant code.
 - **Annotated changes.** If you add a new pattern, explain it with comments.
-- **Backward compatible.** Changes should not break existing Docker Lab deployments.
+- **Backward compatible.** Changes should not break existing Core deployments.
 - **Tested.** Run `tests/smoke-test.sh` before submitting.
 
 ### What We Cannot Accept
 
 - Changes that add complexity without educational value
-- Dependencies on external services (the example should work with only Docker Lab foundation)
+- Dependencies on external services (the example should work with only Core foundation)
 - Secrets or credentials in any form
 
 ## Testing

@@ -1,7 +1,7 @@
 # Enterprise Version Immutability Standard
 
 Status: Active  
-Applies to: All Docker Lab infrastructure/runtime artifacts
+Applies to: All Core infrastructure/runtime artifacts
 
 ## Purpose
 

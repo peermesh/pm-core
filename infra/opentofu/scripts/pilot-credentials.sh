@@ -5,7 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 VAR_FILE="$ROOT_DIR/env/pilot-single-vps.auto.tfvars.example"
-DEFAULT_ENV_FILE="${XDG_CONFIG_HOME:-$HOME/.config}/docker-lab/opentofu/pilot-single-vps.credentials.env"
+DEFAULT_ENV_FILE="${XDG_CONFIG_HOME:-$HOME/.config}/core/opentofu/pilot-single-vps.credentials.env"
 ENV_FILE="$DEFAULT_ENV_FILE"
 ALLOW_EXAMPLE_INPUTS=false
 
@@ -25,7 +25,7 @@ Commands:
 
 Options:
   --var-file PATH        Variable file used to derive required provider env vars
-  --env-file PATH        Credential env file path (default: \$XDG_CONFIG_HOME/docker-lab/opentofu/pilot-single-vps.credentials.env)
+  --env-file PATH        Credential env file path (default: \$XDG_CONFIG_HOME/core/opentofu/pilot-single-vps.credentials.env)
   --allow-example-inputs Allow *.example var file for setup/status (dry-run evidence)
   -h, --help             Show this help
 USAGE

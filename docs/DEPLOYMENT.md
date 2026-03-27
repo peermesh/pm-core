@@ -1,24 +1,24 @@
 # Deployment Guide
 
-Deploy PeerMeshCore Docker Lab to a commodity VPS ($20-50/month) running Ubuntu 22.04/24.04 LTS.
+Deploy PeerMeshCore Core to a commodity VPS ($20-50/month) running Ubuntu 22.04/24.04 LTS.
 
 ## Deployment Paths
 
-PeerMeshCore Docker Lab supports two valid paths:
+PeerMeshCore Core supports two valid paths:
 
 1. OpenTofu-managed infrastructure (recommended):
    - OpenTofu provisions VPS/network/firewall/DNS via provider API
-   - Docker Lab runtime is deployed on that provisioned host
+   - Core runtime is deployed on that provisioned host
 2. Manual VPS provisioning:
    - operator provisions host manually
-   - Docker Lab runtime is deployed on that host
+   - Core runtime is deployed on that host
 
 Canonical project preference is path 1 (OpenTofu-managed infrastructure), with Hetzner as the primary provider target.
 
 Boundary rule:
 
 1. OpenTofu manages infrastructure lifecycle.
-2. Docker Lab manages runtime/container lifecycle.
+2. Core manages runtime/container lifecycle.
 
 References:
 
@@ -37,14 +37,14 @@ Use this path when you want API-driven provisioning instead of manual VPS setup.
    - `dns_provider = "cloudflare"` (or your DNS provider)
 3. Capture required provider credentials using the secure credential manager:
    - `infra/opentofu/scripts/pilot-credentials.sh setup --var-file /path/to/pilot-single-vps.auto.tfvars`
-   - default credential file location: `${XDG_CONFIG_HOME:-$HOME/.config}/docker-lab/opentofu/pilot-single-vps.credentials.env`
+   - default credential file location: `${XDG_CONFIG_HOME:-$HOME/.config}/core/opentofu/pilot-single-vps.credentials.env`
    - onboarding placeholder copy: `docs/examples/pilot-single-vps.credentials.env.example`
    - bootstrap placeholder template:
      ```bash
-     mkdir -p "${XDG_CONFIG_HOME:-$HOME/.config}/docker-lab/opentofu"
+     mkdir -p "${XDG_CONFIG_HOME:-$HOME/.config}/core/opentofu"
      cp ./infra/opentofu/env/pilot-single-vps.credentials.env.example \
-       "${XDG_CONFIG_HOME:-$HOME/.config}/docker-lab/opentofu/pilot-single-vps.credentials.env"
-     chmod 600 "${XDG_CONFIG_HOME:-$HOME/.config}/docker-lab/opentofu/pilot-single-vps.credentials.env"
+       "${XDG_CONFIG_HOME:-$HOME/.config}/core/opentofu/pilot-single-vps.credentials.env"
+     chmod 600 "${XDG_CONFIG_HOME:-$HOME/.config}/core/opentofu/pilot-single-vps.credentials.env"
      ```
    - placeholder contract in that file:
      ```env
@@ -57,14 +57,14 @@ Use this path when you want API-driven provisioning instead of manual VPS setup.
 5. Run readiness and plan:
    - `infra/opentofu/scripts/pilot-apply-readiness.sh --var-file ... --env-file ...`
 6. Apply reviewed plan and run idempotency check.
-7. Deploy Docker Lab runtime on the provisioned host using the canonical deploy path.
+7. Deploy Core runtime on the provisioned host using the canonical deploy path.
 8. Add profiles/modules and validate runtime health.
 
 Important:
 
 1. OpenTofu and runtime deploy are complementary, not competing paths.
 2. OpenTofu handles infrastructure API operations.
-3. Docker Lab scripts handle runtime/container operations.
+3. Core scripts handle runtime/container operations.
 4. "Provider" here means an API integration/plugin; it is not a background autoscaling service.
 
 ## Security Notice: Deployment Method
@@ -493,7 +493,7 @@ su - deploy
 
 # Clone to standard location
 cd /opt
-sudo git clone https://github.com/peermesh/docker-lab.git peermesh
+sudo git clone https://github.com/peermesh/core.git peermesh
 sudo chown -R deploy:deploy /opt/peermesh
 cd /opt/peermesh
 ```
@@ -574,7 +574,7 @@ docker compose pull --ignore-buildable
 # This may take several minutes depending on connection speed
 ```
 
-`--ignore-buildable` is required because Docker Lab includes local build services (for example `dashboard`) that are not expected to exist in a public registry.
+`--ignore-buildable` is required because Core includes local build services (for example `dashboard`) that are not expected to exist in a public registry.
 
 ### Step 6: Start Services
 

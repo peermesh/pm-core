@@ -68,7 +68,7 @@ services:
     #
     # Pattern B — Root domain routing (e.g., example.com):
     #   Use when your module IS the primary app for the domain.
-    #   Learned from the peers.social deployment where the social-lab module
+    #   Learned from the peers.social deployment where the social module
     #   serves the root domain directly, not a subdomain.
     #   labels:
     #     - "traefik.enable=true"

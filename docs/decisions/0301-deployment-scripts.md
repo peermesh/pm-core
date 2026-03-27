@@ -182,7 +182,7 @@ echo "=== Complete ==="
 #!/bin/bash
 set -euo pipefail
 
-echo "=== PeerMesh Docker Lab Deployment ==="
+echo "=== PeerMesh Core Deployment ==="
 
 # Step 1: Validate configuration
 echo "Step 1: Validating configuration..."

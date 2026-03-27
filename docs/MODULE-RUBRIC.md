@@ -7,7 +7,7 @@
 
 ## Purpose
 
-Every module in the Docker Lab ecosystem must meet these requirements to be considered well-formed and compatible with the foundation layer. A "module" here means a **Docker Lab infrastructure extension** (Tier 4 in the four-tier architecture) -- a self-contained directory under `modules/` with a manifest, compose file, lifecycle hooks, and documentation. This rubric does not apply to foundation services, profiles, or examples, which are separate architectural layers with different requirements.
+Every module in the Core ecosystem must meet these requirements to be considered well-formed and compatible with the foundation layer. A "module" here means a **Core infrastructure extension** (Tier 4 in the four-tier architecture) -- a self-contained directory under `modules/` with a manifest, compose file, lifecycle hooks, and documentation. This rubric does not apply to foundation services, profiles, or examples, which are separate architectural layers with different requirements.
 
 For the full architectural context -- including why the foundation is not a module, how modules differ from profiles and examples, and how the naming works across the PeerMesh ecosystem -- see [MODULE-ARCHITECTURE.md](MODULE-ARCHITECTURE.md).
 
@@ -491,7 +491,7 @@ The architecture analysis (2026-02-25) resolved several open questions. The foll
 
 - [x] **Foundation services are NOT modules** -- they are a separate architectural layer (Tier 1). This rubric applies only to Tier 4 modules. See [MODULE-ARCHITECTURE.md](MODULE-ARCHITECTURE.md).
 - [x] **Different quality bars DO apply** -- foundation services have higher availability requirements; modules are optional extensions with lifecycle management.
-- [x] **Naming conventions** -- "Module" refers to Docker Lab infrastructure extensions. Parent-project components should be called "services" or "components." See [ADR-0500](decisions/0500-module-architecture.md).
+- [x] **Naming conventions** -- "Module" refers to Core infrastructure extensions. Parent-project components should be called "services" or "components." See [ADR-0500](decisions/0500-module-architecture.md).
 
 Still pending formal decision via ADR-0500:
 

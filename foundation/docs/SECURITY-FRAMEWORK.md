@@ -6,7 +6,7 @@
 
 ## Overview
 
-The PeerMesh Security Framework provides a comprehensive, pluggable security layer for Docker Lab modules. Following the same "interfaces over implementations" pattern used for event bus, connections, and dashboard, the security framework defines **contracts** in the foundation while **implementations** live as modules.
+The PeerMesh Security Framework provides a comprehensive, pluggable security layer for Core modules. Following the same "interfaces over implementations" pattern used for event bus, connections, and dashboard, the security framework defines **contracts** in the foundation while **implementations** live as modules.
 
 This framework enables:
 

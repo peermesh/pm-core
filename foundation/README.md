@@ -1,6 +1,6 @@
 # PeerMesh Module Foundation
 
-The Foundation defines the contracts, schemas, and validation helpers that keep Docker Lab modules consistent. The canonical module-authoring guide lives in the parent repository at [`../../../docs/module-authoring-guide.md`](../../../docs/module-authoring-guide.md). From here you can open the nested-repo landing notice at [`../docs/module-authoring-guide.md`](../docs/module-authoring-guide.md) to reach that canonical document. This README summarizes the foundation touchpoints around the guide but defers to the canonical document for workflow and template details.
+The Foundation defines the contracts, schemas, and validation helpers that keep Core modules consistent. The canonical module-authoring guide lives in the parent repository at [`../../../docs/module-authoring-guide.md`](../../../docs/module-authoring-guide.md). From here you can open the nested-repo landing notice at [`../docs/module-authoring-guide.md`](../docs/module-authoring-guide.md) to reach that canonical document. This README summarizes the foundation touchpoints around the guide but defers to the canonical document for workflow and template details.
 
 ## Module Authoring at a Glance
 

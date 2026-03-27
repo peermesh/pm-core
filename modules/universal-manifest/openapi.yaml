@@ -2,7 +2,7 @@ openapi: "3.1.0"
 info:
   title: PeerMesh Universal Manifest Module API
   description: >
-    Universal Manifest (UM) module for the PeerMesh Docker Lab platform.
+    Universal Manifest (UM) module for the PeerMesh Core platform.
     Provides identity document infrastructure: manifest CRUD, UMID resolution,
     Ed25519 signing/verification, facet registry, and key provisioning.
     Manifests are JSON-LD documents following the UM specification with

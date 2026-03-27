@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Common test helpers for Docker Lab test suite
+# Common test helpers for Core test suite
 
 # Load bats libraries
 load '../lib/bats-support/load'
@@ -14,7 +14,7 @@ export EXAMPLES_DIR="${DOCKER_LAB_ROOT}/examples"
 
 # Test-specific paths
 export TEST_FIXTURES_DIR="${BATS_TEST_DIRNAME}/../fixtures"
-export TEST_TMP_DIR="${BATS_TEST_TMPDIR:-/tmp}/docker-lab-tests"
+export TEST_TMP_DIR="${BATS_TEST_TMPDIR:-/tmp}/core-tests"
 
 # Ensure test temp directory exists
 setup_test_tmp() {
@@ -48,7 +48,7 @@ skip_if_no_docker() {
 
 # Skip test if running on VPS (we don't want to disrupt production)
 skip_if_vps() {
-  if [[ -f "/opt/peermesh-docker-lab/README.md" ]]; then
+  if [[ -f "/opt/peermesh-core/README.md" ]]; then
     skip "This test should not run on VPS"
   fi
 }

@@ -8,10 +8,10 @@
 #
 # Installation:
 #   crontab -e
-#   0 1 * * * /opt/docker-lab/scripts/security/nightly-audit-cron.sh
+#   0 1 * * * /opt/core/scripts/security/nightly-audit-cron.sh
 #
 # Or via /etc/cron.d/pmdl-security:
-#   0 1 * * * root /opt/docker-lab/scripts/security/nightly-audit-cron.sh
+#   0 1 * * * root /opt/core/scripts/security/nightly-audit-cron.sh
 #
 # Dependencies:
 #   - scripts/security/run-full-audit.sh (same directory)
@@ -26,7 +26,7 @@ set -euo pipefail
 # Configuration
 # --------------------------------------------------------------
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-DEPLOY_DIR="${PMDL_DEPLOY_DIR:-/opt/docker-lab}"
+DEPLOY_DIR="${PMDL_DEPLOY_DIR:-/opt/core}"
 LOG_DIR="${PMDL_LOG_DIR:-/var/log/security-audit}"
 RETAIN_DAYS=30
 

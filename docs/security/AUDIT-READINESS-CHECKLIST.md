@@ -14,7 +14,7 @@
 
 ## Overview
 
-This checklist maps Docker Lab's security implementation to industry-standard audit frameworks. It is designed to support professional security firm engagement by clearly identifying:
+This checklist maps Core's security implementation to industry-standard audit frameworks. It is designed to support professional security firm engagement by clearly identifying:
 
 - **Implemented controls** (with evidence paths)
 - **Partially implemented controls** (with gaps and mitigations)
@@ -45,14 +45,14 @@ This checklist maps Docker Lab's security implementation to industry-standard au
 
 | # | Control | Status | Evidence | Notes |
 |---|---------|--------|----------|-------|
-| 1.1.1 | Ensure a separate partition for containers exists | [~] | Host filesystem | VPS provider dependent; not under Docker Lab control |
+| 1.1.1 | Ensure a separate partition for containers exists | [~] | Host filesystem | VPS provider dependent; not under Core control |
 | 1.1.2 | Ensure the container host has been hardened | [~] | VPS base image | Provider-dependent; hardening documented in DEPLOYMENT.md |
 | 1.1.3 | Ensure Docker is up to date | [✓] | `docker --version` | Deployment guide requires Docker 20.10+ |
 | 1.1.4 | Ensure only trusted users control Docker daemon | [✓] | Host user permissions | Root or docker group only; documented in deployment |
-| 1.2.1 | Ensure auditing is configured for Docker daemon | [~] | Host auditd config | Host-dependent; not under Docker Lab control |
-| 1.2.2 | Ensure auditing is configured for Docker files and directories | [~] | Host auditd config | Host-dependent; not under Docker Lab control |
+| 1.2.1 | Ensure auditing is configured for Docker daemon | [~] | Host auditd config | Host-dependent; not under Core control |
+| 1.2.2 | Ensure auditing is configured for Docker files and directories | [~] | Host auditd config | Host-dependent; not under Core control |
 
-**Gap Summary**: Host-level controls (1.1.1, 1.1.2, 1.2.x) are VPS provider responsibility. Docker Lab deployment guide provides recommendations but cannot enforce.
+**Gap Summary**: Host-level controls (1.1.1, 1.1.2, 1.2.x) are VPS provider responsibility. Core deployment guide provides recommendations but cannot enforce.
 
 **Evidence**: `docs/DEPLOYMENT.md`
 
@@ -508,7 +508,7 @@ The following tools are recommended based on an external security reviewer's met
 
 **Globstar** — Multi-language static analysis
 - Purpose: Code-level vulnerability detection; design verification for ID schemes, cryptographic functions, and overflow-sensitive code
-- Integration: CI/CD pre-commit hook or pipeline gate; supports Go, shell, Python, and other Docker Lab languages
+- Integration: CI/CD pre-commit hook or pipeline gate; supports Go, shell, Python, and other Core languages
 - Reference: https://github.com/DeepSourceCorp/globstar
 
 **Metasploit** — Penetration testing framework

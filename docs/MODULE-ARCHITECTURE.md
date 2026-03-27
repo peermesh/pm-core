@@ -1,6 +1,6 @@
 # Module Architecture
 
-The PeerMesh Docker Lab is built on a layered architecture where each tier serves a distinct role. At its heart is a formal module system that allows infrastructure extensions to plug into a shared foundation. This document explains what modules are, how they relate to the foundation and other tiers, and how the naming conventions work across the broader PeerMesh ecosystem.
+The PeerMesh Core is built on a layered architecture where each tier serves a distinct role. At its heart is a formal module system that allows infrastructure extensions to plug into a shared foundation. This document explains what modules are, how they relate to the foundation and other tiers, and how the naming conventions work across the broader PeerMesh ecosystem.
 
 If you are new to the project, start here. The first two sections give you the map. The later sections give you the terrain.
 
@@ -8,7 +8,7 @@ If you are new to the project, start here. The first two sections give you the m
 
 ## Overview: Four Tiers, One Platform
 
-The Docker Lab organizes everything into four tiers. Each tier builds on the one below it, and none of them can be understood in isolation. Think of it as a stack where the bottom layer is the ground you stand on, and each layer above adds capability.
+The Core organizes everything into four tiers. Each tier builds on the one below it, and none of them can be understood in isolation. Think of it as a stack where the bottom layer is the ground you stand on, and each layer above adds capability.
 
 ```
 +---------------------------------------------------------------+
@@ -42,7 +42,7 @@ This distinction matters. If you blur the lines between these tiers, you will ma
 
 ---
 
-## The Naming Resolution: Parent "Services" vs Docker Lab "Modules"
+## The Naming Resolution: Parent "Services" vs Core "Modules"
 
 The PeerMesh ecosystem previously used the word "module" at two completely different levels. As of 2026-02-26, this collision has been resolved by [ADR-0500](decisions/0500-module-architecture.md) (ACCEPTED).
 
@@ -50,15 +50,15 @@ The PeerMesh ecosystem previously used the word "module" at two completely diffe
 
 At the parent project level, top-level components are now called **"services"** -- full-stack application services of the Knowledge Graph Lab platform. These are things like backend API services built with FastAPI, frontend UIs built with React, AI inference services, and publishing pipelines. Each one has its own Dockerfile, API endpoints, database schema, and business logic. The directory `.dev/modules/` on disk still exists (a filesystem path rename is a separate decision), but documentation refers to these as services.
 
-### Docker Lab "Modules" (This System)
+### Core "Modules" (This System)
 
-Inside the Docker Lab (`modules/`), the term "module" refers to **infrastructure extensions** -- operational capabilities that plug into the Docker Lab foundation. Things like backup systems, PKI certificate authorities, and federation protocol adapters. Each one has a `module.json` manifest, lifecycle hooks, dashboard registration, dependency declarations, and is managed through the CLI with `launch_docker_lab_core.sh module enable/disable`.
+Inside the Core (`modules/`), the term "module" refers to **infrastructure extensions** -- operational capabilities that plug into the Core foundation. Things like backup systems, PKI certificate authorities, and federation protocol adapters. Each one has a `module.json` manifest, lifecycle hooks, dashboard registration, dependency declarations, and is managed through the CLI with `launch_docker_lab_core.sh module enable/disable`.
 
 These are not application logic. They extend the platform itself. They are governed by JSON schemas at `foundation/schemas/module.schema.json`, and they follow a formal plugin architecture with well-defined contracts.
 
 ### Why This Distinction Matters
 
-These two concepts share nothing but the former name. A parent-project "service" is an application with business logic, database migrations, and API contracts. A Docker Lab "module" is an infrastructure extension with lifecycle hooks, dashboard widgets, and compose patterns. The Docker Lab module system earned the name "module" through its formal, implemented architecture -- manifests, schemas, CLI integration, dependency resolution, lifecycle management.
+These two concepts share nothing but the former name. A parent-project "service" is an application with business logic, database migrations, and API contracts. A Core "module" is an infrastructure extension with lifecycle hooks, dashboard widgets, and compose patterns. The Core module system earned the name "module" through its formal, implemented architecture -- manifests, schemas, CLI integration, dependency resolution, lifecycle management.
 
 Historical documents dated before 2026-02-26 still use "module" for parent-level components. This is expected. See the parent project's nomenclature change notice at `.dev/ai/NOMENCLATURE-CHANGE-MODULES-TO-SERVICES.md` for full context.
 
@@ -66,7 +66,7 @@ Historical documents dated before 2026-02-26 still use "module" for parent-level
 
 ## Tier 1: The Foundation -- What Modules Plug Into
 
-The foundation is the platform. It is not a participant in the module system; it is the system that modules participate in. Understanding this distinction is the single most important architectural insight in the Docker Lab.
+The foundation is the platform. It is not a participant in the module system; it is the system that modules participate in. Understanding this distinction is the single most important architectural insight in the Core.
 
 ### What the Foundation Contains
 
@@ -101,7 +101,7 @@ The foundation lives at `foundation/` in the repository root and provides:
 
 The foundation does not have a `module.json`. It does not go through lifecycle hooks. It does not register with a dashboard -- it IS the dashboard. It does not declare dependencies -- it IS what dependencies resolve against.
 
-This is analogous to the relationship between an operating system kernel and an application. The kernel provides system calls, filesystems, process management, and networking. Applications use those facilities. You would not describe the Linux kernel as "an application that runs on Linux." Similarly, you should not describe the Docker Lab foundation as "a module that runs on the Docker Lab."
+This is analogous to the relationship between an operating system kernel and an application. The kernel provides system calls, filesystems, process management, and networking. Applications use those facilities. You would not describe the Linux kernel as "an application that runs on Linux." Similarly, you should not describe the Core foundation as "a module that runs on the Core."
 
 The `foundation/` directory contains the contract layer: the schemas and interfaces that define the module API surface. Modules implement those contracts. The foundation enforces them.
 
@@ -156,7 +156,7 @@ Examples are demonstrations of how to compose the foundation and profiles into r
 
 Examples do not have `module.json` manifests, lifecycle hooks, or dashboard integration. They are standalone Docker Compose configurations that reference foundation networks and profile services. They use Compose profiles (`--profile` flag) for activation rather than the module CLI.
 
-An example answers the question: "How do I deploy Ghost (or Matrix, or WordPress) on top of the Docker Lab foundation?" A module answers the question: "How do I add backup capability (or PKI, or federation) to the Docker Lab platform?"
+An example answers the question: "How do I deploy Ghost (or Matrix, or WordPress) on top of the Core foundation?" A module answers the question: "How do I add backup capability (or PKI, or federation) to the Core platform?"
 
 ### Available Examples
 
@@ -179,7 +179,7 @@ Each example follows patterns documented in the [example application template](.
 
 ## Tier 4: Modules -- The Formal Extension System
 
-This is the tier that this document is really about. Modules are the formal mechanism for extending the Docker Lab platform with new operational capabilities. They are the only tier with a manifest spec, lifecycle management, dependency resolution, dashboard integration, and CLI orchestration.
+This is the tier that this document is really about. Modules are the formal mechanism for extending the Core platform with new operational capabilities. They are the only tier with a manifest spec, lifecycle management, dependency resolution, dashboard integration, and CLI orchestration.
 
 ### What Makes Something a Module
 
@@ -455,7 +455,7 @@ Write a comprehensive `README.md` covering installation, configuration, usage, t
 
 ## The PeerMesh Module Template
 
-The project is developing a "hello-module" example (tracked in WO-104) that will serve as the definitive clone-and-customize starting point for new modules. This will be a Type 2 module -- a Docker Lab infrastructure extension -- not a parent-project application service.
+The project is developing a "hello-module" example (tracked in WO-104) that will serve as the definitive clone-and-customize starting point for new modules. This will be a Type 2 module -- a Core infrastructure extension -- not a parent-project application service.
 
 The hello-module will be a minimal, working Nginx web server that demonstrates every module system feature end-to-end: manifest with all sections annotated, compose file with foundation base patterns, lifecycle hooks that actually do something, dashboard widget, health check with JSON output, smoke test, and comprehensive documentation with `# CUSTOMIZE:` markers throughout.
 

@@ -2,7 +2,7 @@
 # Identity Provider - Docker Compose Profile
 # ==============================================================
 # Managed Identity System using Community Solid Server
-# Provides WebID-based authentication for the Social Lab project
+# Provides WebID-based authentication for the Social project
 #
 # Profile Version: 1.0
 # Documentation: profiles/identity/PROFILE-SPEC.md

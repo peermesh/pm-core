@@ -350,7 +350,7 @@ main() {
     echo ""
     echo "=========================================="
     echo "  Ownership and Capability Audit"
-    echo "  PeerMesh Docker Lab"
+    echo "  PeerMesh Core"
     echo "=========================================="
 
     # Check if Docker is available

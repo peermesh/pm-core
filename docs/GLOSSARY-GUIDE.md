@@ -88,7 +88,7 @@ If the term could be confused with something else:
 
 | Prefix | Owner |
 |--------|-------|
-| `DOCKERLAB_` | Docker Lab Dashboard |
+| `DOCKERLAB_` | Core Dashboard |
 | `TRAEFIK_` | Traefik reverse proxy |
 | `POSTGRES_` | PostgreSQL |
 | `MYSQL_` | MySQL |

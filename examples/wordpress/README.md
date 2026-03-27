@@ -1,6 +1,6 @@
 # WordPress Example
 
-WordPress example profile for content/CMS workloads on Docker Lab foundation.
+WordPress example profile for content/CMS workloads on Core foundation.
 
 ## Profiles Required
 - Foundation (`docker-compose.yml`)

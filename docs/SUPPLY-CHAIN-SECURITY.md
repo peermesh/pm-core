@@ -1,6 +1,6 @@
 # Supply-Chain Security Baseline
 
-This document defines the minimum supply-chain controls enforced by Docker Lab release workflows.
+This document defines the minimum supply-chain controls enforced by Core release workflows.
 
 ## Scope
 
@@ -127,7 +127,7 @@ This allows release workflows to fail fast while still supporting progressive ha
 
 Supply-chain security extends beyond container images to the code running inside them. Static analysis catches vulnerability patterns at the source level before they reach a container.
 
-Recommended tool: [Globstar](https://github.com/DeepSourceCorp/globstar) — a multi-language static analysis engine that supports Go, shell, Python, and other languages used in Docker Lab modules. It can be integrated as a CI/CD pre-commit hook or pipeline gate alongside the existing image policy and vulnerability threshold gates.
+Recommended tool: [Globstar](https://github.com/DeepSourceCorp/globstar) — a multi-language static analysis engine that supports Go, shell, Python, and other languages used in Core modules. It can be integrated as a CI/CD pre-commit hook or pipeline gate alongside the existing image policy and vulnerability threshold gates.
 
 Static analysis complements the image-level controls (Trivy, SBOM, digest pinning) by catching code-level issues that image scanning cannot detect — SQL injection patterns, insecure ID schemes, cryptographic misuse, and buffer overflow risks.
 

@@ -1,6 +1,6 @@
 # Mastodon Module
 
-A self-hosted federated social networking platform with ActivityPub support, running on PeerMesh Docker Lab.
+A self-hosted federated social networking platform with ActivityPub support, running on PeerMesh Core.
 
 ## Overview
 

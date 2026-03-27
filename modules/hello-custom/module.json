@@ -110,7 +110,7 @@
       },
       "domain": {
         "type": "string",
-        "description": "The domain where Docker Lab is hosted",
+        "description": "The domain where Core is hosted",
         "env": "DOMAIN"
       },
       "subdomain": {

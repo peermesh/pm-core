@@ -346,7 +346,7 @@ docker exec pmdl_backup restic restore latest --target /restore --tag postgres
 
 ```bash
 # 1. Clone repository
-git clone https://github.com/your-org/peermesh-docker-lab.git /opt/pmdl
+git clone https://github.com/your-org/peermesh-core.git /opt/pmdl
 cd /opt/pmdl
 
 # 2. Restore secrets (from secure storage)
@@ -543,4 +543,4 @@ networks:
 
 *Profile Template Version: 1.0*
 *Last Updated: 2026-01-21*
-*Part of PeerMesh Docker Lab*
+*Part of PeerMesh Core*

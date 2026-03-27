@@ -1,7 +1,7 @@
 # ==============================================================
 # Hello Core Module - Docker Compose Configuration
 # ==============================================================
-# A complete, working example module for PeerMesh Docker Lab.
+# A complete, working example module for PeerMesh Core.
 # Serves a static "Hello from PeerMesh" greeting page via nginx.
 #
 # This file demonstrates:

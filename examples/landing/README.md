@@ -1,6 +1,6 @@
 # Landing Page Example
 
-A simple, static HTML landing page that serves as a dashboard for all deployed services in your Docker Lab instance. This example demonstrates the simplest possible integration pattern: foundation-only deployment with no database dependencies.
+A simple, static HTML landing page that serves as a dashboard for all deployed services in your Core instance. This example demonstrates the simplest possible integration pattern: foundation-only deployment with no database dependencies.
 
 ---
 
@@ -224,7 +224,7 @@ List internal-only services for team members (combine with Authelia protection).
 
 ### 3. Marketing/Demo Page
 
-Showcase your Docker Lab deployment to prospective users or clients.
+Showcase your Core deployment to prospective users or clients.
 
 ### 4. Status Page Alternative
 

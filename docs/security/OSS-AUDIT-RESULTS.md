@@ -16,7 +16,7 @@
 
 ## Overview
 
-This document captures results from running open-source security audit tools against the Docker Lab infrastructure. Per WO-062 requirements, all available OSS security tools must be run and critical/high findings resolved before preparing the professional audit submission package.
+This document captures results from running open-source security audit tools against the Core infrastructure. Per WO-062 requirements, all available OSS security tools must be run and critical/high findings resolved before preparing the professional audit submission package.
 
 **Audit Philosophy**: Fix all findings before engaging professional security firm. This document tracks progress toward that goal.
 
@@ -219,7 +219,7 @@ trivy image --severity CRITICAL,HIGH --format json traefik:v2.11 > trivy-traefik
 
 ### Status
 
-**Not Applicable**: Docker Lab uses official images only; no custom Dockerfiles.
+**Not Applicable**: Core uses official images only; no custom Dockerfiles.
 
 **Future Use**: If custom images are created, hadolint should be integrated into build process.
 
@@ -410,13 +410,13 @@ docker compose config | grep -A 3 "networks:"
 
 ## NAS Security Comparison
 
-**Requirement** (WO-062 Insight #5): Document Docker Lab's hardening posture compared to consumer NAS alternatives (QNAP, Synology, Umbrel, CasaOS).
+**Requirement** (WO-062 Insight #5): Document Core's hardening posture compared to consumer NAS alternatives (QNAP, Synology, Umbrel, CasaOS).
 
 ---
 
 ### Comparison Matrix
 
-| Security Control | Docker Lab | QNAP | Synology | Umbrel | CasaOS |
+| Security Control | Core | QNAP | Synology | Umbrel | CasaOS |
 |-----------------|-----------|------|----------|--------|--------|
 | **cap_drop: ALL** | ✓ (all services) | ✗ | ✗ | ✗ | ✗ |
 | **no-new-privileges** | ✓ (all services) | ✗ | ✗ | Partial | ✗ |
@@ -433,19 +433,19 @@ docker compose config | grep -A 3 "networks:"
 
 ### Key Differentiators
 
-1. **Capability Dropping**: Docker Lab applies `cap_drop: ALL` with selective `cap_add` on **all** services (including databases) by default; consumer NAS solutions run containers with default capabilities.
+1. **Capability Dropping**: Core applies `cap_drop: ALL` with selective `cap_add` on **all** services (including databases) by default; consumer NAS solutions run containers with default capabilities.
 
-2. **Socket Protection**: Docker Lab uses filtered socket proxy; NAS solutions often expose Docker socket directly to dashboard/apps.
+2. **Socket Protection**: Core uses filtered socket proxy; NAS solutions often expose Docker socket directly to dashboard/apps.
 
-3. **Network Isolation**: Docker Lab implements four-tier network topology with egress blocking; NAS solutions use flat or two-tier networks.
+3. **Network Isolation**: Core implements four-tier network topology with egress blocking; NAS solutions use flat or two-tier networks.
 
-4. **Supply-Chain Security**: Docker Lab enforces SBOM generation + vulnerability scanning; NAS solutions have no supply-chain gates.
+4. **Supply-Chain Security**: Core enforces SBOM generation + vulnerability scanning; NAS solutions have no supply-chain gates.
 
 ---
 
 ### Evidence Value for Audit
 
-**Significance**: Docker Lab's hardening posture is significantly ahead of consumer alternatives. This comparison demonstrates:
+**Significance**: Core's hardening posture is significantly ahead of consumer alternatives. This comparison demonstrates:
 
 - **Due diligence**: Security controls exceed industry norms for self-hosted infrastructure.
 - **Maturity**: Defense-in-depth approach with multiple control layers.

@@ -2,7 +2,7 @@
 
 ## What It Does
 
-[mitmproxy](https://mitmproxy.org/) is an interactive HTTPS proxy that intercepts, inspects, modifies, and replays HTTP/HTTPS traffic. This profile adds a mitmproxy container to the Docker Lab stack for development-time security testing.
+[mitmproxy](https://mitmproxy.org/) is an interactive HTTPS proxy that intercepts, inspects, modifies, and replays HTTP/HTTPS traffic. This profile adds a mitmproxy container to the Core stack for development-time security testing.
 
 Use it to:
 - Inspect every request and response between Traefik and backend services

@@ -28,7 +28,7 @@ The reverse proxy is a core infrastructure component that all other services dep
 
 ## Decision
 
-**We will use Traefik v3 as the reverse proxy** with Docker label-based service discovery, automatic TLS via Let's Encrypt (HTTP-01 challenge, DNS-01 for wildcards), and docker-socket-proxy for secure Docker API access.
+**We will use Traefik v3 as the reverse proxy** with Coreel-based service discovery, automatic TLS via Let's Encrypt (HTTP-01 challenge, DNS-01 for wildcards), and docker-socket-proxy for secure Docker API access.
 
 Traefik was selected because it provides native Docker integration without plugins, automatic service discovery through container labels, and built-in ACME certificate management. This eliminates the need for central configuration files and allows each service to declare its own routing rules.
 
@@ -46,7 +46,7 @@ Traefik was selected because it provides native Docker integration without plugi
 - Simple Caddyfile syntax
 
 **Cons**:
-- Docker label-based discovery requires third-party plugin (caddy-docker-proxy)
+- Coreel-based discovery requires third-party plugin (caddy-docker-proxy)
 - Plugin introduces dependency on external maintainer
 - Version compatibility between Caddy and plugin must be tracked
 
@@ -74,7 +74,7 @@ Traefik was selected because it provides native Docker integration without plugi
 
 ### Positive
 
-- Services self-register through Docker labels - no central routing configuration
+- Services self-register through Coreels - no central routing configuration
 - Automatic TLS certificates with Let's Encrypt
 - Native WebSocket support without configuration
 - Built-in health check endpoint for monitoring

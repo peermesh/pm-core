@@ -2,7 +2,7 @@
 
 A near-stock, in-runtime copy of the standalone hello module example. This module demonstrates the
 manifest structure, lifecycle hooks, Traefik routing labels, health checks, and dashboard widget
-patterns that every PeerMesh Docker Lab module can reuse. It serves a static greeting page through
+patterns that every PeerMesh Core module can reuse. It serves a static greeting page through
 `nginx` and is delivered as a runnable module inside `modules/hello-core/`.
 
 ## Layout
@@ -17,10 +17,10 @@ patterns that every PeerMesh Docker Lab module can reuse. It serves a static gre
 ## Prerequisites
 
 - Ensure the foundation stack (Traefik, socket-proxy, and the networks) is running. From the root of
-  the Docker Lab repo:
+  the Core repo:
 
   ```bash
-  cd sub-repos/docker-lab
+  cd sub-repos/core
   ./launch_docker_lab_core.sh up --profile=postgresql,redis
   ```
 

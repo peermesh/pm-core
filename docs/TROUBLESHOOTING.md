@@ -1,6 +1,6 @@
 # Troubleshooting Guide
 
-Common issues and solutions when running PeerMesh Docker Lab.
+Common issues and solutions when running PeerMesh Core.
 
 ## Quick Diagnostics
 

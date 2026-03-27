@@ -14,7 +14,7 @@
 
 ## Overview
 
-This document provides a comprehensive index of all security evidence artifacts in the Docker Lab codebase. It is organized by security control category and maps to the CIS Docker Benchmark, OWASP Container Security, and threat model mitigations.
+This document provides a comprehensive index of all security evidence artifacts in the Core codebase. It is organized by security control category and maps to the CIS Docker Benchmark, OWASP Container Security, and threat model mitigations.
 
 **Base Path**: repository root
 

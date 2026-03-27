@@ -43,7 +43,7 @@ pmdl_{component}[_{role}]
 ```
 
 Where:
-- `pmdl_` is the project prefix (PeerMesh Docker Lab), using underscore as separator
+- `pmdl_` is the project prefix (PeerMesh Core), using underscore as separator
 - `{component}` is the application or service name (lowercase, hyphens allowed within)
 - `{role}` is an optional suffix for multi-container deployments (e.g., `_worker`, `_db`, `_redis`)
 
@@ -87,7 +87,7 @@ These legacy names are grandfathered. New containers must follow the convention.
 
 **Cons**:
 - High collision risk on shared hosts
-- Impossible to identify Docker Lab containers in `docker ps`
+- Impossible to identify Core containers in `docker ps`
 - Already rejected by existing practice (>90% use `pmdl_`)
 
 **Why not chosen**: Collision risk and identification problems.
@@ -112,7 +112,7 @@ These legacy names are grandfathered. New containers must follow the convention.
 **Description**: Use Docker Compose's project name variable for the prefix.
 
 **Pros**:
-- Allows running multiple Docker Lab instances on one host
+- Allows running multiple Core instances on one host
 - More flexible
 
 **Cons**:

@@ -147,7 +147,7 @@ main() {
 
     echo ""
     echo "=========================================="
-    echo "  PeerMesh Docker Lab - Volume Init"
+    echo "  PeerMesh Core - Volume Init"
     echo "=========================================="
     echo ""
 

@@ -27,6 +27,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Compatibility
 
-- Tested with Docker Lab v7.39.0
-- Requires Docker Lab foundation stack (Traefik, socket-proxy)
+- Tested with Core v7.39.0
+- Requires Core foundation stack (Traefik, socket-proxy)
 - Uses `_service-lite` resource profile (256MB memory, 0.5 CPU)

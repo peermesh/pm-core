@@ -1,0 +1,184 @@
+{
+  "$schema": "../../foundation/schemas/module.schema.json",
+
+  "id": "social",
+  "version": "0.1.0",
+  "name": "PeerMesh Social",
+  "description": "Social identity/profile backbone module for the PeerMesh ecosystem. Provides profile creation, lifecycle management, federated protocol participation, and omni-account generation as a composable module.",
+
+  "author": {
+    "name": "PeerMesh Team"
+  },
+  "license": "MIT",
+  "repository": "https://github.com/peermesh/peermesh-social",
+  "tags": ["social", "profiles", "identity", "federation", "activitypub", "solid"],
+
+  "foundation": {
+    "minVersion": "1.0.0"
+  },
+
+  "requires": {
+    "connections": [
+      {
+        "type": "database",
+        "providers": ["postgres"],
+        "required": true,
+        "alias": "social-db"
+      },
+      {
+        "type": "cache",
+        "providers": ["redis"],
+        "required": false,
+        "alias": "social-cache"
+      }
+    ],
+    "modules": [],
+    "securityServices": []
+  },
+
+  "provides": {
+    "connections": [
+      {
+        "type": "custom",
+        "provider": "social-profiles-read"
+      },
+      {
+        "type": "custom",
+        "provider": "social-graph-read"
+      }
+    ],
+    "events": [
+      "social.profile.created",
+      "social.profile.updated",
+      "social.profile.deleted",
+      "social.follow.created",
+      "social.follow.removed",
+      "social.federation.synced",
+      "social.migration.started",
+      "social.migration.completed"
+    ],
+    "securityServices": []
+  },
+
+  "security": {
+    "enforcementMode": "warn",
+    "identity": {
+      "required": false,
+      "credentialType": "any"
+    },
+    "encryption": {
+      "dataAtRest": "preferred",
+      "transitEncryption": "tls",
+      "keyPurposes": ["signing", "encryption"]
+    },
+    "contract": {
+      "network": {
+        "access": "proxy-external"
+      },
+      "filesystemAccess": {
+        "accessLevel": "own-directory-only"
+      }
+    }
+  },
+
+  "dashboard": {
+    "displayName": "Social",
+    "icon": "users",
+    "routes": [
+      {
+        "path": "/social",
+        "nav": {
+          "label": "Social",
+          "icon": "users",
+          "order": 50
+        }
+      }
+    ],
+    "statusWidget": {
+      "size": "medium",
+      "order": 50
+    }
+  },
+
+  "lifecycle": {
+    "install": {
+      "script": "./hooks/install.sh",
+      "timeout": 120,
+      "retries": 1
+    },
+    "start": {
+      "script": "./hooks/start.sh",
+      "timeout": 60
+    },
+    "stop": {
+      "script": "./hooks/stop.sh",
+      "timeout": 30
+    },
+    "uninstall": "./hooks/uninstall.sh",
+    "health": {
+      "script": "./hooks/health.sh",
+      "timeout": 15
+    }
+  },
+
+  "config": {
+    "version": "1.0",
+    "properties": {
+      "domain": {
+        "type": "string",
+        "description": "The domain where Core is hosted",
+        "env": "DOMAIN"
+      },
+      "subdomain": {
+        "type": "string",
+        "description": "The subdomain prefix for Social. Empty string for root-domain deployment (e.g. peers.social).",
+        "default": "",
+        "env": "SOCIAL_LAB_SUBDOMAIN"
+      },
+      "dbHost": {
+        "type": "string",
+        "description": "PostgreSQL host (foundation profile service name)",
+        "default": "postgres",
+        "env": "SOCIAL_LAB_DB_HOST"
+      },
+      "dbPort": {
+        "type": "number",
+        "description": "PostgreSQL port",
+        "default": 5432,
+        "env": "SOCIAL_LAB_DB_PORT"
+      },
+      "dbName": {
+        "type": "string",
+        "description": "PostgreSQL database name",
+        "default": "social_lab",
+        "env": "SOCIAL_LAB_DB_NAME"
+      },
+      "dbUser": {
+        "type": "string",
+        "description": "PostgreSQL user",
+        "default": "social_lab",
+        "env": "SOCIAL_LAB_DB_USER"
+      },
+      "dbPassword": {
+        "type": "string",
+        "description": "PostgreSQL password (prefer file-based secret)",
+        "secret": true,
+        "env": "SOCIAL_LAB_DB_PASSWORD"
+      },
+      "nodeEnv": {
+        "type": "string",
+        "description": "Node.js environment",
+        "default": "production",
+        "env": "NODE_ENV",
+        "enum": ["development", "production", "test"]
+      },
+      "port": {
+        "type": "number",
+        "description": "HTTP server listen port inside container",
+        "default": 3000,
+        "env": "SOCIAL_LAB_PORT"
+      }
+    },
+    "required": ["domain"]
+  }
+}

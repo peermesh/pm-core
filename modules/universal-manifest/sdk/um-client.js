@@ -1,7 +1,7 @@
 // =============================================================================
 // Universal Manifest Module - Consumer SDK
 // =============================================================================
-// Lightweight client library for other Docker Lab modules to interact
+// Lightweight client library for other Core modules to interact
 // with the UM API. Import this file into your module to read/write manifests.
 //
 // Configuration:
@@ -11,7 +11,7 @@
 //   import { createManifest, writeMyFacet, readManifest } from './um-client.js';
 //
 //   const { umid, signedManifest } = await createManifest('https://pod.example/profile/card#me');
-//   await writeMyFacet(umid, 'publicProfile', { displayName: 'Alice' }, 'social-lab');
+//   await writeMyFacet(umid, 'publicProfile', { displayName: 'Alice' }, 'social');
 //   const manifest = await readManifest(umid);
 // =============================================================================
 

@@ -4,19 +4,19 @@
 
 ## What Is This?
 
-The Hello Custom Module is a reference implementation that demonstrates every integration point in the Docker Lab module system. It serves a static "Hello from PeerMesh" greeting page via nginx, but the real value is in the structure: the annotated manifest, the lifecycle hooks, the Traefik routing, the health checks, and the dashboard widget.
+The Hello Custom Module is a reference implementation that demonstrates every integration point in the Core module system. It serves a static "Hello from PeerMesh" greeting page via nginx, but the real value is in the structure: the annotated manifest, the lifecycle hooks, the Traefik routing, the health checks, and the dashboard widget.
 
-Use this repository as a starting point when building your own Docker Lab modules. Copy the files, replace the placeholders (marked with `# CUSTOMIZE:` comments), and you have a working module.
+Use this repository as a starting point when building your own Core modules. Copy the files, replace the placeholders (marked with `# CUSTOMIZE:` comments), and you have a working module.
 
-**This module is expected to evolve rapidly** as the Docker Lab module system matures. Check the [CHANGELOG](CHANGELOG.md) for version history and the compatibility table below for supported Docker Lab versions.
+**This module is expected to evolve rapidly** as the Core module system matures. Check the [CHANGELOG](CHANGELOG.md) for version history and the compatibility table below for supported Core versions.
 
 ## Quick Start
 
-Five commands to get the Hello Custom Module running in your Docker Lab:
+Five commands to get the Hello Custom Module running in your Core:
 
 ```bash
 # 1. Enter the module directory (the module already lives here)
-cd /path/to/docker-lab/modules/hello-custom
+cd /path/to/core/modules/hello-custom
 
 # 2. Configure
 cp .env.example .env
@@ -37,7 +37,7 @@ The `HELLO_CUSTOM_NOTE` environment variable drives the custom note card. The co
 
 ### Important: Directory Placement
 
-This module **must** be placed at `modules/hello-custom/` inside your Docker Lab installation. The `module.json` `$schema` path and the `docker-compose.yml` `extends.file` path are both relative to this location:
+This module **must** be placed at `modules/hello-custom/` inside your Core installation. The `module.json` `$schema` path and the `docker-compose.yml` `extends.file` path are both relative to this location:
 
 - `$schema` resolves to `../../foundation/schemas/module.schema.json`
 - `extends.file` resolves to `../../foundation/docker-compose.base.yml`
@@ -46,9 +46,9 @@ If you place the module elsewhere, these paths will break and compose will fail 
 
 ### Prerequisites
 
-- Docker Lab foundation stack running (Traefik, socket-proxy)
+- Core foundation stack running (Traefik, socket-proxy)
 - Docker Engine 24+ with Compose V2 plugin
-- A domain with DNS pointing to your Docker Lab host
+- A domain with DNS pointing to your Core host
 
 ## File Structure
 
@@ -107,7 +107,7 @@ Every value you should change when creating your own module is marked with a `# 
 
 ## How Modules Work
 
-A Docker Lab module integrates with the foundation through four mechanisms:
+A Core module integrates with the foundation through four mechanisms:
 
 ### 1. Module Manifest (`module.json`)
 
@@ -315,7 +315,7 @@ docker exec traefik wget -qO- http://localhost:8080/api/http/routers 2>/dev/null
 
 **Common causes**:
 - `DOMAIN` not set in `.env`
-- DNS not pointing to the Docker Lab host
+- DNS not pointing to the Core host
 - Container not on `proxy-external` network
 - Traefik labels have a typo
 
@@ -350,11 +350,11 @@ docker exec hello-custom wget -qO- http://127.0.0.1/
 
 ## Version Compatibility
 
-| Hello Custom Module | Docker Lab | Foundation | Notes |
+| Hello Custom Module | Core | Foundation | Notes |
 |--------------|------------|------------|-------|
 | 1.0.0 | v7.39.0+ | 1.0.0+ | Initial release |
 
-This module uses the `_service-lite` base pattern and the `module.json` schema from Docker Lab foundation. If the schema changes in a future Docker Lab version, a new major version of this module will be released.
+This module uses the `_service-lite` base pattern and the `module.json` schema from Core foundation. If the schema changes in a future Core version, a new major version of this module will be released.
 
 ## Contributing
 

@@ -4,7 +4,7 @@
 
 Different apps expect secrets in different ways. Using the wrong method causes auth failures or security issues.
 
-This was discovered during testing of Manyfold, ActivityPods, Webhook, and other applications on the Docker Lab infrastructure. Each app had different expectations for how secrets should be provided, leading to silent authentication failures.
+This was discovered during testing of Manyfold, ActivityPods, Webhook, and other applications on the Core infrastructure. Each app had different expectations for how secrets should be provided, leading to silent authentication failures.
 
 ---
 

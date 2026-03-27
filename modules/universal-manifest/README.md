@@ -64,7 +64,7 @@ Each consuming module registers which facets it can write. Unauthorized writes a
 
 | Module | Authorized Facets |
 |--------|-------------------|
-| social-lab | publicProfile, socialIdentity, socialGraph, protocolStatus |
+| social | publicProfile, socialIdentity, socialGraph, protocolStatus |
 | did-wallet | credentials, verifiableCredentials |
 | spatial-fabric | spatialAnchors, placeMembership, crossWorldProfile |
 

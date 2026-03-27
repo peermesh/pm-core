@@ -51,7 +51,7 @@
 #    - Example: root
 #
 # 4. VPS_PATH (optional) - Deployment directory path
-#    - Default: /opt/docker-lab
+#    - Default: /opt/core
 #    - Only needed if path differs from default
 #
 # SETUP INSTRUCTIONS:
@@ -138,7 +138,7 @@ jobs:
         run: |
           echo "Deploying to $VPS_HOST..."
 
-          DEPLOY_PATH="${{ secrets.VPS_PATH || '/opt/docker-lab' }}"
+          DEPLOY_PATH="${{ secrets.VPS_PATH || '/opt/core' }}"
           ssh $VPS_USER@$VPS_HOST << ENDSSH
             set -e  # Exit on any error
 
@@ -182,7 +182,7 @@ jobs:
         run: |
           echo "Running health checks..."
 
-          DEPLOY_PATH="${{ secrets.VPS_PATH || '/opt/docker-lab' }}"
+          DEPLOY_PATH="${{ secrets.VPS_PATH || '/opt/core' }}"
           ssh $VPS_USER@$VPS_HOST << ENDSSH
             set -e
 
@@ -233,7 +233,7 @@ jobs:
           echo "## Deployment Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "- **Target**: ${{ secrets.VPS_HOST }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Path**: ${{ secrets.VPS_PATH || '/opt/docker-lab' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Path**: ${{ secrets.VPS_PATH || '/opt/core' }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Branch**: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Triggered by**: ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY

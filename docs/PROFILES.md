@@ -4,7 +4,7 @@ Understand and customize resource profiles and supporting tech profiles.
 
 ## What Are Profiles?
 
-PeerMeshCore Docker Lab uses two types of profiles:
+PeerMeshCore Core uses two types of profiles:
 
 1. **Resource Profiles** - Control memory and CPU allocation (`lite`, `core`, `full`)
 2. **Supporting Tech Profiles** - Add database and infrastructure services (`postgresql`, `mysql`, `redis`, etc.)

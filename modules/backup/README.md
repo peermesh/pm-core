@@ -4,7 +4,7 @@
 
 ## Overview
 
-The Backup Module provides comprehensive automated backup capabilities for peermesh-docker-lab deployments. It implements a three-tier backup architecture:
+The Backup Module provides comprehensive automated backup capabilities for peermesh-core deployments. It implements a three-tier backup architecture:
 
 - **Tier 1 (Hot)**: Local backups for quick recovery (7-day retention)
 - **Tier 2 (Warm)**: Attached storage for disk failure protection (30-day retention)
@@ -39,7 +39,7 @@ The Backup Module provides comprehensive automated backup capabilities for peerm
 ### Quick Start
 
 ```bash
-# From the docker-lab root directory
+# From the core root directory
 cd modules/backup
 
 # Run installation hook
@@ -292,7 +292,7 @@ docker compose start matrix-synapse
 # On new server:
 
 # 1. Clone repository
-git clone https://github.com/your-org/peermesh-docker-lab.git /opt/pmdl
+git clone https://github.com/your-org/peermesh-core.git /opt/pmdl
 cd /opt/pmdl
 
 # 2. Configure backup module with off-site credentials

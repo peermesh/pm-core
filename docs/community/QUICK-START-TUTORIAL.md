@@ -1,7 +1,7 @@
 # Quick Start Tutorial (Public)
 
 ## Goal
-Bring up Docker Lab foundation services on a single VPS and verify dashboard availability.
+Bring up Core foundation services on a single VPS and verify dashboard availability.
 
 This tutorial follows the canonical public quick start in [docs/QUICKSTART.md](../QUICKSTART.md). Use that document as the single source of truth for cloning, configuration, and service startup; this lesson highlights a trimmed walkthrough of the same steps.
 
@@ -13,8 +13,8 @@ This tutorial follows the canonical public quick start in [docs/QUICKSTART.md](.
 ## Steps
 1. Clone repo:
 ```bash
-git clone https://github.com/peermesh/docker-lab.git
-cd docker-lab
+git clone https://github.com/peermesh/core.git
+cd core
 ```
 2. Configure env and secrets:
 ```bash

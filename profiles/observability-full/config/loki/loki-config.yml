@@ -1,4 +1,4 @@
-# Loki Configuration - PeerMesh Docker Lab
+# Loki Configuration - PeerMesh Core
 # Minimal single-node config for pilot evaluation
 auth_enabled: false
 

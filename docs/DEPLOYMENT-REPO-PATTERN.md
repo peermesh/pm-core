@@ -1,16 +1,16 @@
-# Deploying Your Project on Docker Lab
+# Deploying Your Project on Core
 
 ## Overview
 
-Docker Lab is a foundation -- you build your project on top of it. The recommended pattern is **fork + upstream remote**: you fork Docker Lab into your own repo, add your modules and configuration, and periodically pull upstream improvements.
+Core is a foundation -- you build your project on top of it. The recommended pattern is **fork + upstream remote**: you fork Core into your own repo, add your modules and configuration, and periodically pull upstream improvements.
 
 This document covers the full setup from fork to first deploy. If you have not built a module yet, read this first, then follow the [Module Authoring Guide](module-authoring-guide.md) to create your application module.
 
 ## Why This Pattern
 
 - **Your repo, your commits** -- All project-specific configuration lives in your repo
-- **Absorb upstream changes** -- When Docker Lab improves security, adds features, or fixes bugs, you merge them in
-- **Clean separation** -- Foundation code (Docker Lab) vs. your code (modules, .env, domain config) never mix
+- **Absorb upstream changes** -- When Core improves security, adds features, or fixes bugs, you merge them in
+- **Clean separation** -- Foundation code (Core) vs. your code (modules, .env, domain config) never mix
 - **No submodules** -- Submodules are fragile, confusing, and break CI. Fork + remote is simpler
 
 ### Why Not Other Approaches
@@ -19,18 +19,18 @@ This document covers the full setup from fork to first deploy. If you have not b
 |----------|---------|
 | Git submodule | Breaks CI, confuses contributors, requires manual sync, detached HEAD foot-guns |
 | Copy-paste | No upgrade path -- you never get upstream fixes |
-| Docker image of Docker Lab | Docker Lab is not a single container; it is a Compose orchestration layer. Packaging it as an image does not work |
-| npm/binary package | Docker Lab is configuration files and shell scripts, not an installable binary |
+| Docker image of Core | Core is not a single container; it is a Compose orchestration layer. Packaging it as an image does not work |
+| npm/binary package | Core is configuration files and shell scripts, not an installable binary |
 
 The fork + upstream remote pattern avoids all of these problems. It is standard Git, requires no special tooling, and every developer already knows how to use it.
 
 ## Step-by-Step Setup
 
-### 1. Fork or Clone Docker Lab
+### 1. Fork or Clone Core
 
 **Option A: Fork on GitHub (recommended for public projects)**
 
-Fork `https://github.com/peermesh/docker-lab` via the GitHub UI, then clone your fork:
+Fork `https://github.com/peermesh/core` via the GitHub UI, then clone your fork:
 
 ```bash
 git clone https://github.com/YOUR-ORG/your-project-deploy.git
@@ -40,21 +40,21 @@ cd your-project-deploy
 **Option B: Clone directly (for private projects)**
 
 ```bash
-git clone https://github.com/peermesh/docker-lab.git your-project-deploy
+git clone https://github.com/peermesh/core.git your-project-deploy
 cd your-project-deploy
 git remote rename origin upstream
 git remote add origin https://github.com/YOUR-ORG/your-project-deploy.git
 git push -u origin main
 ```
 
-Both options produce the same result: a repo you own with Docker Lab's code as the starting point.
+Both options produce the same result: a repo you own with Core's code as the starting point.
 
-### 2. Add Docker Lab as Upstream Remote
+### 2. Add Core as Upstream Remote
 
 If you used Option A (GitHub fork), add the upstream remote manually:
 
 ```bash
-git remote add upstream https://github.com/peermesh/docker-lab.git
+git remote add upstream https://github.com/peermesh/core.git
 git fetch upstream
 ```
 
@@ -66,8 +66,8 @@ Verify your remotes:
 git remote -v
 # origin    https://github.com/YOUR-ORG/your-project-deploy.git (fetch)
 # origin    https://github.com/YOUR-ORG/your-project-deploy.git (push)
-# upstream  https://github.com/peermesh/docker-lab.git (fetch)
-# upstream  https://github.com/peermesh/docker-lab.git (push)
+# upstream  https://github.com/peermesh/core.git (fetch)
+# upstream  https://github.com/peermesh/core.git (push)
 ```
 
 ### 3. Configure Your Project
@@ -136,7 +136,7 @@ docker compose ps
 
 ### 7. Pull Upstream Updates
 
-When Docker Lab releases improvements:
+When Core releases improvements:
 
 ```bash
 git fetch upstream
@@ -165,9 +165,9 @@ docker compose build dashboard
 
 | Content | Location | Who Owns It |
 |---------|----------|-------------|
-| Foundation (Traefik, socket-proxy, networks) | `docker-compose.yml`, `foundation/` | Docker Lab upstream |
-| Profiles (PostgreSQL, Redis, etc.) | `profiles/` | Docker Lab upstream |
-| Scripts and tooling | `scripts/`, `launch_docker_lab_core.sh` | Docker Lab upstream |
+| Foundation (Traefik, socket-proxy, networks) | `docker-compose.yml`, `foundation/` | Core upstream |
+| Profiles (PostgreSQL, Redis, etc.) | `profiles/` | Core upstream |
+| Scripts and tooling | `scripts/`, `launch_docker_lab_core.sh` | Core upstream |
 | Your modules | `modules/your-app/` | You |
 | Your environment config | `.env` | You (gitignored) |
 | Your secrets | `secrets/` | You (gitignored) |
@@ -215,13 +215,13 @@ docker compose config --quiet
 
 ## Example: peers.social
 
-This is a real-world example of the fork + upstream remote pattern. The `peers.social` project is a social networking platform built as a Docker Lab module.
+This is a real-world example of the fork + upstream remote pattern. The `peers.social` project is a social networking platform built as a Core module.
 
 ```bash
-# 1. Fork docker-lab on GitHub → peers-social-deploy
+# 1. Fork core on GitHub → peers-social-deploy
 git clone https://github.com/peermesh/peers-social-deploy.git
 cd peers-social-deploy
-git remote add upstream https://github.com/peermesh/docker-lab.git
+git remote add upstream https://github.com/peermesh/core.git
 git fetch upstream
 
 # 2. Configure for peers.social production
@@ -232,23 +232,23 @@ cp .env.example .env
 #   ENVIRONMENT=production
 ./scripts/generate-secrets.sh
 
-# 3. Create the social-lab module
-./launch_docker_lab_core.sh module create social-lab
-# Edit modules/social-lab/module.json -- set dependencies, version, etc.
-# Edit modules/social-lab/docker-compose.yml -- define services
-# Implement hooks in modules/social-lab/hooks/
+# 3. Create the social module
+./launch_docker_lab_core.sh module create social
+# Edit modules/social/module.json -- set dependencies, version, etc.
+# Edit modules/social/docker-compose.yml -- define services
+# Implement hooks in modules/social/hooks/
 
 # 4. Validate and commit
-./launch_docker_lab_core.sh module validate social-lab
-git add modules/social-lab/
-git commit -m "feat: add social-lab module for peers.social deployment"
+./launch_docker_lab_core.sh module validate social
+git add modules/social/
+git commit -m "feat: add social module for peers.social deployment"
 
 # 5. Deploy
 docker compose build dashboard
 ./launch_docker_lab_core.sh up
-./launch_docker_lab_core.sh module enable social-lab
+./launch_docker_lab_core.sh module enable social
 
-# 6. Later -- pull Docker Lab improvements
+# 6. Later -- pull Core improvements
 git fetch upstream
 git merge upstream/main
 # Test, rebuild, redeploy
@@ -258,11 +258,11 @@ The peers.social deployment uses:
 - Domain: `peers.social` (main site), `ap.peers.social` (ActivityPub federation)
 - DNS: Cloudflare
 - Infrastructure: Hetzner VPS (2 vCPU, 4 GB RAM, 80 GB SSD)
-- Module: `social-lab` under `modules/social-lab/`
+- Module: `social` under `modules/social/`
 
 ## Lessons from First Deployment (peers.social)
 
-The peers.social deployment was the first real-world project built on Docker Lab using the fork + upstream remote pattern. These lessons are now baked into the templates and guides, but they are documented here for context.
+The peers.social deployment was the first real-world project built on Core using the fork + upstream remote pattern. These lessons are now baked into the templates and guides, but they are documented here for context.
 
 ### Don't SCP node_modules (or any build artifacts)
 
@@ -278,7 +278,7 @@ Docker secrets (the `secrets:` directive in Compose) handle permissions via the 
 
 ### Root domain vs. subdomain routing
 
-The module template defaulted to subdomain routing (`mymodule.${DOMAIN}`), which assumes the module is one of several services under a shared domain. But peers.social IS the domain -- the social-lab module serves `peers.social` directly, not `social-lab.peers.social`.
+The module template defaulted to subdomain routing (`mymodule.${DOMAIN}`), which assumes the module is one of several services under a shared domain. But peers.social IS the domain -- the social module serves `peers.social` directly, not `social.peers.social`.
 
 **Fix:** The module template now documents both patterns side by side:
 - **Pattern A (subdomain):** `Host(\`${MY_MODULE_SUBDOMAIN:-mymodule}.${DOMAIN}\`)` -- for modules that are one service among many.
@@ -311,18 +311,18 @@ Keep `.env.development`, `.env.staging`, and `.env.production` gitignored (they 
 
 ## Backward Compatibility
 
-The fork + upstream remote pattern is fully backward compatible with the existing single-repo deployment model (clone Docker Lab, add modules, deploy). If you are already running Docker Lab from a direct clone, you can adopt this pattern by adding an upstream remote:
+The fork + upstream remote pattern is fully backward compatible with the existing single-repo deployment model (clone Core, add modules, deploy). If you are already running Core from a direct clone, you can adopt this pattern by adding an upstream remote:
 
 ```bash
-cd /opt/docker-lab  # or wherever your existing install lives
-git remote add upstream https://github.com/peermesh/docker-lab.git
+cd /opt/core  # or wherever your existing install lives
+git remote add upstream https://github.com/peermesh/core.git
 git remote rename origin upstream-old  # if you cloned directly
 # You now have the upstream remote and can start merging
 ```
 
 ## Upstream Update Notifications
 
-Docker Lab includes an automated system that tells you when upstream updates are available. It never auto-merges -- it only notifies. You decide when and how to update.
+Core includes an automated system that tells you when upstream updates are available. It never auto-merges -- it only notifies. You decide when and how to update.
 
 ### How It Works
 
@@ -347,7 +347,7 @@ All three layers use the same script: `scripts/check-upstream-updates.sh`. It co
 Example output:
 
 ```
-=== Docker Lab Core Update Check ===
+=== Core Core Update Check ===
 Local:    abc1234 (merged upstream at v7.41.0)
 Upstream: def5678 (latest: v7.42.0)
 Status:   UPDATES AVAILABLE
@@ -384,11 +384,11 @@ The `scripts/deploy.sh` deployment script runs an upstream check during its init
 If your deploy target does not have a `.git` directory (common for SCP-based deployments), all upstream checks are skipped gracefully with an informational message. To enable upstream checking on such a host:
 
 ```bash
-cd /opt/docker-lab
+cd /opt/core
 git init
 git add -A
 git commit -m "initial state"
-git remote add upstream https://github.com/peermesh/docker-lab.git
+git remote add upstream https://github.com/peermesh/core.git
 git fetch upstream
 ```
 
@@ -431,8 +431,8 @@ If the network is unavailable when the check runs (e.g., `git fetch upstream` fa
 
 ## Summary
 
-1. Fork Docker Lab into your own repo
-2. Add `upstream` remote pointing to Docker Lab
+1. Fork Core into your own repo
+2. Add `upstream` remote pointing to Core
 3. Configure `.env` and generate secrets
 4. Build your modules in `modules/`
 5. Deploy with `launch_docker_lab_core.sh`

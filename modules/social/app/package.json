@@ -1,0 +1,20 @@
+{
+  "name": "social-app",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@inrupt/solid-client": "^2.1.0",
+    "@inrupt/solid-client-authn-node": "^2.2.0",
+    "@inrupt/vocab-common-rdf": "^1.0.5",
+    "@noble/curves": "^1.8.0",
+    "@noble/hashes": "^1.7.0",
+    "busboy": "^1.6.0",
+    "pg": "^8.13.0",
+    "sharp": "^0.33.0",
+    "web-push": "^3.6.0"
+  }
+}

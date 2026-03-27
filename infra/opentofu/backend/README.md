@@ -17,4 +17,4 @@ Usage:
 
 Policy source:
 
-- `/Users/grig/work/peermesh/repo/peermesh-docker-lab/.dev/ai/research/opentofu-integration/OPENTOFU-PILOT-SCAFFOLD-AND-STATE-POLICY.md`
+- `/Users/grig/work/peermesh/repo/peermesh-core/.dev/ai/research/opentofu-integration/OPENTOFU-PILOT-SCAFFOLD-AND-STATE-POLICY.md`

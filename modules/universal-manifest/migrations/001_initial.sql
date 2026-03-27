@@ -94,10 +94,10 @@ CREATE INDEX IF NOT EXISTS idx_um_signing_keys_subject_active
 -- ON CONFLICT DO NOTHING ensures idempotency.
 
 INSERT INTO um.facet_registry (facet_name, authorized_module, description) VALUES
-    ('publicProfile',       'social-lab',      'Display name, bio, avatar, handle'),
-    ('socialIdentity',      'social-lab',      'Protocol identities (AP, Nostr, AT, etc.)'),
-    ('socialGraph',         'social-lab',      'Follower/following counts, group memberships'),
-    ('protocolStatus',      'social-lab',      'Active/stub/unavailable protocol status'),
+    ('publicProfile',       'social',      'Display name, bio, avatar, handle'),
+    ('socialIdentity',      'social',      'Protocol identities (AP, Nostr, AT, etc.)'),
+    ('socialGraph',         'social',      'Follower/following counts, group memberships'),
+    ('protocolStatus',      'social',      'Active/stub/unavailable protocol status'),
     ('credentials',         'did-wallet',      'Verifiable credentials'),
     ('verifiableCredentials', 'did-wallet',    'W3C Verifiable Credentials'),
     ('spatialAnchors',      'spatial-fabric',  'Spatial anchor locations'),

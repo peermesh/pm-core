@@ -18,7 +18,7 @@ Provide a more detailed explanation of the module's purpose and functionality.
 ## Installation
 
 ```bash
-# From the docker-lab root directory
+# From the core root directory
 cp -r foundation/templates/module-template modules/my-module
 cd modules/my-module
 # Edit module.json with your module details

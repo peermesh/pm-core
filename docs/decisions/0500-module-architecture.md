@@ -17,8 +17,8 @@
 
 The PeerMesh ecosystem uses the term "module" at two different levels:
 
-1. **Docker Lab itself** is a "module" within the parent peermesh-docker-lab ecosystem
-2. **Extensions inside Docker Lab** (backup, mastodon, pki, etc.) are also called "modules"
+1. **Core itself** is a "module" within the parent peermesh-core ecosystem
+2. **Extensions inside Core** (backup, mastodon, pki, etc.) are also called "modules"
 
 This creates confusion about:
 - What a "PeerMesh Module" template should be
@@ -52,11 +52,11 @@ Analysis completed 2026-02-25. Full findings documented in the architecture anal
 
 ### Finding 1: Two Completely Different Concepts Share the Name "Module"
 
-The parent project (peermesh-docker-lab) uses "module" to mean **application services** -- full-stack components like backend APIs, frontend UIs, AI services, and publishing pipelines. These live at `peermesh-docker-lab/modules/standalone/` and are governed by compliance specifications ("Standalone Module Requirements" and "PeerMesh Module Requirements").
+The parent project (peermesh-core) uses "module" to mean **application services** -- full-stack components like backend APIs, frontend UIs, AI services, and publishing pipelines. These live at `peermesh-core/modules/standalone/` and are governed by compliance specifications ("Standalone Module Requirements" and "PeerMesh Module Requirements").
 
-The Docker Lab uses "module" to mean **infrastructure extensions** -- operational capabilities like backup, PKI, and federation that plug into the foundation via `module.json` manifests, lifecycle hooks, and CLI management.
+The Core uses "module" to mean **infrastructure extensions** -- operational capabilities like backup, PKI, and federation that plug into the foundation via `module.json` manifests, lifecycle hooks, and CLI management.
 
-These share nothing but the name. A parent-project "module" is an application with business logic and database migrations. A Docker Lab "module" is an infrastructure extension with lifecycle hooks and compose patterns. The confusion is not theoretical -- it directly affects what a "PeerMesh Module template" should contain, whether the foundation should be modularized, and how documentation should be structured.
+These share nothing but the name. A parent-project "module" is an application with business logic and database migrations. A Core "module" is an infrastructure extension with lifecycle hooks and compose patterns. The confusion is not theoretical -- it directly affects what a "PeerMesh Module template" should contain, whether the foundation should be modularized, and how documentation should be structured.
 
 ### Finding 2: The Foundation Is the Platform, Not a Participant
 
@@ -68,7 +68,7 @@ The codebase already implements this correctly. The `foundation/` directory cont
 
 ### Finding 3: Four-Tier Architecture Is Well-Defined
 
-The Docker Lab has a clear, well-implemented four-tier architecture:
+The Core has a clear, well-implemented four-tier architecture:
 
 | Tier | Directory | Purpose | Has module.json | Managed by CLI |
 |------|-----------|---------|----------------|----------------|
@@ -87,21 +87,21 @@ The biggest gap is lifecycle hook orchestration. The `module enable` command run
 
 Other gaps: no `module validate` command, no `module create` scaffolding command, no event bus implementation, and no integration test suite for the module lifecycle.
 
-### Finding 5: The Template Should Be a Docker Lab Module (Type 2)
+### Finding 5: The Template Should Be a Core Module (Type 2)
 
-The "PeerMesh Module template" that the project needs is a Type 2 module -- a Docker Lab infrastructure extension. The Docker Lab module system has a formal, implemented architecture with schemas, CLI integration, and clear patterns from existing modules. It can be meaningfully templated.
+The "PeerMesh Module template" that the project needs is a Type 2 module -- a Core infrastructure extension. The Core module system has a formal, implemented architecture with schemas, CLI integration, and clear patterns from existing modules. It can be meaningfully templated.
 
 A Type 1 template (parent-project application service) is premature. The parent project's compliance spec system is not mature enough, and the four existing services are too different from each other to extract a common template.
 
 ### Finding 6: Naming Must Be Disambiguated
 
-The recommended resolution is to keep "module" for the Docker Lab extension system (which earned the name through implementation) and rename the parent project's components to "services" or "components." This is less disruptive because:
+The recommended resolution is to keep "module" for the Core extension system (which earned the name through implementation) and rename the parent project's components to "services" or "components." This is less disruptive because:
 
-1. The Docker Lab has `module.json`, `module.schema.json`, `module enable/disable`, and extensive documentation using "module"
+1. The Core has `module.json`, `module.schema.json`, `module enable/disable`, and extensive documentation using "module"
 2. The parent project's system is primarily specification documents, not runtime code
 3. "Module" is the correct term for a formal plugin with lifecycle management
 
-Alternative terms considered for Docker Lab modules -- "plugins," "extensions," "add-ons" -- were rejected because "plugins" implies runtime code injection (which these are not), and "extensions"/"add-ons" are vaguer than the existing, well-established terminology.
+Alternative terms considered for Core modules -- "plugins," "extensions," "add-ons" -- were rejected because "plugins" implies runtime code injection (which these are not), and "extensions"/"add-ons" are vaguer than the existing, well-established terminology.
 
 ---
 
@@ -109,13 +109,13 @@ Alternative terms considered for Docker Lab modules -- "plugins," "extensions," 
 
 **Options B + D accepted by project owner on 2026-02-26.**
 
-Parent-level components are renamed from "modules" to "services." Docker Lab retains "module" for its formal extension system.
+Parent-level components are renamed from "modules" to "services." Core retains "module" for its formal extension system.
 
 Specific decisions:
 
 - **Layer terminology:** The four-tier architecture (Foundation, Profiles, Examples, Modules) is confirmed. The foundation is the platform, not a participant. Modules are the formal extension layer.
-- **Naming conventions:** "Module" now exclusively means a Docker Lab infrastructure extension (Tier 4). Parent-level components (Docker Lab, Social Lab, backend, frontend, etc.) are "services." Historical documents before 2026-02-26 retain old terminology.
-- **Template scope:** The "PeerMesh Module template" (WO-104 hello-module) will be a Docker Lab inner module (Type 2). No parent-project service template at this time.
+- **Naming conventions:** "Module" now exclusively means a Core infrastructure extension (Tier 4). Parent-level components (Core, Social, backend, frontend, etc.) are "services." Historical documents before 2026-02-26 retain old terminology.
+- **Template scope:** The "PeerMesh Module template" (WO-104 hello-module) will be a Core inner module (Type 2). No parent-project service template at this time.
 - **Architectural patterns:** Module schemas remain in `foundation/schemas/`. No changes to the schema layer.
 - **Filesystem paths:** The parent project directory `.dev/modules/` is NOT renamed on disk at this time. That is a separate operational decision.
 
@@ -135,17 +135,17 @@ The foundation is the platform. Modules are extensions that plug into it. They h
 
 **This is the recommended approach** because it matches what is already implemented, preserves clean separation of concerns, and makes the architecture legible to new contributors. The four-tier model (Foundation, Profiles, Examples, Modules) is already well-documented in ARCHITECTURE.md and works correctly.
 
-### Option C: Rename Docker Lab Modules to "Extensions" or "Plugins"
+### Option C: Rename Core Modules to "Extensions" or "Plugins"
 
-Under this approach, the Docker Lab would use different terminology to avoid collision with the parent project.
+Under this approach, the Core would use different terminology to avoid collision with the parent project.
 
-**Rejected because:** The Docker Lab module system is the one with the formal implementation -- `module.json`, `module.schema.json`, `module enable/disable`, five existing modules with manifests. Renaming the established, implemented system is more disruptive than renaming the less-implemented parent spec. Additionally, "plugins" implies runtime code injection (not what these are), and "extensions" is vaguer than "modules."
+**Rejected because:** The Core module system is the one with the formal implementation -- `module.json`, `module.schema.json`, `module enable/disable`, five existing modules with manifests. Renaming the established, implemented system is more disruptive than renaming the less-implemented parent spec. Additionally, "plugins" implies runtime code injection (not what these are), and "extensions" is vaguer than "modules."
 
 ### Option D: Rename Parent Project Components to "Services"
 
-Under this approach, the parent project's application components would be called "services" instead of "modules," and the Docker Lab would keep "module."
+Under this approach, the parent project's application components would be called "services" instead of "modules," and the Core would keep "module."
 
-**This is the recommended naming resolution** because it is less disruptive (the parent system is primarily documentation, not runtime code), more accurate (the parent components ARE application services), and preserves the well-established Docker Lab terminology.
+**This is the recommended naming resolution** because it is less disruptive (the parent system is primarily documentation, not runtime code), more accurate (the parent components ARE application services), and preserves the well-established Core terminology.
 
 ---
 
@@ -154,13 +154,13 @@ Under this approach, the parent project's application components would be called
 ### With Option B + D Accepted
 
 **Module template design:**
-- The "PeerMesh Module template" (WO-104 hello-module) will be a Docker Lab inner module (Type 2)
+- The "PeerMesh Module template" (WO-104 hello-module) will be a Core inner module (Type 2)
 - It will demonstrate `module.json`, lifecycle hooks, dashboard registration, and compose patterns
 - No template will be created for parent-project services at this time
 
 **Documentation structure:**
 - [MODULE-ARCHITECTURE.md](../MODULE-ARCHITECTURE.md) has been created as the central architecture document
-- Documentation consistently uses "module" for Docker Lab extensions and "service" for parent-project application components
+- Documentation consistently uses "module" for Core extensions and "service" for parent-project application components
 - Cross-references link the new architecture doc to ARCHITECTURE.md, the Module Rubric, and the CLI reference
 
 **Developer onboarding:**
@@ -169,7 +169,7 @@ Under this approach, the parent project's application components would be called
 - The implementation status section sets honest expectations about what works today
 
 **Hello Module (WO-104):**
-- Scoped as a Docker Lab inner module with all module system features demonstrated
+- Scoped as a Core inner module with all module system features demonstrated
 - Uses Nginx as a minimal, working service
 - Includes annotated manifest, lifecycle hooks, dashboard widget, smoke test
 - Provides `# CUSTOMIZE:` markers for clone-and-customize workflow
@@ -231,4 +231,4 @@ Once the decision is made, the following will need to be updated:
 |------|--------|--------|
 | 2026-02-26 | Initial draft - scaffolding for analysis | AI-assisted |
 | 2026-02-26 | Analysis section filled from completed research; alternatives and consequences drafted | AI-assisted |
-| 2026-02-26 | Decision ACCEPTED: Options B + D. Parent "modules" renamed to "services"; Docker Lab retains "module" | Owner decision |
+| 2026-02-26 | Decision ACCEPTED: Options B + D. Parent "modules" renamed to "services"; Core retains "module" | Owner decision |

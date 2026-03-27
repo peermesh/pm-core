@@ -1,10 +1,10 @@
 # Security Audit Preparation Package
 
-Complete documentation package for professional security audit of PeerMeshCore Docker Lab.
+Complete documentation package for professional security audit of PeerMeshCore Core.
 
 **Version**: 1.0.0
 **Prepared**: 2026-01-21
-**Project**: PeerMeshCore Docker Lab
+**Project**: PeerMeshCore Core
 **Architecture**: Docker Compose only (no Kubernetes/Swarm)
 
 ---
@@ -27,7 +27,7 @@ Complete documentation package for professional security audit of PeerMeshCore D
 
 ### Project Description
 
-PeerMeshCore Docker Lab is a Docker Compose-based infrastructure platform designed for self-hosted applications on commodity VPS instances. It provides:
+PeerMeshCore Core is a Docker Compose-based infrastructure platform designed for self-hosted applications on commodity VPS instances. It provides:
 
 - **Reverse Proxy**: Traefik with automatic HTTPS
 - **Database Profiles**: PostgreSQL, MySQL, MongoDB, Redis

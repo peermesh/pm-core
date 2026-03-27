@@ -1,7 +1,7 @@
-# Docker Lab Community Launch Strategy
+# Core Community Launch Strategy
 
 ## Objective
-Launch Docker Lab publicly with clear expectations, stable docs, and low-friction contribution paths.
+Launch Core publicly with clear expectations, stable docs, and low-friction contribution paths.
 
 ## Launch Channels
 1. GitHub release notes + pinned discussion.

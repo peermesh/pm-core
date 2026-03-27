@@ -1,6 +1,6 @@
 # Pre-Deployment Checklist
 
-Universal checks to run before deploying ANY application on Docker Lab.
+Universal checks to run before deploying ANY application on Core.
 
 Use this checklist before deploying new applications or troubleshooting failed deployments. Each item is verifiable with the command shown.
 

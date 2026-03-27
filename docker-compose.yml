@@ -1,5 +1,5 @@
 # ==============================================================
-# PeerMesh Docker Lab - Root Compose File
+# PeerMesh Core - Root Compose File
 # ==============================================================
 #
 # PROFILES AVAILABLE:
@@ -256,7 +256,7 @@ services:
     environment:
       - PORT=8080
       - DOCKER_HOST=tcp://socket-proxy:2375
-      # Docker Lab Dashboard auth (see docs/GLOSSARY.md for naming)
+      # Core Dashboard auth (see docs/GLOSSARY.md for naming)
       - DOCKERLAB_USERNAME=${DOCKERLAB_USERNAME:-${DASHBOARD_USERNAME:-admin}}
       - DOCKERLAB_PASSWORD=${DOCKERLAB_PASSWORD:-${DASHBOARD_PASSWORD:-}}
       - DOCKERLAB_DEMO_MODE=${DOCKERLAB_DEMO_MODE:-${DEMO_MODE:-false}}

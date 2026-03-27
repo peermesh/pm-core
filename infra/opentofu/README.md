@@ -1,6 +1,6 @@
 # OpenTofu Infrastructure Layer (Pilot)
 
-This directory contains the OpenTofu infrastructure layer for Docker Lab.
+This directory contains the OpenTofu infrastructure layer for Core.
 
 Boundary rules:
 
@@ -11,7 +11,7 @@ Boundary rules:
 Canonical deployment model:
 
 1. OpenTofu provisions infra resources through provider APIs.
-2. Docker Lab runtime deploys foundation and modules on that infra.
+2. Core runtime deploys foundation and modules on that infra.
 
 Reference:
 
@@ -82,17 +82,17 @@ Quick start:
 Hetzner-first provider usage:
 
 1. Set `compute_provider = "hetzner"` in your live var file.
-2. Capture provider credentials with the secure credential manager (default file is outside git: `~/.config/docker-lab/opentofu/pilot-single-vps.credentials.env`).
+2. Capture provider credentials with the secure credential manager (default file is outside git: `~/.config/core/opentofu/pilot-single-vps.credentials.env`).
 3. If DNS is Cloudflare, set `dns_provider = "cloudflare"` and capture `CLOUDFLARE_API_TOKEN` in the same credential file.
 
 Recommended credential flow:
 
 ```bash
 # 0) Bootstrap credential file (outside git)
-mkdir -p "${XDG_CONFIG_HOME:-$HOME/.config}/docker-lab/opentofu"
+mkdir -p "${XDG_CONFIG_HOME:-$HOME/.config}/core/opentofu"
 cp ./infra/opentofu/env/pilot-single-vps.credentials.env.example \
-  "${XDG_CONFIG_HOME:-$HOME/.config}/docker-lab/opentofu/pilot-single-vps.credentials.env"
-chmod 600 "${XDG_CONFIG_HOME:-$HOME/.config}/docker-lab/opentofu/pilot-single-vps.credentials.env"
+  "${XDG_CONFIG_HOME:-$HOME/.config}/core/opentofu/pilot-single-vps.credentials.env"
+chmod 600 "${XDG_CONFIG_HOME:-$HOME/.config}/core/opentofu/pilot-single-vps.credentials.env"
 
 # 1) Enter/update required provider keys (hidden prompt, secure file mode 600)
 ./infra/opentofu/scripts/pilot-credentials.sh setup \

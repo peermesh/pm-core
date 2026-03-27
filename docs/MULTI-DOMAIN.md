@@ -1,6 +1,6 @@
 # Multi-Domain Pattern
 
-Docker Lab supports hosting multiple domains on one VPS via Compose override files.
+Core supports hosting multiple domains on one VPS via Compose override files.
 
 ## Baseline Decision
 

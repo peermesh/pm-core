@@ -1,8 +1,8 @@
 # Quick Start Guide
 
-This document is the canonical public install path for PeerMeshCore's `docker-lab` repository, exposed at https://github.com/peermesh/docker-lab. Follow these steps when you need a public-facing quick start or want the referenced commands to match the public boundary.
+This document is the canonical public install path for PeerMeshCore's `core` repository, exposed at https://github.com/peermesh/core. Follow these steps when you need a public-facing quick start or want the referenced commands to match the public boundary.
 
-Get PeerMesh Docker Lab running in 5 minutes.
+Get PeerMesh Core running in 5 minutes.
 
 Note:
 
@@ -13,13 +13,13 @@ Note:
 
 ## Production Quick Start (10 Steps)
 
-> **For production deployments**, use the [fork + upstream remote pattern](DEPLOYMENT-REPO-PATTERN.md) instead of cloning Docker Lab directly. Forking gives you your own repo for project-specific configuration while preserving the ability to merge upstream improvements. The steps below still apply -- you just run them inside your forked repo instead of a direct clone.
+> **For production deployments**, use the [fork + upstream remote pattern](DEPLOYMENT-REPO-PATTERN.md) instead of cloning Core directly. Forking gives you your own repo for project-specific configuration while preserving the ability to merge upstream improvements. The steps below still apply -- you just run them inside your forked repo instead of a direct clone.
 
 A condensed path for operators who want the shortest route to a running instance:
 
 1. **Clone the repo**
    ```bash
-   git clone https://github.com/peermesh/docker-lab.git && cd docker-lab
+   git clone https://github.com/peermesh/core.git && cd core
    ```
 2. **Copy `.env.example` to `.env`**, set `DOMAIN` and `ADMIN_EMAIL`
    ```bash
@@ -76,8 +76,8 @@ docker compose version
 ## Step 1: Clone the Repository
 
 ```bash
-git clone https://github.com/peermesh/docker-lab.git
-cd docker-lab
+git clone https://github.com/peermesh/core.git
+cd core
 ```
 
 ## Step 2: Configure Environment

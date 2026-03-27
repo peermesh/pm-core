@@ -199,7 +199,7 @@ networks:
 ```markdown
 # Ghost CMS Example
 
-A self-hosted blogging platform deployed on PeerMesh Docker Lab.
+A self-hosted blogging platform deployed on PeerMesh Core.
 
 ## Prerequisites
 

@@ -4,7 +4,7 @@ Security architecture, hardening checklist, and best practices.
 
 ## Security Posture Overview
 
-PeerMesh Docker Lab implements defense-in-depth with multiple security layers:
+PeerMesh Core implements defense-in-depth with multiple security layers:
 
 1. **Network Isolation** - Three-tier network segmentation
 2. **Secret Management** - File-based secrets, never environment variables
@@ -235,7 +235,7 @@ TRAEFIK_ACME_STAGING=true
 
 ### Authentication-First Design
 
-The Docker Lab Dashboard protects **all endpoints** behind authentication, including typically-public endpoints like `/api/health`. This is an intentional secure-by-default design decision.
+The Core Dashboard protects **all endpoints** behind authentication, including typically-public endpoints like `/api/health`. This is an intentional secure-by-default design decision.
 
 **Rationale:**
 

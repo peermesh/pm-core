@@ -1,6 +1,6 @@
 # Decision Provenance
 
-This document traces the research lineage for architectural decisions in the docker-lab project. Understanding where decisions came from helps maintainers evaluate changes and contributors understand design rationale.
+This document traces the research lineage for architectural decisions in the core project. Understanding where decisions came from helps maintainers evaluate changes and contributors understand design rationale.
 
 ---
 

@@ -1,4 +1,4 @@
-# Docker Lab Gotchas
+# Core Gotchas
 
 This document captures the deployment issues most likely to waste time during first rollout.
 

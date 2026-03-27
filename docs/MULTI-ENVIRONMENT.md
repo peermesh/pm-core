@@ -1,6 +1,6 @@
 # Multi-Environment Deployment Guide
 
-Docker Lab supports three deployment environments: **local development**, **staging**, and **production**. Each environment uses its own `.env` template with appropriate defaults for domain, TLS, logging, and resource allocation.
+Core supports three deployment environments: **local development**, **staging**, and **production**. Each environment uses its own `.env` template with appropriate defaults for domain, TLS, logging, and resource allocation.
 
 ## Environments
 

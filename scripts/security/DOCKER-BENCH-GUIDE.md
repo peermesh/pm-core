@@ -1,6 +1,6 @@
 # Docker Bench Security Guide
 
-This guide explains how to run docker-bench-security and interpret results for Peer Mesh Docker Lab.
+This guide explains how to run docker-bench-security and interpret results for PeerMesh Docker Lab.
 
 ## Quick Start
 
@@ -30,7 +30,7 @@ Docker Bench runs checks in these categories:
 | 6 - Docker Security Operations | Centralized logging | No |
 | 7 - Docker Swarm | Swarm-specific (N/A for us) | No |
 
-## Expected Findings for Peer Mesh Docker Lab
+## Expected Findings for PeerMesh Docker Lab
 
 ### Expected PASS Results
 

@@ -13,7 +13,7 @@ locals {
     {
       environment = var.pilot_environment_key
       managed_by  = "opentofu"
-      project     = "peer-mesh-docker-lab"
+      project     = "peermesh-docker-lab"
     },
     var.resource_tags,
   )

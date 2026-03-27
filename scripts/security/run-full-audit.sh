@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==============================================================
-# Peer Mesh Docker Lab - Comprehensive Security Audit
+# PeerMesh Docker Lab - Comprehensive Security Audit
 # ==============================================================
 # Single entry point for all scriptable security tests.
 # Safe to run against production (read-only, no mutations).
@@ -199,7 +199,7 @@ fi
 # ==============================================================
 AUDIT_START="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
-section_header "PEER MESH DOCKER LAB - SECURITY AUDIT"
+section_header "PeerMesh DOCKER LAB - SECURITY AUDIT"
 emit "Timestamp: ${AUDIT_START}"
 emit "Mode:      ${MODE}"
 emit "Target:    ${TARGET_URL}"

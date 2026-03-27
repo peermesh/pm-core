@@ -15,7 +15,7 @@
 
 ## Context
 
-The peer-mesh-docker-lab project manages stateful services including databases (PostgreSQL, MySQL, MongoDB) and object storage (MinIO). While individual profile backup scripts exist, the current approach has significant gaps:
+The peermesh-docker-lab project manages stateful services including databases (PostgreSQL, MySQL, MongoDB) and object storage (MinIO). While individual profile backup scripts exist, the current approach has significant gaps:
 
 1. **Docker volumes are not backed up** - Only database dumps exist, not raw volume data
 2. **No automated backup orchestration** - Backups require manual cron setup

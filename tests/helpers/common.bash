@@ -48,7 +48,7 @@ skip_if_no_docker() {
 
 # Skip test if running on VPS (we don't want to disrupt production)
 skip_if_vps() {
-  if [[ -f "/opt/peer-mesh-docker-lab/README.md" ]]; then
+  if [[ -f "/opt/peermesh-docker-lab/README.md" ]]; then
     skip "This test should not run on VPS"
   fi
 }

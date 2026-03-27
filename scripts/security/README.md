@@ -1,6 +1,6 @@
 # Security Scripts
 
-Scripts for security testing and auditing Peer Mesh Docker Lab.
+Scripts for security testing and auditing PeerMesh Docker Lab.
 
 ## Quick Start: Full Audit
 

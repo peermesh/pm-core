@@ -1,6 +1,6 @@
 # Backup Scripts
 
-Unified backup and restore scripts for peer-mesh-docker-lab.
+Unified backup and restore scripts for peermesh-docker-lab.
 
 ## Overview
 
@@ -328,7 +328,7 @@ docker compose up -d
 # On new server:
 
 # 1. Clone repository
-git clone https://github.com/your-org/peer-mesh-docker-lab.git /opt/pmdl
+git clone https://github.com/your-org/peermesh-docker-lab.git /opt/pmdl
 cd /opt/pmdl
 
 # 2. Download backups from off-site storage

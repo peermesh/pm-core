@@ -286,4 +286,4 @@ Before considering an example complete, verify:
 ---
 
 *Created: 2025-12-31*
-*Part of Peer Mesh Docker Lab*
+*Part of PeerMesh Docker Lab*

@@ -17,7 +17,7 @@
 
 The PeerMesh ecosystem uses the term "module" at two different levels:
 
-1. **Docker Lab itself** is a "module" within the parent peer-mesh-docker-lab ecosystem
+1. **Docker Lab itself** is a "module" within the parent peermesh-docker-lab ecosystem
 2. **Extensions inside Docker Lab** (backup, mastodon, pki, etc.) are also called "modules"
 
 This creates confusion about:
@@ -52,7 +52,7 @@ Analysis completed 2026-02-25. Full findings documented in the architecture anal
 
 ### Finding 1: Two Completely Different Concepts Share the Name "Module"
 
-The parent project (peer-mesh-docker-lab) uses "module" to mean **application services** -- full-stack components like backend APIs, frontend UIs, AI services, and publishing pipelines. These live at `peer-mesh-docker-lab/modules/standalone/` and are governed by compliance specifications ("Standalone Module Requirements" and "PeerMesh Module Requirements").
+The parent project (peermesh-docker-lab) uses "module" to mean **application services** -- full-stack components like backend APIs, frontend UIs, AI services, and publishing pipelines. These live at `peermesh-docker-lab/modules/standalone/` and are governed by compliance specifications ("Standalone Module Requirements" and "PeerMesh Module Requirements").
 
 The Docker Lab uses "module" to mean **infrastructure extensions** -- operational capabilities like backup, PKI, and federation that plug into the foundation via `module.json` manifests, lifecycle hooks, and CLI management.
 

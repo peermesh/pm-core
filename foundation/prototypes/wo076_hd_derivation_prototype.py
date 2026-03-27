@@ -67,7 +67,7 @@ def hkdf_sha256(ikm: bytes, salt: bytes, info: bytes, length: int = 32) -> bytes
 
 
 def derive_module_aes_key(seed: bytes, module_id: str, key_index: int) -> bytes:
-    salt = b"peer-mesh-docker-lab/wo076/hkdf-v1"
+    salt = b"peermesh-docker-lab/wo076/hkdf-v1"
     info = f"module/{module_id}/aes256/key/{key_index}".encode("utf-8")
     return hkdf_sha256(seed, salt, info, 32)
 

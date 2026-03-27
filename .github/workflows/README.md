@@ -1,6 +1,6 @@
 # GitHub Actions Workflows
 
-This directory contains CI/CD workflows for the Peer Mesh Docker Lab project.
+This directory contains CI/CD workflows for the PeerMesh Docker Lab project.
 
 ## Active Workflows
 

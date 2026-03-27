@@ -1104,4 +1104,4 @@ docker logs pmdl_nats --tail 100 -f
 
 *Profile Template Version: 1.0*
 *Last Updated: 2026-02-22*
-*Part of Peer Mesh Docker Lab*
+*Part of PeerMesh Docker Lab*

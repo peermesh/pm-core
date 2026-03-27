@@ -4,7 +4,7 @@ Security architecture, hardening checklist, and best practices.
 
 ## Security Posture Overview
 
-Peer Mesh Docker Lab implements defense-in-depth with multiple security layers:
+PeerMesh Docker Lab implements defense-in-depth with multiple security layers:
 
 1. **Network Isolation** - Three-tier network segmentation
 2. **Secret Management** - File-based secrets, never environment variables

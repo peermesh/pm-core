@@ -1,6 +1,6 @@
 # Add Your Own Application
 
-This template provides everything you need to integrate a new application with the Peer Mesh Docker Lab foundation. Follow this guide to deploy any Docker-based application with proper Traefik routing, Authelia protection, database integration, and resource limits.
+This template provides everything you need to integrate a new application with the PeerMesh Docker Lab foundation. Follow this guide to deploy any Docker-based application with proper Traefik routing, Authelia protection, database integration, and resource limits.
 
 ---
 

@@ -2,7 +2,7 @@
 # ==============================================================
 # Docker Bench Security Scanner
 # ==============================================================
-# Runs docker-bench-security against the Peer Mesh Docker Lab
+# Runs docker-bench-security against the PeerMesh Docker Lab
 # infrastructure and generates a timestamped report.
 #
 # Usage:
@@ -86,7 +86,7 @@ echo -e "${BLUE}======================================${NC}"
 echo -e "${BLUE}Docker Bench Security Scanner${NC}"
 echo -e "${BLUE}======================================${NC}"
 echo ""
-echo -e "Project: ${GREEN}Peer Mesh Docker Lab${NC}"
+echo -e "Project: ${GREEN}PeerMesh Docker Lab${NC}"
 echo -e "Date:    ${GREEN}$(date)${NC}"
 echo -e "Report:  ${GREEN}$REPORT_FILE${NC}"
 echo ""
@@ -128,7 +128,7 @@ echo ""
     echo "Docker Bench Security Report"
     echo "========================================"
     echo ""
-    echo "Project: Peer Mesh Docker Lab"
+    echo "Project: PeerMesh Docker Lab"
     echo "Date: $(date)"
     echo "Host: $(hostname)"
     echo "Docker Version: $(docker version --format '{{.Server.Version}}')"

@@ -2,7 +2,7 @@
 
 This document is the canonical public install path for PeerMeshCore's `docker-lab` repository, exposed at https://github.com/peermesh/docker-lab. Follow these steps when you need a public-facing quick start or want the referenced commands to match the public boundary.
 
-Get Peer Mesh Docker Lab running in 5 minutes.
+Get PeerMesh Docker Lab running in 5 minutes.
 
 Note:
 

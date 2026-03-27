@@ -1,6 +1,6 @@
 # Security Architecture
 
-Comprehensive security architecture documentation for Peer Mesh Docker Lab.
+Comprehensive security architecture documentation for PeerMesh Docker Lab.
 
 **Version**: 1.2.0
 **Last Updated**: 2026-03-20
@@ -10,7 +10,7 @@ Comprehensive security architecture documentation for Peer Mesh Docker Lab.
 
 ## Executive Summary
 
-Peer Mesh Docker Lab implements defense-in-depth security with:
+PeerMesh Docker Lab implements defense-in-depth security with:
 
 - **Network Isolation**: Four-tier network topology
 - **Secrets Management**: File-based secrets, never environment variables

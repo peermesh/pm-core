@@ -1,4 +1,4 @@
-# Grafana Datasource Provisioning - Peer Mesh Docker Lab
+# Grafana Datasource Provisioning - PeerMesh Docker Lab
 apiVersion: 1
 
 datasources:

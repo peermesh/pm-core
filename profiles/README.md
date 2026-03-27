@@ -1,6 +1,6 @@
 # Supporting Tech Profiles
 
-This directory contains production-ready configurations for common infrastructure services. Each profile is a complete, self-contained specification for deploying a specific technology within the Peer Mesh Docker Lab foundation.
+This directory contains production-ready configurations for common infrastructure services. Each profile is a complete, self-contained specification for deploying a specific technology within the PeerMesh Docker Lab foundation.
 
 ---
 
@@ -264,4 +264,4 @@ Profiles are **built on** the foundation decisions:
 ---
 
 *Created: 2025-12-31*
-*Part of Peer Mesh Docker Lab*
+*Part of PeerMesh Docker Lab*

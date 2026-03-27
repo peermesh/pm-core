@@ -426,7 +426,7 @@ run_secret_pass() {
 
 echo ""
 echo "=========================================="
-echo "  Peer Mesh Docker Lab - Secrets"
+echo "  PeerMesh Docker Lab - Secrets"
 echo "=========================================="
 echo ""
 

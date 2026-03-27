@@ -1021,7 +1021,7 @@ EOF
 main() {
     echo ""
     echo "=========================================="
-    echo "  Peer Mesh Docker Lab - Deployment"
+    echo "  PeerMesh Docker Lab - Deployment"
     echo "  Blueprint: B-FLOW-001"
     echo "=========================================="
     echo ""

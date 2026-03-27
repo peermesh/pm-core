@@ -23,6 +23,6 @@ cloudflare_record_ttl = 1
 cloudflare_proxied    = false
 
 resource_tags = {
-  project = "peer-mesh-docker-lab"
+  project = "peermesh-docker-lab"
   env     = "pilot-single-vps"
 }

@@ -14,7 +14,7 @@
 
 ## Executive Summary
 
-This threat model documents the attack surfaces, trust boundaries, threat actors, attack vectors, and mitigations for the Peer Mesh Docker Lab platform. It follows STRIDE methodology (Spoofing, Tampering, Repudiation, Information Disclosure, Denial of Service, Elevation of Privilege) and is designed to support professional security audit engagement.
+This threat model documents the attack surfaces, trust boundaries, threat actors, attack vectors, and mitigations for the PeerMesh Docker Lab platform. It follows STRIDE methodology (Spoofing, Tampering, Repudiation, Information Disclosure, Denial of Service, Elevation of Privilege) and is designed to support professional security audit engagement.
 
 **Deployment Context**: Self-hosted Docker Compose infrastructure on commodity VPS instances, serving as foundation for federated applications and personal cloud services.
 

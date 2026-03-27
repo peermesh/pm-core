@@ -1,0 +1,591 @@
+openapi: "3.1.0"
+info:
+  title: PeerMesh Universal Manifest Module API
+  description: >
+    Universal Manifest (UM) module for the PeerMesh Docker Lab platform.
+    Provides identity document infrastructure: manifest CRUD, UMID resolution,
+    Ed25519 signing/verification, facet registry, and key provisioning.
+    Manifests are JSON-LD documents following the UM specification with
+    cryptographic signing.
+  version: "0.1.0"
+  contact:
+    name: PeerMesh
+    url: https://peermesh.org
+  license:
+    name: MIT
+
+servers:
+  - url: http://localhost:8200
+    description: Local development
+  - url: https://um.{domain}
+    description: Production deployment
+    variables:
+      domain:
+        default: peers.social
+
+tags:
+  - name: Health
+    description: Service and resolver health
+  - name: Manifests
+    description: Manifest CRUD operations
+  - name: Resolver
+    description: UMID resolution
+  - name: Facets
+    description: Facet registry management
+  - name: Keys
+    description: Key provisioning and management
+  - name: Discovery
+    description: Well-known discovery endpoints
+
+paths:
+  /health:
+    get:
+      tags: [Health]
+      summary: Resolver health check
+      operationId: healthCheck
+      security: []
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+        "503":
+          description: Database unreachable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # ── Manifests ───────────────────────────────────────────────────────
+  /api/um/manifest:
+    post:
+      tags: [Manifests]
+      summary: Create manifest
+      description: Creates a new Universal Manifest for a subject WebID.
+      operationId: createManifest
+      security:
+        - platformToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateManifestRequest"
+      responses:
+        "201":
+          description: Manifest created
+          content:
+            application/ld+json:
+              schema:
+                $ref: "#/components/schemas/Manifest"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          description: Manifest already exists for this subject
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/um/manifest/{umid}:
+    get:
+      tags: [Manifests]
+      summary: Get manifest by UMID
+      description: Returns the full manifest document as JSON-LD.
+      operationId: getManifest
+      parameters:
+        - name: umid
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Universal Manifest ID
+      responses:
+        "200":
+          description: Manifest document
+          content:
+            application/ld+json:
+              schema:
+                $ref: "#/components/schemas/Manifest"
+          headers:
+            ETag:
+              schema:
+                type: string
+            Cache-Control:
+              schema:
+                type: string
+        "304":
+          description: Not modified (ETag match)
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      tags: [Manifests]
+      summary: Revoke manifest
+      description: Revokes (soft-deletes) a manifest. Returns 410 on subsequent resolution.
+      operationId: revokeManifest
+      security:
+        - platformToken: []
+      parameters:
+        - name: umid
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Manifest revoked
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  revoked:
+                    type: boolean
+                  umid:
+                    type: string
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/um/manifest/subject/{webid}:
+    get:
+      tags: [Manifests]
+      summary: Get manifest by subject WebID
+      description: Resolves a manifest by the subject's WebID.
+      operationId: getManifestBySubject
+      parameters:
+        - name: webid
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Subject WebID (URL-encoded)
+      responses:
+        "200":
+          description: Manifest document
+          content:
+            application/ld+json:
+              schema:
+                $ref: "#/components/schemas/Manifest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/um/manifest/{umid}/facet/{name}:
+    put:
+      tags: [Manifests]
+      summary: Write/update facet
+      description: >
+        Writes or updates a named facet on a manifest. Requires facet
+        authorization (registered writer for this facet name).
+      operationId: writeFacet
+      security:
+        - platformToken: []
+      parameters:
+        - name: umid
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Facet name (e.g., "social-profile", "holochain-agent")
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Facet content (schema depends on facet type)
+      responses:
+        "200":
+          description: Facet written
+          content:
+            application/ld+json:
+              schema:
+                $ref: "#/components/schemas/Manifest"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Not authorized to write this facet
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/um/manifest/{umid}/sign:
+    post:
+      tags: [Manifests]
+      summary: Re-sign manifest
+      description: Re-signs the manifest with the latest key material.
+      operationId: resignManifest
+      security:
+        - platformToken: []
+      parameters:
+        - name: umid
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Manifest re-signed
+          content:
+            application/ld+json:
+              schema:
+                $ref: "#/components/schemas/Manifest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/um/manifest/verify:
+    post:
+      tags: [Manifests]
+      summary: Verify manifest signature
+      description: Verifies the Ed25519 signature on a manifest document.
+      operationId: verifyManifest
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [manifest]
+              properties:
+                manifest:
+                  type: object
+                  description: Full manifest document to verify
+      responses:
+        "200":
+          description: Verification result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  valid:
+                    type: boolean
+                  signer:
+                    type: string
+                    nullable: true
+                  signed_at:
+                    type: string
+                    format: date-time
+                    nullable: true
+
+  # ── Resolver ────────────────────────────────────────────────────────
+  /{umid}:
+    get:
+      tags: [Resolver]
+      summary: Resolve UMID
+      description: >
+        Resolves a Universal Manifest by UMID. Implements the myum-resolver
+        contract with proper status codes: 200 (found), 304 (not modified),
+        307 (redirect), 400 (bad UMID), 404 (not found), 410 (revoked).
+      operationId: resolveUmid
+      parameters:
+        - name: umid
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Manifest resolved
+          content:
+            application/ld+json:
+              schema:
+                $ref: "#/components/schemas/Manifest"
+          headers:
+            X-UM-Resolver-Contract:
+              schema:
+                type: string
+                example: "myum-resolver/v0.1"
+            X-UM-Resolver-Source:
+              schema:
+                type: string
+                example: "database"
+            ETag:
+              schema:
+                type: string
+            Cache-Control:
+              schema:
+                type: string
+        "304":
+          description: Not modified
+        "400":
+          description: Invalid UMID format
+        "404":
+          description: UMID not found
+        "410":
+          description: Manifest revoked
+
+  # ── Facets ──────────────────────────────────────────────────────────
+  /api/um/facets:
+    get:
+      tags: [Facets]
+      summary: List registered facets
+      description: Returns all registered facet types with their authorized writers.
+      operationId: listFacets
+      responses:
+        "200":
+          description: Facet list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  facets:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/FacetRegistration"
+
+  /api/um/facets/register:
+    post:
+      tags: [Facets]
+      summary: Register a facet type
+      description: >
+        Registers a new facet name and its authorized writer module.
+        Only platform-level tokens can register facets.
+      operationId: registerFacet
+      security:
+        - platformToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [facet_name, writer_module]
+              properties:
+                facet_name:
+                  type: string
+                  description: Facet name (e.g., "social-profile")
+                writer_module:
+                  type: string
+                  description: Module ID authorized to write this facet
+                schema_url:
+                  type: string
+                  format: uri
+                  description: URL to JSON Schema for facet content
+      responses:
+        "201":
+          description: Facet registered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FacetRegistration"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          description: Facet already registered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # ── Keys ────────────────────────────────────────────────────────────
+  /api/um/keys/provision:
+    post:
+      tags: [Keys]
+      summary: Provision Ed25519 keypair
+      description: Provisions a per-user Ed25519 keypair for manifest signing.
+      operationId: provisionKeys
+      security:
+        - platformToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [user_id]
+              properties:
+                user_id:
+                  type: string
+                  description: Omni-account ID or WebID
+      responses:
+        "201":
+          description: Keypair provisioned
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  public_key:
+                    type: string
+                    description: Ed25519 public key (base64url)
+                  user_id:
+                    type: string
+                  provisioned_at:
+                    type: string
+                    format: date-time
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          description: Keypair already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # ── Discovery ───────────────────────────────────────────────────────
+  /.well-known/myum-resolver.json:
+    get:
+      tags: [Discovery]
+      summary: Resolver service discovery
+      description: Returns resolver capabilities and contract version.
+      operationId: resolverDiscovery
+      security: []
+      responses:
+        "200":
+          description: Resolver info
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  contract:
+                    type: string
+                    example: "myum-resolver/v0.1"
+                  source:
+                    type: string
+                  domain:
+                    type: string
+                  version:
+                    type: string
+
+components:
+  securitySchemes:
+    platformToken:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Platform service token
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Unauthorized:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    NotFound:
+      description: Not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        request_id:
+          type: string
+
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [ok, degraded, unhealthy]
+        database:
+          type: boolean
+        manifests_count:
+          type: integer
+        resolver_contract:
+          type: string
+
+    Manifest:
+      type: object
+      properties:
+        "@context":
+          type: string
+        "@type":
+          type: string
+        umid:
+          type: string
+        version:
+          type: string
+        subject:
+          type: string
+          format: uri
+        facets:
+          type: object
+          additionalProperties:
+            type: object
+        proof:
+          type: object
+          properties:
+            type:
+              type: string
+            created:
+              type: string
+              format: date-time
+            verificationMethod:
+              type: string
+            proofValue:
+              type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        ttl:
+          type: integer
+          description: Time-to-live in milliseconds
+
+    CreateManifestRequest:
+      type: object
+      required: [subject]
+      properties:
+        subject:
+          type: string
+          format: uri
+          description: WebID of the manifest subject
+        initial_facets:
+          type: object
+          additionalProperties:
+            type: object
+          description: Optional initial facets to include
+
+    FacetRegistration:
+      type: object
+      properties:
+        facet_name:
+          type: string
+        writer_module:
+          type: string
+        schema_url:
+          type: string
+          format: uri
+          nullable: true
+        registered_at:
+          type: string
+          format: date-time

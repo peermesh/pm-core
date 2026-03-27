@@ -1,4 +1,4 @@
-# Prometheus Configuration - Peer Mesh Docker Lab
+# Prometheus Configuration - PeerMesh Docker Lab
 # Minimal scrape config for single-node pilot
 global:
   scrape_interval: 30s

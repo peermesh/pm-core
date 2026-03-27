@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==============================================================
-# Peer Mesh Docker Lab - SQLMap Endpoint Scanner
+# PeerMesh Docker Lab - SQLMap Endpoint Scanner
 # ==============================================================
 # Discovers API endpoints from Go source and runs sqlmap against
 # each with safe, non-destructive defaults.

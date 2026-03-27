@@ -1,0 +1,114 @@
+{
+  "schema_version": "1.0.0",
+  "module_id": "universal-manifest",
+  "module_version": "0.1.0",
+  "tools": [
+    {
+      "name": "create_manifest",
+      "description": "Create a new Universal Manifest for a subject WebID with optional initial facets",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "subject": { "type": "string", "format": "uri", "description": "WebID of the manifest subject" },
+          "initial_facets": { "type": "object", "description": "Optional initial facets to include" }
+        },
+        "required": ["subject"]
+      },
+      "annotations": { "readOnly": false, "destructive": false, "idempotent": false, "requiresAuth": true, "rateLimit": "20/hour", "sideEffects": ["database:write", "event:universal-manifest.manifest.created"] }
+    },
+    {
+      "name": "get_manifest",
+      "description": "Retrieve a Universal Manifest document by UMID",
+      "inputSchema": {
+        "type": "object",
+        "properties": { "umid": { "type": "string", "description": "Universal Manifest ID" } },
+        "required": ["umid"]
+      },
+      "annotations": { "readOnly": true, "destructive": false, "idempotent": true, "requiresAuth": false, "rateLimit": "300/hour", "sideEffects": [] }
+    },
+    {
+      "name": "get_manifest_by_subject",
+      "description": "Resolve a manifest by the subject's WebID",
+      "inputSchema": {
+        "type": "object",
+        "properties": { "webid": { "type": "string", "format": "uri", "description": "Subject WebID" } },
+        "required": ["webid"]
+      },
+      "annotations": { "readOnly": true, "destructive": false, "idempotent": true, "requiresAuth": false, "rateLimit": "300/hour", "sideEffects": [] }
+    },
+    {
+      "name": "write_facet",
+      "description": "Write or update a named facet on a manifest. Requires facet authorization.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "umid": { "type": "string" },
+          "facet_name": { "type": "string", "description": "Facet name (e.g., 'social-profile', 'holochain-agent')" },
+          "content": { "type": "object", "description": "Facet content (schema depends on facet type)" }
+        },
+        "required": ["umid", "facet_name", "content"]
+      },
+      "annotations": { "readOnly": false, "destructive": false, "idempotent": true, "requiresAuth": true, "rateLimit": "30/hour", "sideEffects": ["database:write", "event:universal-manifest.facet.updated"] }
+    },
+    {
+      "name": "revoke_manifest",
+      "description": "Revoke (soft-delete) a manifest. Returns 410 on subsequent resolution.",
+      "inputSchema": {
+        "type": "object",
+        "properties": { "umid": { "type": "string" } },
+        "required": ["umid"]
+      },
+      "annotations": { "readOnly": false, "destructive": true, "idempotent": true, "requiresAuth": true, "rateLimit": "5/hour", "sideEffects": ["database:write", "event:universal-manifest.manifest.revoked"] }
+    },
+    {
+      "name": "verify_manifest",
+      "description": "Verify the Ed25519 signature on a manifest document",
+      "inputSchema": {
+        "type": "object",
+        "properties": { "manifest": { "type": "object", "description": "Full manifest document to verify" } },
+        "required": ["manifest"]
+      },
+      "annotations": { "readOnly": true, "destructive": false, "idempotent": true, "requiresAuth": false, "rateLimit": "120/hour", "sideEffects": [] }
+    },
+    {
+      "name": "resolve_umid",
+      "description": "Resolve a Universal Manifest by UMID via the resolver endpoint",
+      "inputSchema": {
+        "type": "object",
+        "properties": { "umid": { "type": "string" } },
+        "required": ["umid"]
+      },
+      "annotations": { "readOnly": true, "destructive": false, "idempotent": true, "requiresAuth": false, "rateLimit": "600/hour", "sideEffects": [] }
+    },
+    {
+      "name": "register_facet",
+      "description": "Register a new facet type with its authorized writer module",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "facet_name": { "type": "string" },
+          "writer_module": { "type": "string", "description": "Module ID authorized to write this facet" },
+          "schema_url": { "type": "string", "format": "uri", "description": "URL to JSON Schema for facet content" }
+        },
+        "required": ["facet_name", "writer_module"]
+      },
+      "annotations": { "readOnly": false, "destructive": false, "idempotent": true, "requiresAuth": true, "rateLimit": "10/hour", "sideEffects": ["database:write"] }
+    },
+    {
+      "name": "provision_keys",
+      "description": "Provision a per-user Ed25519 keypair for manifest signing",
+      "inputSchema": {
+        "type": "object",
+        "properties": { "user_id": { "type": "string", "description": "Omni-account ID or WebID" } },
+        "required": ["user_id"]
+      },
+      "annotations": { "readOnly": false, "destructive": false, "idempotent": false, "requiresAuth": true, "rateLimit": "10/hour", "sideEffects": ["database:write"] }
+    },
+    {
+      "name": "get_health",
+      "description": "Check Universal Manifest service health including database and resolver status",
+      "inputSchema": { "type": "object", "properties": {} },
+      "annotations": { "readOnly": true, "destructive": false, "idempotent": true, "requiresAuth": false, "rateLimit": "600/hour", "sideEffects": [] }
+    }
+  ]
+}

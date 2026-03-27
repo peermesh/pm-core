@@ -385,8 +385,8 @@ New server from off-site backups:
 
 1. Install Docker and clone repository:
    ```bash
-   git clone https://github.com/your-org/peer-mesh-docker-lab.git
-   cd peer-mesh-docker-lab
+   git clone https://github.com/your-org/peermesh-docker-lab.git
+   cd peermesh-docker-lab
    ```
 
 2. Download backups from off-site storage:

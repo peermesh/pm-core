@@ -1136,4 +1136,4 @@ docker logs pmdl_postgres --tail 100 -f
 
 *Profile Template Version: 1.0*
 *Last Updated: 2025-12-31*
-*Part of Peer Mesh Docker Lab*
+*Part of PeerMesh Docker Lab*

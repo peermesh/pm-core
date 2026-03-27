@@ -57,4 +57,4 @@ Strict apply-readiness rule:
 
 Required variable names and defaults policy are defined in:
 
-- `/Users/grig/work/peermesh/repo/peer-mesh-docker-lab/.dev/ai/research/opentofu-integration/OPENTOFU-PILOT-SCAFFOLD-AND-STATE-POLICY.md`
+- `/Users/grig/work/peermesh/repo/peermesh-docker-lab/.dev/ai/research/opentofu-integration/OPENTOFU-PILOT-SCAFFOLD-AND-STATE-POLICY.md`

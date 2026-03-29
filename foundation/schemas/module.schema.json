@@ -55,7 +55,7 @@
     },
     "license": {
       "type": "string",
-      "description": "SPDX license identifier (e.g., MIT, Apache-2.0)"
+      "description": "SPDX license identifier (e.g., PolyForm-Noncommercial-1.0.0, MIT, Apache-2.0)"
     },
     "repository": {
       "type": "string",

@@ -161,7 +161,7 @@ Five hook scripts manage the module lifecycle:
 | `uninstall.sh` | Clean up resources | Module removal |
 | `health.sh` | Report health as JSON or text | Periodic checks |
 
-**Important**: Lifecycle hooks are not auto-invoked by `launch_docker_lab_core.sh module enable`. Currently, `module enable` only runs `docker compose up -d`. Run hooks manually, or use them as documentation for future CLI integration.
+**Important**: Lifecycle hooks are not auto-invoked by `launch_core.sh module enable`. Currently, `module enable` only runs `docker compose up -d`. Run hooks manually, or use them as documentation for future CLI integration.
 
 ## How to Add a Database
 

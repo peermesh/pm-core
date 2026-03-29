@@ -1,4 +1,4 @@
-# Shell Completions for launch_docker_lab_core.sh
+# Shell Completions for launch_core.sh
 
 This directory contains shell completion scripts for the PeerMeshCore CLI.
 
@@ -79,14 +79,14 @@ To set up aliases, add to your shell config:
 
 ```bash
 # .bashrc or .zshrc
-alias pmdl='./launch_docker_lab_core.sh'
-alias peermesh='./launch_docker_lab_core.sh'
+alias pmdl='./launch_core.sh'
+alias peermesh='./launch_core.sh'
 ```
 
 ## Troubleshooting
 
 **Completions not working:**
-1. Check if completions are loaded: `complete -p launch_docker_lab_core.sh` (bash) or `_launch_docker_lab_core` (zsh)
+1. Check if completions are loaded: `complete -p launch_core.sh` (bash) or `_launch_core` (zsh)
 2. Ensure script is sourced after bash-completion is loaded
 3. For zsh, ensure compinit is called after adding to fpath
 

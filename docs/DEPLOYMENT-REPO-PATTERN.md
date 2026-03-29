@@ -93,7 +93,7 @@ docker compose build dashboard
 Create your application module using the scaffold tool:
 
 ```bash
-./launch_docker_lab_core.sh module create my-app
+./launch_core.sh module create my-app
 ```
 
 This generates the module structure under `modules/my-app/` with:
@@ -108,7 +108,7 @@ Edit these files for your application. See the [Module Authoring Guide](module-a
 Validate your module before deploying:
 
 ```bash
-./launch_docker_lab_core.sh module validate my-app
+./launch_core.sh module validate my-app
 ```
 
 ### 5. Commit Your Customizations
@@ -124,14 +124,14 @@ Note: `.env` and `secrets/` are gitignored by default -- they contain secrets an
 
 ```bash
 # Start foundation services
-./launch_docker_lab_core.sh up
+./launch_core.sh up
 
 # Enable your module
-./launch_docker_lab_core.sh module enable my-app
+./launch_core.sh module enable my-app
 
 # Verify everything is healthy
 docker compose ps
-./launch_docker_lab_core.sh module health my-app
+./launch_core.sh module health my-app
 ```
 
 ### 7. Pull Upstream Updates
@@ -150,15 +150,15 @@ Resolve conflicts if any occur (rare -- your work is in `modules/` and upstream 
 docker compose config --quiet
 
 # Validate your modules
-./launch_docker_lab_core.sh module validate my-app
+./launch_core.sh module validate my-app
 
 # Rebuild dashboard if upstream changed it
 docker compose build dashboard
 
 # Restart services
-./launch_docker_lab_core.sh down
-./launch_docker_lab_core.sh up
-./launch_docker_lab_core.sh module enable my-app
+./launch_core.sh down
+./launch_core.sh up
+./launch_core.sh module enable my-app
 ```
 
 ## What Lives Where
@@ -167,7 +167,7 @@ docker compose build dashboard
 |---------|----------|-------------|
 | Foundation (Traefik, socket-proxy, networks) | `docker-compose.yml`, `foundation/` | Core upstream |
 | Profiles (PostgreSQL, Redis, etc.) | `profiles/` | Core upstream |
-| Scripts and tooling | `scripts/`, `launch_docker_lab_core.sh` | Core upstream |
+| Scripts and tooling | `scripts/`, `launch_core.sh` | Core upstream |
 | Your modules | `modules/your-app/` | You |
 | Your environment config | `.env` | You (gitignored) |
 | Your secrets | `secrets/` | You (gitignored) |
@@ -210,7 +210,7 @@ After resolving conflicts, always re-validate:
 
 ```bash
 docker compose config --quiet
-./launch_docker_lab_core.sh module validate my-app
+./launch_core.sh module validate my-app
 ```
 
 ## Example: peers.social
@@ -233,20 +233,20 @@ cp .env.example .env
 ./scripts/generate-secrets.sh
 
 # 3. Create the social module
-./launch_docker_lab_core.sh module create social
+./launch_core.sh module create social
 # Edit modules/social/module.json -- set dependencies, version, etc.
 # Edit modules/social/docker-compose.yml -- define services
 # Implement hooks in modules/social/hooks/
 
 # 4. Validate and commit
-./launch_docker_lab_core.sh module validate social
+./launch_core.sh module validate social
 git add modules/social/
 git commit -m "feat: add social module for peers.social deployment"
 
 # 5. Deploy
 docker compose build dashboard
-./launch_docker_lab_core.sh up
-./launch_docker_lab_core.sh module enable social
+./launch_core.sh up
+./launch_core.sh module enable social
 
 # 6. Later -- pull Core improvements
 git fetch upstream
@@ -286,7 +286,7 @@ The module template defaulted to subdomain routing (`mymodule.${DOMAIN}`), which
 
 ### Connection resolver profile limitation
 
-The connection resolver (`launch_docker_lab_core.sh module enable`) currently does not discover services defined in profile compose files (e.g., `profiles/database/docker-compose.yml`). If your module declares a dependency on a profile-provided service, the resolver will not find it.
+The connection resolver (`launch_core.sh module enable`) currently does not discover services defined in profile compose files (e.g., `profiles/database/docker-compose.yml`). If your module declares a dependency on a profile-provided service, the resolver will not find it.
 
 **Status:** Known issue, being addressed separately. Workaround: manually start profile services before enabling your module, and omit the profile service from `module.json` dependency declarations until resolver support is added.
 
@@ -304,7 +304,7 @@ cp .env.example .env.production
 
 # Deploy to a specific environment
 cp .env.staging .env
-./launch_docker_lab_core.sh up
+./launch_core.sh up
 ```
 
 Keep `.env.development`, `.env.staging`, and `.env.production` gitignored (they contain secrets). Document the required variables in `.env.example` so new team members know what to configure.
@@ -338,7 +338,7 @@ All three layers use the same script: `scripts/check-upstream-updates.sh`. It co
 
 ```bash
 # From your deployment repo
-./launch_docker_lab_core.sh check-updates
+./launch_core.sh check-updates
 
 # Or call the script directly
 ./scripts/check-upstream-updates.sh
@@ -410,13 +410,13 @@ git merge upstream/main
 
 # 5. Validate after merge
 docker compose config --quiet
-./launch_docker_lab_core.sh module validate my-app
+./launch_core.sh module validate my-app
 
 # 6. Rebuild and redeploy
 docker compose build dashboard
-./launch_docker_lab_core.sh down
-./launch_docker_lab_core.sh up
-./launch_docker_lab_core.sh module enable my-app
+./launch_core.sh down
+./launch_core.sh up
+./launch_core.sh module enable my-app
 ```
 
 If the merge introduces issues, you can always abort:
@@ -435,6 +435,6 @@ If the network is unavailable when the check runs (e.g., `git fetch upstream` fa
 2. Add `upstream` remote pointing to Core
 3. Configure `.env` and generate secrets
 4. Build your modules in `modules/`
-5. Deploy with `launch_docker_lab_core.sh`
+5. Deploy with `launch_core.sh`
 6. Periodically `git fetch upstream && git merge upstream/main` for updates
 7. Never modify foundation files -- keep your code in `modules/`

@@ -8,7 +8,7 @@
     "name": "Your Name",
     "email": "your.email@example.com"
   },
-  "license": "MIT",
+  "license": "PolyForm-Noncommercial-1.0.0",
   "repository": "https://github.com/your-org/my-module",
   "tags": ["example"],
   "foundation": {

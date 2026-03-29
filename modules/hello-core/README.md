@@ -21,7 +21,7 @@ patterns that every PeerMesh Core module can reuse. It serves a static greeting 
 
   ```bash
   cd sub-repos/core
-  ./launch_docker_lab_core.sh up --profile=postgresql,redis
+  ./launch_core.sh up --profile=postgresql,redis
   ```
 
 - Confirm the external network `pmdl_proxy-external` exists (the hooks will warn if it does not).
@@ -98,7 +98,7 @@ The script checks container health, HTTP response, HTML content, and the hook ou
 
 - Traefik returns 404: verify `DOMAIN`/`HELLO_CORE_SUBDOMAIN` and restart Traefik.
 - `docker compose` fails because `pmdl_proxy-external` is missing: start the foundation stack or rerun
-  `./launch_docker_lab_core.sh up` with the required profiles.
+  `./launch_core.sh up` with the required profiles.
 - `html/index.html` changes not reflected: restart the module so nginx reloads the updated files.
 
 ## Contributing

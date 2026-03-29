@@ -77,6 +77,8 @@ my-module/
 ├── docker-compose.yml    # Service definitions
 ├── .env.example          # Example environment file
 ├── secrets-required.txt  # List of required secret files
+├── LICENSE               # PolyForm Noncommercial 1.0.0
+├── COPYRIGHT             # Copyright holder
 ├── hooks/
 │   ├── install.sh        # Installation script
 │   ├── start.sh          # Start service script
@@ -113,7 +115,7 @@ Describe how to run tests.
 
 ## License
 
-MIT License - see LICENSE file for details.
+PolyForm Noncommercial License 1.0.0 - see LICENSE file for details. For commercial licensing, see COMMERCIAL-LICENSE.md or contact licensing@peermesh.org.
 
 ## Contributing
 

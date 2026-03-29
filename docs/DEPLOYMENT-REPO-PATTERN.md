@@ -6,6 +6,8 @@ Core is a foundation -- you build your project on top of it. The recommended pat
 
 This document covers the full setup from fork to first deploy. If you have not built a module yet, read this first, then follow the [Module Authoring Guide](module-authoring-guide.md) to create your application module.
 
+If you are an agent working across both a module repo and Core, read [Core Docs README (Agent Onboarding)](README.md) before making platform-contract changes.
+
 ## Why This Pattern
 
 - **Your repo, your commits** -- All project-specific configuration lives in your repo

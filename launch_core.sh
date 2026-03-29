@@ -1408,16 +1408,76 @@ cmd_module() {
             ;;
 
         validate)
-            local module="${1:-}"
+            local module=""
+            local contract_report_format="none"
             local errors=0
             local checked=0
             local schema="$project_dir/foundation/schemas/module.schema.json"
+            local contract_records=()
+
+            # Parse validate arguments:
+            #   module validate [<module>] [--contract|--contract-json]
+            while [[ $# -gt 0 ]]; do
+                case "$1" in
+                    --contract)
+                        if [[ "$contract_report_format" != "none" ]]; then
+                            log_error "Use only one contract report mode: --contract or --contract-json"
+                            echo "Usage: $SCRIPT_NAME module validate [name] [--contract|--contract-json]"
+                            return 1
+                        fi
+                        contract_report_format="tsv"
+                        shift
+                        ;;
+                    --contract-json)
+                        if [[ "$contract_report_format" != "none" ]]; then
+                            log_error "Use only one contract report mode: --contract or --contract-json"
+                            echo "Usage: $SCRIPT_NAME module validate [name] [--contract|--contract-json]"
+                            return 1
+                        fi
+                        contract_report_format="json"
+                        shift
+                        ;;
+                    -*)
+                        log_error "Unknown option for module validate: $1"
+                        echo "Usage: $SCRIPT_NAME module validate [name] [--contract|--contract-json]"
+                        return 1
+                        ;;
+                    *)
+                        if [[ -z "$module" ]]; then
+                            module="$1"
+                            shift
+                        else
+                            log_error "Unexpected extra argument for module validate: $1"
+                            echo "Usage: $SCRIPT_NAME module validate [name] [--contract|--contract-json]"
+                            return 1
+                        fi
+                        ;;
+                esac
+            done
 
             _validate_module() {
                 local mod_name="$1"
                 local mod_dir="$project_dir/modules/$mod_name"
                 local manifest="$mod_dir/module.json"
                 local mod_errors=0
+                local contract_consumer=false
+                local compose_file="$mod_dir/docker-compose.yml"
+                local mod_env_file="$mod_dir/.env"
+                local mod_env_example_file="$mod_dir/.env.example"
+                local env_source_file=""
+                local has_instance_root=false
+                local ext_path_status="na"
+                local platform_path_status="na"
+
+                _record_contract_result() {
+                    local c_module="$1"
+                    local c_consumer="$2"
+                    local c_instance_root="$3"
+                    local c_extensions_path="$4"
+                    local c_platform_path="$5"
+                    local c_env_source="$6"
+                    contract_records+=("${c_module}|${c_consumer}|${c_instance_root}|${c_extensions_path}|${c_platform_path}|${c_env_source}")
+                }
 
                 if [[ ! -d "$mod_dir" ]]; then
                     log_error "Module directory not found: $mod_name"
@@ -1531,6 +1591,94 @@ cmd_module() {
                             fi
                         done < <(jq -r '.config.properties | keys[]' "$manifest" 2>/dev/null)
                     fi
+
+                    # Core runtime contract checks for modules that consume PEERMESH_* env vars
+                    # Detect usage in manifest config property env mappings
+                    if jq -e '
+                        .config.properties // {} |
+                        to_entries |
+                        map(.value.env // "") |
+                        any(
+                            . == "PEERMESH_INSTANCE_ROOT" or
+                            . == "PEERMESH_EXTENSIONS_CONFIG_PATH" or
+                            . == "PEERMESH_PLATFORM_CONFIG_PATH"
+                        )' "$manifest" >/dev/null 2>&1; then
+                        contract_consumer=true
+                    fi
+
+                    # Detect usage in compose file as fallback
+                    if [[ "$contract_consumer" == "false" ]] && [[ -f "$compose_file" ]]; then
+                        if grep -Eq "PEERMESH_INSTANCE_ROOT|PEERMESH_EXTENSIONS_CONFIG_PATH|PEERMESH_PLATFORM_CONFIG_PATH" "$compose_file" 2>/dev/null; then
+                            contract_consumer=true
+                        fi
+                    fi
+
+                    if [[ "$contract_consumer" == "true" ]]; then
+                        # Prefer concrete .env if present, else validate against .env.example
+                        if [[ -f "$mod_env_file" ]]; then
+                            env_source_file="$mod_env_file"
+                        elif [[ -f "$mod_env_example_file" ]]; then
+                            env_source_file="$mod_env_example_file"
+                        fi
+
+                        if [[ -z "$env_source_file" ]]; then
+                            log_warn "[$mod_name] Contract vars detected but no .env or .env.example found"
+                        else
+                            log_debug "[$mod_name] Contract env validation source: $env_source_file"
+
+                            if grep -q '^PEERMESH_INSTANCE_ROOT=' "$env_source_file" 2>/dev/null; then
+                                has_instance_root=true
+                                ext_path_status="na"
+                                platform_path_status="na"
+                            else
+                                log_warn "[$mod_name] Missing PEERMESH_INSTANCE_ROOT in $(basename "$env_source_file") (required in orchestrated deployments)"
+                            fi
+
+                            # Validate explicit override paths are absolute or rooted under ${PEERMESH_INSTANCE_ROOT}
+                            local explicit_var=""
+                            for explicit_var in PEERMESH_EXTENSIONS_CONFIG_PATH PEERMESH_PLATFORM_CONFIG_PATH; do
+                                local explicit_value
+                                explicit_value=$(grep "^${explicit_var}=" "$env_source_file" 2>/dev/null | sed "s/^${explicit_var}=//" | tail -1 || true)
+                                explicit_value="${explicit_value%\"}"
+                                explicit_value="${explicit_value#\"}"
+                                explicit_value="${explicit_value%\'}"
+                                explicit_value="${explicit_value#\'}"
+
+                                if [[ -n "$explicit_value" ]]; then
+                                    if [[ "$explicit_value" =~ ^/ ]] || [[ "$explicit_value" =~ ^\$\{PEERMESH_INSTANCE_ROOT\}/ ]]; then
+                                        log_debug "[$mod_name] ${explicit_var} path format valid"
+                                        if [[ "$explicit_var" == "PEERMESH_EXTENSIONS_CONFIG_PATH" ]]; then
+                                            ext_path_status="pass"
+                                        else
+                                            platform_path_status="pass"
+                                        fi
+                                    else
+                                        log_error "[$mod_name] ${explicit_var} must be absolute or use \${PEERMESH_INSTANCE_ROOT}/... (found: $explicit_value)"
+                                        ((mod_errors++)) || true
+                                        if [[ "$explicit_var" == "PEERMESH_EXTENSIONS_CONFIG_PATH" ]]; then
+                                            ext_path_status="error"
+                                        else
+                                            platform_path_status="error"
+                                        fi
+                                    fi
+                                else
+                                    if [[ "$explicit_var" == "PEERMESH_EXTENSIONS_CONFIG_PATH" ]]; then
+                                        ext_path_status="na"
+                                    else
+                                        platform_path_status="na"
+                                    fi
+                                fi
+                            done
+
+                            # Soft check: if explicit paths are used without instance root, warn for portability
+                            if [[ "$has_instance_root" == "false" ]]; then
+                                if grep -q '^PEERMESH_EXTENSIONS_CONFIG_PATH=' "$env_source_file" 2>/dev/null || \
+                                   grep -q '^PEERMESH_PLATFORM_CONFIG_PATH=' "$env_source_file" 2>/dev/null; then
+                                    log_warn "[$mod_name] Explicit contract path set without PEERMESH_INSTANCE_ROOT; portability may be reduced"
+                                fi
+                            fi
+                        fi
+                    fi
                 else
                     # Basic check: valid JSON only
                     if cmd_exists jq; then
@@ -1544,9 +1692,19 @@ cmd_module() {
 
                 if [[ $mod_errors -eq 0 ]]; then
                     log_success "[$mod_name] Valid"
+                    if [[ "$contract_consumer" == "true" ]]; then
+                        _record_contract_result "$mod_name" "yes" "$([[ "$has_instance_root" == "true" ]] && echo "pass" || echo "warn")" "$ext_path_status" "$platform_path_status" "${env_source_file:-none}"
+                    elif [[ "$contract_report_format" != "none" ]]; then
+                        _record_contract_result "$mod_name" "no" "na" "na" "na" "none"
+                    fi
                     return 0
                 else
                     log_error "[$mod_name] $mod_errors validation error(s)"
+                    if [[ "$contract_consumer" == "true" ]]; then
+                        _record_contract_result "$mod_name" "yes" "$([[ "$has_instance_root" == "true" ]] && echo "pass" || echo "warn")" "$ext_path_status" "$platform_path_status" "${env_source_file:-none}"
+                    elif [[ "$contract_report_format" != "none" ]]; then
+                        _record_contract_result "$mod_name" "no" "na" "na" "na" "none"
+                    fi
                     return 1
                 fi
             }
@@ -1574,14 +1732,53 @@ cmd_module() {
             fi
 
             echo ""
+            _emit_contract_report() {
+                if [[ "$contract_report_format" == "tsv" ]]; then
+                    echo "BEGIN_CONTRACT_REPORT_TSV"
+                    echo "module|contract_consumer|instance_root|extensions_path|platform_path|env_source"
+                    printf '%s\n' "${contract_records[@]}"
+                    echo "END_CONTRACT_REPORT_TSV"
+                    return 0
+                fi
+
+                if [[ "$contract_report_format" == "json" ]]; then
+                    echo "BEGIN_CONTRACT_REPORT_JSON"
+                    echo "["
+                    local idx=0
+                    local total=${#contract_records[@]}
+                    local rec module_name contract_consumer instance_root extensions_path platform_path env_source
+                    for rec in "${contract_records[@]}"; do
+                        IFS='|' read -r module_name contract_consumer instance_root extensions_path platform_path env_source <<< "$rec"
+                        printf '  {"module":"%s","contract_consumer":"%s","instance_root":"%s","extensions_path":"%s","platform_path":"%s","env_source":"%s"}' \
+                            "$module_name" "$contract_consumer" "$instance_root" "$extensions_path" "$platform_path" "$env_source"
+                        idx=$((idx + 1))
+                        if [[ $idx -lt $total ]]; then
+                            echo ","
+                        else
+                            echo ""
+                        fi
+                    done
+                    echo "]"
+                    echo "END_CONTRACT_REPORT_JSON"
+                fi
+            }
+
             if [[ $checked -eq 0 ]]; then
                 log_warn "No modules found to validate"
                 return 0
             elif [[ $errors -eq 0 ]]; then
                 log_success "All $checked module(s) passed validation"
+                if [[ "$contract_report_format" != "none" ]]; then
+                    echo ""
+                    _emit_contract_report
+                fi
                 return 0
             else
                 log_error "$errors of $checked module(s) failed validation"
+                if [[ "$contract_report_format" != "none" ]]; then
+                    echo ""
+                    _emit_contract_report
+                fi
                 return 1
             fi
             ;;
@@ -1751,7 +1948,7 @@ cmd_module() {
 
         *)
             log_error "Unknown module action: $action"
-            echo "Usage: $SCRIPT_NAME module [list|enable|disable|status|health|validate|create|update] [name]"
+            echo "Usage: $SCRIPT_NAME module [list|enable|disable|status|health|validate|create|update] [name] [--contract|--contract-json]"
             return 1
             ;;
     esac
@@ -2082,6 +2279,8 @@ COMMAND OPTIONS:
         status NAME         Show module status
         health [NAME]       Run health check (specific module or all enabled)
         validate [NAME]     Validate module.json (specific module or all)
+            --contract      Emit contract compliance TSV block for agents/CI
+            --contract-json Emit contract compliance JSON block for agents/CI
         create NAME         Scaffold a new module from template
 
     config [ACTION]

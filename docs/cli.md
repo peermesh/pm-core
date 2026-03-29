@@ -261,6 +261,15 @@ Manage modules. For the full module architecture (what modules are, how they int
 
 # Show module status
 ./launch_docker_lab_core.sh module status backup
+
+# Validate module structure and manifest
+./launch_docker_lab_core.sh module validate backup
+
+# Emit contract compliance report block (machine-readable TSV)
+./launch_docker_lab_core.sh module validate --contract
+
+# Emit contract compliance report block (machine-readable JSON)
+./launch_docker_lab_core.sh module validate --contract-json
 ```
 
 **Actions:**
@@ -270,6 +279,10 @@ Manage modules. For the full module architecture (what modules are, how they int
 | `enable NAME` | Enable a module |
 | `disable NAME` | Disable a module |
 | `status NAME` | Show module status |
+| `health [NAME]` | Run module health checks |
+| `validate [NAME] [--contract|--contract-json]` | Validate modules and optionally emit contract report |
+| `create NAME` | Scaffold a new module |
+| `update NAME` | Update a running module |
 
 ### config
 

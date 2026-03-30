@@ -1,0 +1,42 @@
+name: Security Drift
+
+on:
+  schedule:
+    # Weekly Monday 06:00 UTC
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  digest-and-policy-drift:
+    name: Digest and Policy Drift
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y skopeo jq
+
+      - name: Run stale digest scan
+        run: |
+          chmod +x scripts/check-stale-digests.sh
+          ./scripts/check-stale-digests.sh --check > reports/security-drift-stale-digests.txt
+          ./scripts/check-stale-digests.sh --json > reports/security-drift-stale-digests.json
+
+      - name: Run strict Dockerfile base-image policy
+        run: |
+          chmod +x scripts/security/validate-dockerfile-base-image-policy.sh
+          ./scripts/security/validate-dockerfile-base-image-policy.sh --strict --report-file reports/security-drift-dockerfile-policy.tsv
+
+      - name: Upload security drift artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-drift-reports
+          path: |
+            reports/security-drift-stale-digests.txt
+            reports/security-drift-stale-digests.json
+            reports/security-drift-dockerfile-policy.tsv

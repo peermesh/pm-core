@@ -9,6 +9,7 @@ This directory contains CI/CD workflows for the PeerMesh Core project.
 | `validate.yml` | Push to main, PRs | YAML lint, compose syntax validation, security scanning |
 | `integration.yml` | PRs | Container health checks across profiles and architectures |
 | `release.yml` | Git tags (v*.*.*) | Create GitHub releases with changelog |
+| `security-drift.yml` | Weekly schedule + manual | Detect stale image digests and policy drift, upload security drift artifacts |
 
 ## Deployment Strategy
 

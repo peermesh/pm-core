@@ -110,3 +110,29 @@ jobs:
           sudo apt-get update && sudo apt-get install -y shellcheck
           # Find all shell scripts and check them
           find . -type f -name "*.sh" -not -path "./.git/*" -exec shellcheck -S error {} + || true
+
+  module-contract-gate:
+    name: Module Contract Gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install jq
+        run: |
+          sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Run contract gate
+        run: |
+          chmod +x scripts/validation/module-contract-gate.sh
+          ./scripts/validation/module-contract-gate.sh
+
+  dockerfile-base-image-policy:
+    name: Dockerfile Base Image Policy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Dockerfile base image policy validator
+        run: |
+          chmod +x scripts/security/validate-dockerfile-base-image-policy.sh
+          ./scripts/security/validate-dockerfile-base-image-policy.sh --max-warnings 0

@@ -38,9 +38,9 @@ Module runtime must:
 
 Before merge:
 
-1. `./launch_core.sh module validate <module-id>`
-2. `./launch_core.sh module enable <module-id>`
-3. `./launch_core.sh module health <module-id>`
+1. `./launch_pm-core.sh module validate <module-id>`
+2. `./launch_pm-core.sh module enable <module-id>`
+3. `./launch_pm-core.sh module health <module-id>`
 4. Confirm container status and logs
 
 ## Networking and routing

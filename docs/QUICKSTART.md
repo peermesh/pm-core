@@ -36,7 +36,7 @@ A condensed path for operators who want the shortest route to a running instance
    ```
 5. **Start services**
    ```bash
-   ./launch_core.sh up
+   ./launch_pm-core.sh up
    ```
 6. **Verify all services are healthy**
    ```bash
@@ -46,7 +46,7 @@ A condensed path for operators who want the shortest route to a running instance
 7. **Access your dashboard** at `https://your-domain`
 8. **Enable modules**
    ```bash
-   ./launch_core.sh module enable hello-core
+   ./launch_pm-core.sh module enable hello-core
    ```
 9. **Add database profiles** as needed (see [Profiles Guide](PROFILES.md))
 10. **Review** the [Security Guide](SECURITY.md) and [Deployment Guide](DEPLOYMENT.md) for hardening
@@ -128,13 +128,13 @@ docker compose build dashboard
 Start the PeerMeshCore runtime foundation:
 
 ```bash
-./launch_core.sh up
+./launch_pm-core.sh up
 ```
 
 For development with PostgreSQL:
 
 ```bash
-./launch_core.sh up --profile=postgresql
+./launch_pm-core.sh up --profile=postgresql
 ```
 
 <details>
@@ -179,23 +179,23 @@ http://localhost:8080
 
 ```bash
 # PostgreSQL
-./launch_core.sh up --profile=postgresql
+./launch_pm-core.sh up --profile=postgresql
 
 # MySQL
-./launch_core.sh up --profile=mysql
+./launch_pm-core.sh up --profile=mysql
 ```
 
 ### Deploy an Example Application
 
 ```bash
 # Ghost blogging platform
-./launch_core.sh up --profile=mysql --example=ghost
+./launch_pm-core.sh up --profile=mysql --example=ghost
 ```
 
 ### Enable a Module
 
 ```bash
-./launch_core.sh module enable hello-core
+./launch_pm-core.sh module enable hello-core
 ```
 
 <details>
@@ -233,7 +233,7 @@ docker compose -f docker-compose.yml \
 Stop all services:
 
 ```bash
-./launch_core.sh down
+./launch_pm-core.sh down
 ```
 
 Stop and remove volumes (WARNING: deletes data):

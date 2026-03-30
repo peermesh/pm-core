@@ -48,7 +48,7 @@ git clone https://github.com/YOUR-ORG/your-project-deploy.git
 cd your-project-deploy
 git remote add upstream https://github.com/peermesh/core.git
 cp .env.example .env && ./scripts/generate-secrets.sh
-./launch_core.sh module create my-app
+./launch_pm-core.sh module create my-app
 ```
 
 See [Deployment Repo Pattern](docs/DEPLOYMENT-REPO-PATTERN.md) for the complete step-by-step guide, conflict avoidance rules, and a real-world example (peers.social).
@@ -70,38 +70,38 @@ git clone https://github.com/peermesh/core.git
 cd core
 
 # Initialize configuration
-./launch_core.sh config init
+./launch_pm-core.sh config init
 
 # Start services
-./launch_core.sh up --profile=postgresql,redis
+./launch_pm-core.sh up --profile=postgresql,redis
 
 # Check status
-./launch_core.sh status
+./launch_pm-core.sh status
 ```
 
 Your PeerMeshCore runtime is now running with Traefik reverse proxy at ports 80/443.
 
 ## Unified CLI
 
-The `launch_core.sh` script is the PeerMeshCore CLI and provides a single entry point for all deployment operations:
+The `launch_pm-core.sh` script is the PeerMeshCore CLI and provides a single entry point for all deployment operations:
 
 ```bash
 # Interactive menu (run without arguments)
-./launch_core.sh
+./launch_pm-core.sh
 
 # Direct commands
-./launch_core.sh status              # Show deployment status
-./launch_core.sh up --profile=redis  # Start with specific profiles
-./launch_core.sh down                # Stop services
-./launch_core.sh logs traefik -f     # Follow service logs
-./launch_core.sh health -v           # Run health checks
-./launch_core.sh deploy --target=prod # Deploy to production
-./launch_core.sh backup run          # Run backup
-./launch_core.sh module list         # List available modules
-./launch_core.sh config validate     # Validate configuration
+./launch_pm-core.sh status              # Show deployment status
+./launch_pm-core.sh up --profile=redis  # Start with specific profiles
+./launch_pm-core.sh down                # Stop services
+./launch_pm-core.sh logs traefik -f     # Follow service logs
+./launch_pm-core.sh health -v           # Run health checks
+./launch_pm-core.sh deploy --target=prod # Deploy to production
+./launch_pm-core.sh backup run          # Run backup
+./launch_pm-core.sh module list         # List available modules
+./launch_pm-core.sh config validate     # Validate configuration
 
 # Help
-./launch_core.sh --help
+./launch_pm-core.sh --help
 ```
 
 See [CLI Documentation](docs/cli.md) for complete usage.

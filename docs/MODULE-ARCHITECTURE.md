@@ -52,7 +52,7 @@ At the parent project level, top-level components are now called **"services"** 
 
 ### Core "Modules" (This System)
 
-Inside the Core (`modules/`), the term "module" refers to **infrastructure extensions** -- operational capabilities that plug into the Core foundation. Things like backup systems, PKI certificate authorities, and federation protocol adapters. Each one has a `module.json` manifest, lifecycle hooks, dashboard registration, dependency declarations, and is managed through the CLI with `launch_core.sh module enable/disable`.
+Inside the Core (`modules/`), the term "module" refers to **infrastructure extensions** -- operational capabilities that plug into the Core foundation. Things like backup systems, PKI certificate authorities, and federation protocol adapters. Each one has a `module.json` manifest, lifecycle hooks, dashboard registration, dependency declarations, and is managed through the CLI with `launch_pm-core.sh module enable/disable`.
 
 These are not application logic. They extend the platform itself. They are governed by JSON schemas at `foundation/schemas/module.schema.json`, and they follow a formal plugin architecture with well-defined contracts.
 
@@ -334,7 +334,7 @@ The backup and pki modules are the best references for well-formed module implem
 
 ### CLI Integration
 
-The `launch_core.sh` script provides module management commands:
+The `launch_pm-core.sh` script provides module management commands:
 
 | Command | Purpose |
 |---------|---------|
@@ -445,7 +445,7 @@ Create shell scripts under `hooks/` for at least `install.sh` and `health.sh`. A
 
 ### Step 5: Test
 
-Enable your module with `launch_core.sh module enable my-module` and verify that services start, health checks pass, and Traefik routing works (if applicable). Run the health hook manually to confirm it produces valid output.
+Enable your module with `launch_pm-core.sh module enable my-module` and verify that services start, health checks pass, and Traefik routing works (if applicable). Run the health hook manually to confirm it produces valid output.
 
 ### Step 6: Document
 
@@ -475,7 +475,7 @@ Until the hello-module is available, use the existing foundation template at `fo
 ### Module Development
 
 - [MODULE-RUBRIC.md](MODULE-RUBRIC.md) -- Quality and compatibility checklist for modules
-- [CLI Reference](cli.md) -- `launch_core.sh` module management commands
+- [CLI Reference](cli.md) -- `launch_pm-core.sh` module management commands
 - [Foundation README](../foundation/README.md) -- Foundation layer documentation
 - `foundation/docs/MODULE-MANIFEST.md` -- Detailed manifest field documentation
 - `foundation/docs/LIFECYCLE-HOOKS.md` -- Lifecycle hook specifications

@@ -238,7 +238,7 @@ Dependency resolver behavior:
 4. Version constraints (`minVersion`) are enforced for required dependencies.
 5. Circular dependency graphs fail closed with cycle output.
 6. Dry-run planning is available:
-   - `./launch_docker_lab_core.sh module enable <module-id> --dry-run`
+   - `./launch_pm-core.sh module enable <module-id> --dry-run`
    - `./foundation/lib/dependency-resolve.sh <module-id> --dry-run`
 
 ## Capabilities: `provides`

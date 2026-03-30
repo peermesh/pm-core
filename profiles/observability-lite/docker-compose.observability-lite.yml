@@ -14,6 +14,10 @@ services:
     image: louislam/uptime-kuma@sha256:3d632903e6af34139a37f18055c4f1bfd9b7205ae1138f1e5e8940ddc1d176f9
     container_name: pmdl_uptime-kuma
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     volumes:
       - pmdl_uptime_kuma_data:/app/data
     networks:
@@ -44,10 +48,13 @@ services:
     restart: unless-stopped
     hostname: "${HOSTNAME:-pmdl-host}"
     pid: host
+    security_opt:
+      - no-new-privileges:true
+      - apparmor=unconfined
+    cap_drop:
+      - ALL
     cap_add:
       - SYS_PTRACE
-    security_opt:
-      - apparmor=unconfined
     volumes:
       - pmdl_netdata_config:/etc/netdata
       - pmdl_netdata_lib:/var/lib/netdata

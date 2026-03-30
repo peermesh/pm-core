@@ -40,7 +40,7 @@ chmod 600 secrets/social_lab_db_password
 
 # 3. Enable the module (runs install + start hooks)
 cd ../..
-./launch_core.sh module enable social
+./launch_pm-core.sh module enable social
 ```
 
 ## Configuration

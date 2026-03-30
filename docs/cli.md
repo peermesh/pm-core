@@ -1,6 +1,6 @@
 # PeerMeshCore CLI
 
-The `launch_docker_lab_core.sh` script is the unified command-line interface for managing PeerMeshCore deployments.
+The `launch_pm-core.sh` script is the unified command-line interface for managing PeerMeshCore deployments.
 
 ## Installation
 
@@ -8,10 +8,10 @@ The CLI is included in the repository. No additional installation required.
 
 ```bash
 # Make executable (if needed)
-chmod +x launch_docker_lab_core.sh
+chmod +x launch_pm-core.sh
 
 # Verify
-./launch_docker_lab_core.sh --version
+./launch_pm-core.sh --version
 ```
 
 ### Shell Completions
@@ -39,7 +39,7 @@ See [scripts/completions/README.md](../scripts/completions/README.md) for detail
 Run without arguments to launch the interactive menu:
 
 ```bash
-./launch_docker_lab_core.sh
+./launch_pm-core.sh
 ```
 
 This presents a menu-driven interface for all operations.
@@ -49,7 +49,7 @@ This presents a menu-driven interface for all operations.
 Run with commands for direct execution:
 
 ```bash
-./launch_docker_lab_core.sh [command] [options]
+./launch_pm-core.sh [command] [options]
 ```
 
 ## Commands
@@ -59,7 +59,7 @@ Run with commands for direct execution:
 Show current deployment status including environment, Docker, services, networks, and volumes.
 
 ```bash
-./launch_docker_lab_core.sh status
+./launch_pm-core.sh status
 ```
 
 ### up
@@ -68,19 +68,19 @@ Start services with optional profiles.
 
 ```bash
 # Start with default profiles
-./launch_docker_lab_core.sh up
+./launch_pm-core.sh up
 
 # Start with specific profiles
-./launch_docker_lab_core.sh up --profile=postgresql,redis
+./launch_pm-core.sh up --profile=postgresql,redis
 
 # Start with build
-./launch_docker_lab_core.sh up --profile=postgresql --build
+./launch_pm-core.sh up --profile=postgresql --build
 
 # Wait for healthy state
-./launch_docker_lab_core.sh up --wait
+./launch_pm-core.sh up --wait
 
 # Include additional compose file
-./launch_docker_lab_core.sh up -f docker-compose.webhook.yml
+./launch_pm-core.sh up -f docker-compose.webhook.yml
 ```
 
 **Options:**
@@ -99,13 +99,13 @@ Stop services.
 
 ```bash
 # Stop services
-./launch_docker_lab_core.sh down
+./launch_pm-core.sh down
 
 # Stop and remove volumes
-./launch_docker_lab_core.sh down --volumes
+./launch_pm-core.sh down --volumes
 
 # Custom timeout
-./launch_docker_lab_core.sh down --timeout=30
+./launch_pm-core.sh down --timeout=30
 ```
 
 **Options:**
@@ -121,16 +121,16 @@ Deploy to a target environment.
 
 ```bash
 # Deploy locally (default)
-./launch_docker_lab_core.sh deploy
+./launch_pm-core.sh deploy
 
 # Deploy to staging
-./launch_docker_lab_core.sh deploy --target=staging
+./launch_pm-core.sh deploy --target=staging
 
 # Deploy to production
-./launch_docker_lab_core.sh deploy --target=production
+./launch_pm-core.sh deploy --target=production
 
 # Skip pre-deployment backup
-./launch_docker_lab_core.sh deploy --target=prod --skip-backup
+./launch_pm-core.sh deploy --target=prod --skip-backup
 ```
 
 **Options:**
@@ -152,10 +152,10 @@ Trigger synchronization on a remote target.
 
 ```bash
 # Sync using configured target
-./launch_docker_lab_core.sh sync --target=staging
+./launch_pm-core.sh sync --target=staging
 
 # Direct webhook call
-./launch_docker_lab_core.sh sync --url=https://webhook.example.com/hooks/deploy --secret=TOKEN
+./launch_pm-core.sh sync --url=https://webhook.example.com/hooks/deploy --secret=TOKEN
 ```
 
 **Options:**
@@ -172,16 +172,16 @@ View service logs.
 
 ```bash
 # All services
-./launch_docker_lab_core.sh logs
+./launch_pm-core.sh logs
 
 # Specific service
-./launch_docker_lab_core.sh logs traefik
+./launch_pm-core.sh logs traefik
 
 # Follow logs
-./launch_docker_lab_core.sh logs traefik -f
+./launch_pm-core.sh logs traefik -f
 
 # Last 50 lines with timestamps
-./launch_docker_lab_core.sh logs traefik -n 50 -t
+./launch_pm-core.sh logs traefik -n 50 -t
 ```
 
 **Options:**
@@ -197,13 +197,13 @@ Run health checks on services.
 
 ```bash
 # Basic health check
-./launch_docker_lab_core.sh health
+./launch_pm-core.sh health
 
 # Verbose with endpoint checks
-./launch_docker_lab_core.sh health -v
+./launch_pm-core.sh health -v
 
 # Check specific service
-./launch_docker_lab_core.sh health postgres
+./launch_pm-core.sh health postgres
 ```
 
 **Options:**
@@ -217,19 +217,19 @@ Manage backups.
 
 ```bash
 # Run backup
-./launch_docker_lab_core.sh backup run
+./launch_pm-core.sh backup run
 
 # Backup PostgreSQL only
-./launch_docker_lab_core.sh backup run --target=postgres
+./launch_pm-core.sh backup run --target=postgres
 
 # Backup volumes only
-./launch_docker_lab_core.sh backup run --target=volumes
+./launch_pm-core.sh backup run --target=volumes
 
 # Show backup status
-./launch_docker_lab_core.sh backup status
+./launch_pm-core.sh backup status
 
 # List available backups
-./launch_docker_lab_core.sh backup list
+./launch_pm-core.sh backup list
 ```
 
 **Actions:**
@@ -251,25 +251,28 @@ Manage modules. For the full module architecture (what modules are, how they int
 
 ```bash
 # List modules
-./launch_docker_lab_core.sh module list
+./launch_pm-core.sh module list
 
 # Enable a module
-./launch_docker_lab_core.sh module enable backup
+./launch_pm-core.sh module enable backup
 
 # Disable a module
-./launch_docker_lab_core.sh module disable backup
+./launch_pm-core.sh module disable backup
 
 # Show module status
-./launch_docker_lab_core.sh module status backup
+./launch_pm-core.sh module status backup
 
 # Validate module structure and manifest
-./launch_docker_lab_core.sh module validate backup
+./launch_pm-core.sh module validate backup
 
 # Emit contract compliance report block (machine-readable TSV)
-./launch_docker_lab_core.sh module validate --contract
+./launch_pm-core.sh module validate --contract
 
 # Emit contract compliance report block (machine-readable JSON)
-./launch_docker_lab_core.sh module validate --contract-json
+./launch_pm-core.sh module validate --contract-json
+
+# Run CI-style contract gate parser
+./scripts/validation/module-contract-gate.sh
 ```
 
 **Actions:**
@@ -290,17 +293,17 @@ Manage configuration.
 
 ```bash
 # Show configuration
-./launch_docker_lab_core.sh config show
+./launch_pm-core.sh config show
 
 # Initialize configuration
-./launch_docker_lab_core.sh config init
+./launch_pm-core.sh config init
 
 # Validate configuration
-./launch_docker_lab_core.sh config validate
+./launch_pm-core.sh config validate
 
 # Edit configuration
-./launch_docker_lab_core.sh config edit
-./launch_docker_lab_core.sh config edit config/targets.yml
+./launch_pm-core.sh config edit
+./launch_pm-core.sh config edit config/targets.yml
 ```
 
 **Actions:**
@@ -354,20 +357,20 @@ See [config/targets.yml.example](../config/targets.yml.example) for all options.
 
 ```bash
 # Initialize new deployment
-./launch_docker_lab_core.sh config init
-./launch_docker_lab_core.sh config validate
+./launch_pm-core.sh config init
+./launch_pm-core.sh config validate
 
 # Start with dev profile
-./launch_docker_lab_core.sh up --profile=postgresql,redis,dev
+./launch_pm-core.sh up --profile=postgresql,redis,dev
 
 # Check health
-./launch_docker_lab_core.sh health -v
+./launch_pm-core.sh health -v
 
 # View logs
-./launch_docker_lab_core.sh logs -f
+./launch_pm-core.sh logs -f
 
 # Stop when done
-./launch_docker_lab_core.sh down
+./launch_pm-core.sh down
 ```
 
 ### Production Deployment
@@ -377,32 +380,32 @@ See [config/targets.yml.example](../config/targets.yml.example) for all options.
 vim config/targets.yml
 
 # Deploy to staging first
-./launch_docker_lab_core.sh deploy --target=staging
+./launch_pm-core.sh deploy --target=staging
 
 # Check staging health
-./launch_docker_lab_core.sh health -v
+./launch_pm-core.sh health -v
 
 # Deploy to production
-./launch_docker_lab_core.sh deploy --target=production
+./launch_pm-core.sh deploy --target=production
 
 # Monitor logs
-./launch_docker_lab_core.sh logs traefik -f
+./launch_pm-core.sh logs traefik -f
 ```
 
 ### Backup Operations
 
 ```bash
 # Enable backup module
-./launch_docker_lab_core.sh module enable backup
+./launch_pm-core.sh module enable backup
 
 # Run manual backup
-./launch_docker_lab_core.sh backup run
+./launch_pm-core.sh backup run
 
 # Check backup status
-./launch_docker_lab_core.sh backup status
+./launch_pm-core.sh backup status
 
 # List backups
-./launch_docker_lab_core.sh backup list
+./launch_pm-core.sh backup list
 ```
 
 ## Troubleshooting
@@ -421,7 +424,7 @@ docker compose version
 Run validation to see specific errors:
 
 ```bash
-./launch_docker_lab_core.sh config validate
+./launch_pm-core.sh config validate
 ```
 
 Common issues:
@@ -444,7 +447,7 @@ curl -X POST https://webhook.example.com/hooks/deploy \
 Check service logs:
 
 ```bash
-./launch_docker_lab_core.sh logs <service> -n 200
+./launch_pm-core.sh logs <service> -n 200
 ```
 
 Check Docker daemon:

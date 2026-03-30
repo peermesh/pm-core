@@ -5,7 +5,7 @@ The Foundation defines the contracts, schemas, and validation helpers that keep 
 ## Module Authoring at a Glance
 
 - **Template-first workflow**: Copy `foundation/templates/module-template/` into `modules/<your-module>/`. That template already points at the foundation schema (`../../foundation/schemas/module.schema.json`), base Compose (`../../foundation/docker-compose.base.yml`), and empty hook scripts. Do not start from `hello-module`; it is reference-only.
-- **Runtime behavior**: `launch_core.sh module enable` resolves dependencies via `foundation/lib/dependency-resolve.sh` and then runs `docker compose -f modules/<module>/docker-compose.yml up -d` for each module. Hook scripts are not invoked by the launcher, so implement or invoke them manually as needed.
+- **Runtime behavior**: `launch_pm-core.sh module enable` resolves dependencies via `foundation/lib/dependency-resolve.sh` and then runs `docker compose -f modules/<module>/docker-compose.yml up -d` for each module. Hook scripts are not invoked by the launcher, so implement or invoke them manually as needed.
 - **Hook lifecycle**: Follow the lifecycle definitions in the canonical guide and `foundation/docs/LIFECYCLE-HOOKS.md`. The scripts (`install`, `start`, `stop`, `health`, `upgrade`, `validate`, `uninstall`) should stay within `hooks/`, be idempotent, and report structured status.
 - **Validation scope**: `module.json` is validated against `foundation/schemas/module.schema.json`, and dependency resolution enforces declared requirements and versions. Compose files, hook content, and dashboard assets remain the author’s responsibility; exercise them locally (e.g., `docker compose config`, `hooks/health.sh`) before enabling the module.
 

@@ -13,6 +13,7 @@ Rationale:
 - lower operator burden on commodity VPS
 - fast baseline health visibility
 - compatible with pull-based deployment model
+- baseline hardening included (`no-new-privileges`, capability dropping where compatible)
 
 ## Upgrade/Fallback Profile
 

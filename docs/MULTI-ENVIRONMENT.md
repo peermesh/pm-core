@@ -30,20 +30,20 @@ Core supports three deployment environments: **local development**, **staging**,
 
 ## Switching Environments
 
-Use the `env` command in `launch_core.sh`:
+Use the `env` command in `launch_pm-core.sh`:
 
 ```bash
 # Switch to local development
-./launch_core.sh env local
+./launch_pm-core.sh env local
 
 # Switch to staging
-./launch_core.sh env staging
+./launch_pm-core.sh env staging
 
 # Switch to production
-./launch_core.sh env production
+./launch_pm-core.sh env production
 
 # List available environments
-./launch_core.sh env
+./launch_pm-core.sh env
 ```
 
 The `env` command:
@@ -104,7 +104,7 @@ Secrets are never committed to version control (enforced by `.gitignore`).
 
 ## How Modules Inherit the Environment
 
-When you enable a module via `./launch_core.sh module enable <name>`, the foundation's `DOMAIN` is automatically propagated to the module's `.env` file. This means:
+When you enable a module via `./launch_pm-core.sh module enable <name>`, the foundation's `DOMAIN` is automatically propagated to the module's `.env` file. This means:
 
 - Switching to `staging` sets `DOMAIN=staging.peers.social` in `.env`
 - Enabling a module after the switch propagates `staging.peers.social` to the module
@@ -116,17 +116,17 @@ Modules do not need separate environment awareness — they inherit it from the 
 
 ```
 1. Local Development
-   ./launch_core.sh env local
+   ./launch_pm-core.sh env local
    # Build, test, iterate
    # Validate: docker compose config --quiet
 
 2. Deploy to Staging
-   ./launch_core.sh env staging
+   ./launch_pm-core.sh env staging
    # Set secrets, deploy to staging VPS
    # Run health checks, smoke tests
 
 3. Promote to Production
-   ./launch_core.sh env production
+   ./launch_pm-core.sh env production
    # Set production secrets
    # Deploy to production VPS
    # Verify health, monitor
@@ -144,5 +144,5 @@ cp .env.staging.example .env.myenv.example
 The `env` command auto-discovers any `.env.*.example` file, so custom environments work immediately:
 
 ```bash
-./launch_core.sh env myenv
+./launch_pm-core.sh env myenv
 ```

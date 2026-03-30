@@ -471,6 +471,7 @@ Key environment variables for the dashboard:
 | `ENVIRONMENT` | Environment label (production/staging/dev) | (auto-detected) |
 | `APP_VERSION` | Application version string | `0.1.0-mvp` |
 | `SYNC_SCRIPT` | Custom sync script path | (uses `docker compose pull`) |
+| `SYNC_SCRIPT_ALLOWED_PREFIXES` | Comma-separated absolute directory prefixes for resolved `SYNC_SCRIPT` | (optional; unset = path checks only) |
 
 **Deprecated Variables** (still supported but prefer `DOCKERLAB_*`):
 
@@ -514,6 +515,8 @@ To implement custom deployment logic, set the `SYNC_SCRIPT` environment variable
 ```bash
 SYNC_SCRIPT=/usr/local/bin/deploy.sh
 ```
+
+For defense in depth, set `SYNC_SCRIPT_ALLOWED_PREFIXES` to a comma-separated list of absolute directories; the resolved script path (after symlink resolution) must fall under one of them. When unset, only path sanity checks apply (absolute path, no shell metacharacters, regular executable file).
 
 Your script should:
 

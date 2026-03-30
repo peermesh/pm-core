@@ -177,6 +177,28 @@ jobs:
       - name: Run protocol contract tests
         run: npm test
 
+  social-data-layer-conformance-tests:
+    name: Social Data Layer Conformance Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: modules/social/app
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: modules/social/app/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run data-layer conformance tests
+        run: node --test test/data-layer.adapter-conformance.test.js
+
   dockerfile-base-image-policy:
     name: Dockerfile Base Image Policy
     runs-on: ubuntu-latest

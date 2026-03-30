@@ -115,8 +115,8 @@ services:
     # Development: Expose both ports locally
     # Production: Use reverse proxy, remove direct port exposure
     ports:
-      - "127.0.0.1:9000:9000"   # S3 API endpoint
-      - "127.0.0.1:9001:9001"   # Web Console (dev only)
+      - "127.0.0.1:${MINIO_API_HOST_PORT:-19000}:9000"   # S3 API endpoint
+      - "127.0.0.1:${MINIO_CONSOLE_HOST_PORT:-19001}:9001"   # Web Console (dev only)
 
     # ---------------------------------------------------------
     # Resource Constraints

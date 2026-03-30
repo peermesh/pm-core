@@ -206,10 +206,10 @@ services:
       - "--accesslog.format=json"
 
     ports:
-      - "${TRAEFIK_WEB_PORT:-80}:80"
-      - "${TRAEFIK_WEBSECURE_PORT:-443}:443"
-      - "${TRAEFIK_MATRIX_FED_PORT:-8448}:8448"
-      - "127.0.0.1:${TRAEFIK_DASHBOARD_PORT:-8080}:8080"  # Dashboard on localhost only
+      - "${TRAEFIK_WEB_PORT:-18000}:80"
+      - "${TRAEFIK_WEBSECURE_PORT:-18001}:443"
+      - "${TRAEFIK_MATRIX_FED_PORT:-18002}:8448"
+      - "127.0.0.1:${TRAEFIK_DASHBOARD_PORT:-18003}:8080"  # Dashboard on localhost only
 
     volumes:
       - pmdl_traefik_acme:/acme

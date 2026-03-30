@@ -4,8 +4,8 @@
 # Usage:
 #   docker compose -f docker-compose.yml -f profiles/dev-security/docker-compose.dev-security.yml up -d
 #
-# Access mitmproxy web interface at http://localhost:8081
-# Proxy intercepts traffic on port 8082
+# Access mitmproxy web interface at http://localhost:${MITMPROXY_WEB_HOST_PORT:-18081}
+# Proxy intercepts traffic on localhost:${MITMPROXY_PROXY_HOST_PORT:-18082}
 #
 # WARNING: Development only. Never use in production.
 
@@ -15,8 +15,8 @@ services:
     container_name: pmdl_mitmproxy
     command: mitmweb --web-host 0.0.0.0 --web-port 8081 --listen-port 8082 --set block_global=false
     ports:
-      - "127.0.0.1:8081:8081"  # Web UI (localhost only)
-      - "127.0.0.1:8082:8082"  # Proxy port (localhost only)
+      - "127.0.0.1:${MITMPROXY_WEB_HOST_PORT:-18081}:8081"  # Web UI (localhost only)
+      - "127.0.0.1:${MITMPROXY_PROXY_HOST_PORT:-18082}:8082"  # Proxy port (localhost only)
     networks:
       - proxy-external
       - app-internal

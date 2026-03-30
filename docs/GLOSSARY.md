@@ -55,13 +55,13 @@ The main web UI for monitoring and managing Docker infrastructure. Built with Go
 **Canonical Name**: Traefik Dashboard
 **Service Name**: `traefik` (internal API)
 **Config Prefix**: `TRAEFIK_DASHBOARD_`
-**URL**: `https://traefik.${DOMAIN}/` or `localhost:8080`
+**URL**: `https://traefik.${DOMAIN}/` or `localhost:18003`
 
 Traefik's built-in administration interface for monitoring routes, services, and middleware.
 
 | Variable | Purpose | Example |
 |----------|---------|---------|
-| `TRAEFIK_DASHBOARD_PORT` | Local port binding | `8080` |
+| `TRAEFIK_DASHBOARD_PORT` | Local port binding | `18003` |
 | `TRAEFIK_DASHBOARD_AUTH` | htpasswd credentials | `admin:$apr1$...` |
 | `TRAEFIK_DASHBOARD_ENABLED` | Enable/disable | `true` / `false` |
 

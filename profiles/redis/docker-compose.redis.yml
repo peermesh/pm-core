@@ -164,7 +164,7 @@ services:
 
     # Expose metrics on localhost only
     ports:
-      - "127.0.0.1:9121:9121"
+      - "127.0.0.1:${REDIS_EXPORTER_HOST_PORT:-19121}:9121"
 
     depends_on:
       redis:

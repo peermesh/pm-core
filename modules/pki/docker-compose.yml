@@ -65,7 +65,7 @@ services:
 
     ports:
       # HTTPS CA API (internal only by default)
-      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:${PKI_CA_HOST_PORT:-19010}:9000"
 
     healthcheck:
       test: ["CMD", "step", "ca", "health", "--root", "/home/step/certs/root_ca.crt", "--ca-url", "https://localhost:9000"]

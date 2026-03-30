@@ -106,9 +106,18 @@ See [Profiles Guide](PROFILES.md) for detailed resource allocations.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `HTTP_PORT` | `80` | HTTP port (redirect to HTTPS) |
-| `HTTPS_PORT` | `443` | HTTPS port |
-| `TRAEFIK_DASHBOARD_PORT` | `8080` | Dashboard port (development only) |
+| `TRAEFIK_WEB_PORT` | `18000` | Host port mapped to Traefik `:80` entrypoint (local dev default) |
+| `TRAEFIK_WEBSECURE_PORT` | `18001` | Host port mapped to Traefik `:443` entrypoint (local dev default) |
+| `TRAEFIK_MATRIX_FED_PORT` | `18002` | Host port mapped to Traefik `:8448` entrypoint (local dev default) |
+| `TRAEFIK_DASHBOARD_PORT` | `18003` | Traefik dashboard localhost port (local dev default) |
+| `MITMPROXY_WEB_HOST_PORT` | `18081` | Dev-security mitmproxy web UI localhost port |
+| `MITMPROXY_PROXY_HOST_PORT` | `18082` | Dev-security mitmproxy proxy localhost port |
+| `MINIO_API_HOST_PORT` | `19000` | MinIO S3 API localhost binding |
+| `MINIO_CONSOLE_HOST_PORT` | `19001` | MinIO console localhost binding |
+| `PKI_CA_HOST_PORT` | `19010` | step-ca localhost binding (PKI module) |
+| `REDIS_EXPORTER_HOST_PORT` | `19121` | Redis exporter localhost metrics binding |
+
+These defaults are aligned to GAS-registered non-conflicting ports for `peermesh-core-local-dev`. For production deployments, explicitly set ingress ports to the required public values (typically `80/443/8448`).
 
 ## Backup Configuration
 

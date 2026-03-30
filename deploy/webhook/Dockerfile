@@ -6,7 +6,7 @@
 # - docker-cli: for docker compose commands
 # ==============================================================
 
-FROM almir/webhook:latest
+FROM almir/webhook@sha256:0758d1cf6186044ad1209e3e7202fc22c3e9ac232a140cea0e6a33fce2a45292
 
 # Switch to root to install packages
 USER root

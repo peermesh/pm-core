@@ -20,20 +20,32 @@ type ContainerResourceInfo struct {
 }
 
 type ContainerDetail struct {
-	ID        string                `json:"id"`
-	Name      string                `json:"name"`
-	Image     string                `json:"image"`
-	Profile   string                `json:"profile"`
-	Status    string                `json:"status"`
-	Health    string                `json:"health"`
-	Uptime    string                `json:"uptime"`
-	Resources ContainerResourceInfo `json:"resources"`
-	Ports     []string              `json:"ports"`
-	Networks  []string              `json:"networks"`
+	ID             string                `json:"id"`
+	Name           string                `json:"name"`
+	Image          string                `json:"image"`
+	Profile        string                `json:"profile"`
+	ComposeProject string                `json:"compose_project,omitempty"`
+	Status         string                `json:"status"`
+	Health         string                `json:"health"`
+	Uptime         string                `json:"uptime"`
+	Resources      ContainerResourceInfo `json:"resources"`
+	Ports          []string              `json:"ports"`
+	Networks       []string              `json:"networks"`
+}
+
+// CapacityGroupSummary rolls up CPU/memory for running containers by Docker Compose project label.
+type CapacityGroupSummary struct {
+	ComposeProject  string  `json:"compose_project"`
+	ContainerCount  int     `json:"container_count"`
+	RunningCount    int     `json:"running_count"`
+	CPUPercentTotal float64 `json:"cpu_percent_total"`
+	MemoryMB        uint64  `json:"memory_mb"`
+	MemoryLimitMB   uint64  `json:"memory_limit_mb"`
 }
 
 type ContainersResponse struct {
-	Containers []ContainerDetail `json:"containers"`
+	Containers     []ContainerDetail        `json:"containers"`
+	CapacityGroups []CapacityGroupSummary   `json:"capacity_groups"`
 }
 
 type dockerAPIContainer struct {
@@ -272,6 +284,8 @@ func ContainersHandler(w http.ResponseWriter, r *http.Request) {
 		return response.Containers[i].Name < response.Containers[j].Name
 	})
 
+	response.CapacityGroups = aggregateCapacityGroups(response.Containers)
+
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate")
 	w.Header().Set("Pragma", "no-cache")
@@ -306,11 +320,12 @@ func buildContainerDetail(client *containersClient, container dockerAPIContainer
 	sort.Strings(networks)
 
 	info := ContainerDetail{
-		ID:       truncateID(container.ID),
-		Name:     name,
-		Image:    container.Image,
-		Profile:  profile,
-		Status:   container.State,
+		ID:             truncateID(container.ID),
+		Name:           name,
+		Image:          container.Image,
+		Profile:        profile,
+		ComposeProject: composeProjectFromLabels(container.Labels),
+		Status:         container.State,
 		Health:   "unknown",
 		Uptime:   "unknown",
 		Ports:    ports,
@@ -353,6 +368,61 @@ func buildContainerDetail(client *containersClient, container dockerAPIContainer
 	}
 
 	return info
+}
+
+// composeProjectFromLabels returns com.docker.compose.project when set (canonical site/stack key).
+func composeProjectFromLabels(labels map[string]string) string {
+	if labels == nil {
+		return ""
+	}
+	return strings.TrimSpace(labels["com.docker.compose.project"])
+}
+
+func aggregateCapacityGroups(containers []ContainerDetail) []CapacityGroupSummary {
+	type acc struct {
+		containerCount int
+		runningCount   int
+		cpuTotal       float64
+		memoryMB       uint64
+		memoryLimitMB  uint64
+	}
+	byKey := make(map[string]*acc)
+	for _, c := range containers {
+		key := strings.TrimSpace(c.ComposeProject)
+		if key == "" {
+			key = "(unlabeled)"
+		}
+		a := byKey[key]
+		if a == nil {
+			a = &acc{}
+			byKey[key] = a
+		}
+		a.containerCount++
+		if c.Status == "running" {
+			a.runningCount++
+			a.cpuTotal += c.Resources.CPUPercent
+			a.memoryMB += c.Resources.MemoryMB
+			a.memoryLimitMB += c.Resources.MemoryLimitMB
+		}
+	}
+	keys := make([]string, 0, len(byKey))
+	for k := range byKey {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	out := make([]CapacityGroupSummary, 0, len(keys))
+	for _, k := range keys {
+		a := byKey[k]
+		out = append(out, CapacityGroupSummary{
+			ComposeProject:  k,
+			ContainerCount:  a.containerCount,
+			RunningCount:    a.runningCount,
+			CPUPercentTotal: a.cpuTotal,
+			MemoryMB:        a.memoryMB,
+			MemoryLimitMB:   a.memoryLimitMB,
+		})
+	}
+	return out
 }
 
 func detectProfile(labels map[string]string) string {

@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 )
@@ -260,4 +262,98 @@ func TestGetVersion_FromEnv(t *testing.T) {
 	if got != "2.0.0" {
 		t.Errorf("getVersion() = %q, want %q", got, "2.0.0")
 	}
+}
+
+// --- validateSyncScript tests ---
+
+func TestValidateSyncScript(t *testing.T) {
+	t.Run("empty unset", func(t *testing.T) {
+		t.Setenv("SYNC_SCRIPT", "")
+		t.Setenv(envSyncScriptAllowedPrefixes, "")
+		_, ok := validateSyncScript()
+		if ok {
+			t.Fatal("expected invalid when SYNC_SCRIPT empty")
+		}
+	})
+
+	t.Run("reject relative path", func(t *testing.T) {
+		t.Setenv("SYNC_SCRIPT", "bin/sync.sh")
+		t.Setenv(envSyncScriptAllowedPrefixes, "")
+		_, ok := validateSyncScript()
+		if ok {
+			t.Fatal("expected relative path rejected")
+		}
+	})
+
+	t.Run("reject shell metacharacters", func(t *testing.T) {
+		t.Setenv("SYNC_SCRIPT", "/tmp/foo;rm -rf /")
+		t.Setenv(envSyncScriptAllowedPrefixes, "")
+		_, ok := validateSyncScript()
+		if ok {
+			t.Fatal("expected metacharacters rejected")
+		}
+	})
+
+	t.Run("accept executable absolute path", func(t *testing.T) {
+		dir := t.TempDir()
+		script := filepath.Join(dir, "sync.sh")
+		if err := os.WriteFile(script, []byte("#!/bin/sh\necho ok\n"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		abs, err := filepath.Abs(script)
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Setenv("SYNC_SCRIPT", abs)
+		t.Setenv(envSyncScriptAllowedPrefixes, "")
+		got, ok := validateSyncScript()
+		if !ok {
+			t.Fatal("expected valid executable path")
+		}
+		want := canonicalEvalPath(abs)
+		if got != want {
+			t.Fatalf("got path %q, want %q", got, want)
+		}
+	})
+
+	t.Run("reject when outside allowed prefixes", func(t *testing.T) {
+		dirA := t.TempDir()
+		dirB := t.TempDir()
+		script := filepath.Join(dirB, "sync.sh")
+		if err := os.WriteFile(script, []byte("#!/bin/sh\n"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		abs, err := filepath.Abs(script)
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Setenv("SYNC_SCRIPT", abs)
+		t.Setenv(envSyncScriptAllowedPrefixes, dirA)
+		_, ok := validateSyncScript()
+		if ok {
+			t.Fatal("expected path outside allowed prefix rejected")
+		}
+	})
+
+	t.Run("accept when under allowed prefix", func(t *testing.T) {
+		dir := t.TempDir()
+		script := filepath.Join(dir, "sync.sh")
+		if err := os.WriteFile(script, []byte("#!/bin/sh\n"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		abs, err := filepath.Abs(script)
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Setenv("SYNC_SCRIPT", abs)
+		t.Setenv(envSyncScriptAllowedPrefixes, dir)
+		got, ok := validateSyncScript()
+		if !ok {
+			t.Fatal("expected path under allowed prefix")
+		}
+		want := canonicalEvalPath(abs)
+		if got != want {
+			t.Fatalf("got %q, want %q", got, want)
+		}
+	})
 }

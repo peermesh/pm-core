@@ -31,6 +31,68 @@ func TestTruncateID(t *testing.T) {
 	}
 }
 
+// --- composeProjectFromLabels ---
+
+func TestComposeProjectFromLabels(t *testing.T) {
+	tests := []struct {
+		name   string
+		labels map[string]string
+		want   string
+	}{
+		{"nil", nil, ""},
+		{"missing", map[string]string{}, ""},
+		{"set", map[string]string{"com.docker.compose.project": "my-stack"}, "my-stack"},
+		{"trimmed", map[string]string{"com.docker.compose.project": "  prod  "}, "prod"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := composeProjectFromLabels(tt.labels); got != tt.want {
+				t.Errorf("composeProjectFromLabels() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+// --- aggregateCapacityGroups ---
+
+func TestAggregateCapacityGroups(t *testing.T) {
+	t.Run("empty", func(t *testing.T) {
+		got := aggregateCapacityGroups(nil)
+		if len(got) != 0 {
+			t.Fatalf("want len 0, got %d: %v", len(got), got)
+		}
+	})
+
+	t.Run("groups and running-only usage sums", func(t *testing.T) {
+		containers := []ContainerDetail{
+			{Name: "a", ComposeProject: "stack-a", Status: "running", Resources: ContainerResourceInfo{CPUPercent: 1.5, MemoryMB: 100, MemoryLimitMB: 512}},
+			{Name: "b", ComposeProject: "stack-a", Status: "running", Resources: ContainerResourceInfo{CPUPercent: 2.5, MemoryMB: 200, MemoryLimitMB: 512}},
+			{Name: "c", ComposeProject: "stack-b", Status: "exited", Resources: ContainerResourceInfo{CPUPercent: 99, MemoryMB: 999, MemoryLimitMB: 999}},
+			{Name: "d", ComposeProject: "", Status: "running", Resources: ContainerResourceInfo{CPUPercent: 0.5, MemoryMB: 50, MemoryLimitMB: 256}},
+		}
+		got := aggregateCapacityGroups(containers)
+		if len(got) != 3 {
+			t.Fatalf("want 3 groups, got %d: %+v", len(got), got)
+		}
+		// sorted by compose_project: (unlabeled), stack-a, stack-b
+		if got[0].ComposeProject != "(unlabeled)" || got[0].ContainerCount != 1 || got[0].RunningCount != 1 {
+			t.Errorf("unlabeled group: %+v", got[0])
+		}
+		if got[0].CPUPercentTotal != 0.5 || got[0].MemoryMB != 50 {
+			t.Errorf("unlabeled totals: %+v", got[0])
+		}
+		if got[1].ComposeProject != "stack-a" || got[1].CPUPercentTotal != 4.0 || got[1].MemoryMB != 300 {
+			t.Errorf("stack-a: %+v", got[1])
+		}
+		if got[2].ComposeProject != "stack-b" || got[2].ContainerCount != 1 || got[2].RunningCount != 0 {
+			t.Errorf("stack-b: %+v", got[2])
+		}
+		if got[2].MemoryMB != 0 || got[2].CPUPercentTotal != 0 {
+			t.Errorf("stopped container must not contribute usage: %+v", got[2])
+		}
+	})
+}
+
 // --- detectProfile tests ---
 
 func TestDetectProfile(t *testing.T) {
@@ -311,6 +373,9 @@ func TestContainersHandler_EmptyContainerList(t *testing.T) {
 	if len(response.Containers) != 0 {
 		t.Errorf("expected 0 containers, got %d", len(response.Containers))
 	}
+	if len(response.CapacityGroups) != 0 {
+		t.Errorf("expected 0 capacity groups, got %d", len(response.CapacityGroups))
+	}
 }
 
 func TestContainersHandler_MethodNotAllowed(t *testing.T) {
@@ -338,6 +403,7 @@ func TestContainersHandler_WithMockContainers(t *testing.T) {
 				State: "running",
 				Labels: map[string]string{
 					"com.docker.compose.service": "web",
+					"com.docker.compose.project": "test-project",
 				},
 			},
 		}
@@ -375,7 +441,10 @@ func TestContainersHandler_WithMockContainers(t *testing.T) {
 					Labels     map[string]string `json:"Labels"`
 				}{
 					Image:  "nginx:latest",
-					Labels: map[string]string{"com.docker.compose.service": "web"},
+					Labels: map[string]string{
+						"com.docker.compose.service": "web",
+						"com.docker.compose.project": "test-project",
+					},
 				},
 			}
 			w.Header().Set("Content-Type", "application/json")
@@ -422,8 +491,18 @@ func TestContainersHandler_WithMockContainers(t *testing.T) {
 	if c.Profile != "web" {
 		t.Errorf("container profile = %q, want %q", c.Profile, "web")
 	}
+	if c.ComposeProject != "test-project" {
+		t.Errorf("container compose_project = %q, want %q", c.ComposeProject, "test-project")
+	}
 	if c.ID != "abc123def456" {
 		t.Errorf("container ID = %q, want truncated %q", c.ID, "abc123def456")
+	}
+	if len(response.CapacityGroups) != 1 {
+		t.Fatalf("capacity_groups len = %d, want 1", len(response.CapacityGroups))
+	}
+	g := response.CapacityGroups[0]
+	if g.ComposeProject != "test-project" || g.ContainerCount != 1 || g.RunningCount != 1 {
+		t.Errorf("capacity group: %+v", g)
 	}
 }
 

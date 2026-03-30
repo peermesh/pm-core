@@ -655,7 +655,7 @@ func saveInstances() {
 
 	// Ensure directory exists
 	dir := filepath.Dir(instanceDataPath)
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0750); err != nil {
 		fmt.Printf("Warning: Failed to create data directory: %v\n", err)
 		return
 	}

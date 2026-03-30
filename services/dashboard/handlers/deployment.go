@@ -346,6 +346,41 @@ func getVersion() string {
 	return "0.1.0-mvp"
 }
 
+// envSyncScriptAllowedPrefixes is optional. When set (comma-separated absolute
+// path prefixes), the resolved SYNC_SCRIPT target must lie under one of them.
+const envSyncScriptAllowedPrefixes = "SYNC_SCRIPT_ALLOWED_PREFIXES"
+
+// canonicalEvalPath returns a stable absolute path after symlink resolution
+// (e.g. /var/... -> /private/var/... on macOS) for consistent prefix checks.
+func canonicalEvalPath(p string) string {
+	p = filepath.Clean(p)
+	if r, err := filepath.EvalSymlinks(p); err == nil {
+		return filepath.Clean(r)
+	}
+	return p
+}
+
+func syncScriptPathUnderAllowedPrefix(resolved string, prefixes []string) bool {
+	resolved = canonicalEvalPath(resolved)
+	for _, raw := range prefixes {
+		prefix := canonicalEvalPath(strings.TrimSpace(raw))
+		if prefix == "" || !filepath.IsAbs(prefix) {
+			continue
+		}
+		if resolved == prefix {
+			return true
+		}
+		sep := string(filepath.Separator)
+		if !strings.HasSuffix(prefix, sep) {
+			prefix += sep
+		}
+		if strings.HasPrefix(resolved, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
 // validateSyncScript validates the SYNC_SCRIPT environment variable to prevent
 // command injection. Returns the validated path and true if valid, or empty
 // string and false if invalid.
@@ -354,6 +389,8 @@ func validateSyncScript() (string, bool) {
 	if syncScript == "" {
 		return "", false
 	}
+
+	syncScript = filepath.Clean(syncScript)
 
 	// Must be an absolute path
 	if !filepath.IsAbs(syncScript) {
@@ -367,20 +404,40 @@ func validateSyncScript() (string, bool) {
 		return "", false
 	}
 
-	// Must be a regular file that exists
-	info, err := os.Stat(syncScript)
+	resolved, err := filepath.EvalSymlinks(syncScript)
+	if err != nil {
+		log.Printf("SYNC_SCRIPT rejected: cannot resolve path: %s (%v)", syncScript, err)
+		return "", false
+	}
+	resolved = filepath.Clean(resolved)
+	if strings.ContainsAny(resolved, ";|&$`\\\"'(){}[]<>!~") {
+		log.Printf("SYNC_SCRIPT rejected: resolved path contains shell metacharacters: %s", resolved)
+		return "", false
+	}
+
+	if allow := strings.TrimSpace(os.Getenv(envSyncScriptAllowedPrefixes)); allow != "" {
+		prefixes := strings.Split(allow, ",")
+		if !syncScriptPathUnderAllowedPrefix(resolved, prefixes) {
+			log.Printf("SYNC_SCRIPT rejected: resolved path not under SYNC_SCRIPT_ALLOWED_PREFIXES: %s", resolved)
+			return "", false
+		}
+	}
+
+	// Must be a regular file that exists (evaluate resolved target)
+	info, err := os.Stat(resolved)
 	if err != nil || info.IsDir() {
-		log.Printf("SYNC_SCRIPT rejected: not a regular file: %s", syncScript)
+		log.Printf("SYNC_SCRIPT rejected: not a regular file: %s", resolved)
 		return "", false
 	}
 
 	// Must be executable
 	if info.Mode()&0111 == 0 {
-		log.Printf("SYNC_SCRIPT rejected: not executable: %s", syncScript)
+		log.Printf("SYNC_SCRIPT rejected: not executable: %s", resolved)
 		return "", false
 	}
 
-	return syncScript, true
+	// Execute the resolved path so the binary matches what we validated
+	return resolved, true
 }
 
 // canUserSync returns true if sync capability is available

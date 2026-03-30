@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"sort"
 	"time"
 )
 
@@ -14,8 +15,9 @@ const (
 
 // SSE events reuse ContainerDetail from containers.go for consistency
 type ContainersSSEEvent struct {
-	Containers []ContainerDetail `json:"containers"`
-	Timestamp  int64             `json:"timestamp"`
+	Containers     []ContainerDetail      `json:"containers"`
+	CapacityGroups []CapacityGroupSummary `json:"capacity_groups"`
+	Timestamp      int64                `json:"timestamp"`
 }
 
 type SystemStats struct {
@@ -120,9 +122,14 @@ func EventsHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		sort.Slice(containers, func(i, j int) bool {
+			return containers[i].Name < containers[j].Name
+		})
+
 		event := ContainersSSEEvent{
-			Containers: containers,
-			Timestamp:  time.Now().Unix(),
+			Containers:     containers,
+			CapacityGroups: aggregateCapacityGroups(containers),
+			Timestamp:      time.Now().Unix(),
 		}
 		writeSSEEvent(w, "containers", event)
 		flusher.Flush()

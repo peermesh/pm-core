@@ -216,6 +216,17 @@
         <!-- Resource Charts Section -->
         <section class="mb-8">
             <h2 class="text-lg font-semibold text-gray-200 mb-4">Resource Overview</h2>
+            <div id="capacity-by-compose" class="mb-4 bg-gray-800 rounded-lg border border-gray-700 p-4">
+                <h3 class="text-sm font-medium text-gray-300 mb-2">Capacity by Compose Project</h3>
+                <p class="text-xs text-gray-500 mb-3 leading-relaxed">
+                    Per-project totals sum CPU and memory for <span class="text-gray-400">running</span> containers only, grouped by Docker label
+                    <code class="text-gray-400">com.docker.compose.project</code> (site / stack). Containers without that label are listed as
+                    <span class="text-gray-400">(unlabeled)</span>.
+                </p>
+                <div id="capacity-by-compose-body" class="space-y-2">
+                    <div class="animate-pulse h-16 bg-gray-700/50 rounded"></div>
+                </div>
+            </div>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <!-- Memory Usage Chart -->
                 <div class="bg-gray-800 rounded-lg border border-gray-700 p-4">
@@ -558,7 +569,7 @@
                 el.innerHTML = `<span class="w-2 h-2 ${dotClass} rounded-full mr-2"></span>${status}`;
             }
 
-            function processContainersData(containers) {
+            function processContainersData(containers, capacityGroups) {
                 const emptyState = document.getElementById('modules-empty-state');
                 const grid = document.getElementById('modules-grid');
 
@@ -644,7 +655,7 @@
                     try {
                         const data = JSON.parse(e.data);
                         // Use window.processContainersData to ensure resource chart hooks are called
-                        (window.processContainersData || processContainersData)(data.containers);
+                        (window.processContainersData || processContainersData)(data.containers, data.capacity_groups);
                     } catch (err) {
                         console.error('Failed to parse containers event:', err);
                     }
@@ -683,7 +694,7 @@
                 .then(r => r.json())
                 .then(data => {
                     // Use window.processContainersData to ensure resource chart hooks are called
-                    (window.processContainersData || processContainersData)(data.containers);
+                    (window.processContainersData || processContainersData)(data.containers, data.capacity_groups);
                 })
                 .catch(e => console.error('Failed to load containers:', e));
 
@@ -988,6 +999,68 @@
                     });
             }
 
+            function deriveCapacityGroupsFromContainers(containers) {
+                const m = {};
+                (containers || []).forEach(c => {
+                    const raw = c.compose_project != null ? String(c.compose_project).trim() : '';
+                    const key = raw || '(unlabeled)';
+                    if (!m[key]) {
+                        m[key] = {
+                            compose_project: key,
+                            container_count: 0,
+                            running_count: 0,
+                            cpu_percent_total: 0,
+                            memory_mb: 0,
+                            memory_limit_mb: 0
+                        };
+                    }
+                    const g = m[key];
+                    g.container_count++;
+                    if (c.status === 'running') {
+                        g.running_count++;
+                        g.cpu_percent_total += (c.resources && c.resources.cpu_percent) || 0;
+                        g.memory_mb += (c.resources && c.resources.memory_mb) || 0;
+                        g.memory_limit_mb += (c.resources && c.resources.memory_limit_mb) || 0;
+                    }
+                });
+                return Object.keys(m).sort().map(k => m[k]);
+            }
+
+            function renderCapacityByComposeProject(capacityGroups, containers) {
+                const el = document.getElementById('capacity-by-compose-body');
+                if (!el) return;
+
+                let groups;
+                if (Array.isArray(capacityGroups)) {
+                    groups = capacityGroups;
+                } else {
+                    groups = deriveCapacityGroupsFromContainers(containers);
+                }
+
+                if (!groups || groups.length === 0) {
+                    el.innerHTML = '<p class="text-gray-500 text-sm py-2">No containers</p>';
+                    return;
+                }
+
+                el.innerHTML = groups.map(g => {
+                    const lim = g.memory_limit_mb > 0 ? `${g.memory_mb} / ${g.memory_limit_mb} MB` : `${g.memory_mb} MB`;
+                    return `
+                        <div class="flex flex-wrap items-center justify-between gap-2 rounded-md bg-gray-700/40 border border-gray-600/50 px-3 py-2">
+                            <div class="min-w-0">
+                                <div class="text-sm font-medium text-gray-200 truncate" title="${g.compose_project}">${g.compose_project}</div>
+                                <div class="text-xs text-gray-500">${g.container_count} container(s), ${g.running_count} running</div>
+                            </div>
+                            <div class="text-right text-xs text-gray-300 shrink-0">
+                                <div>CPU <span class="text-primary-400 font-mono">${(g.cpu_percent_total || 0).toFixed(1)}%</span></div>
+                                <div>Mem <span class="text-gray-200 font-mono">${lim}</span></div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            window.renderCapacityByComposeProject = renderCapacityByComposeProject;
+
             // Render resource charts from container data
             function renderResourceCharts(containers) {
                 if (!containers || containers.length === 0) return;
@@ -1069,13 +1142,14 @@
 
             // Hook into existing SSE to update charts
             const origProcessContainersData = window.processContainersData || function() {};
-            window.processContainersData = function(containers) {
+            window.processContainersData = function(containers, capacityGroups) {
                 // Call original function if it exists
                 if (typeof origProcessContainersData === 'function') {
-                    origProcessContainersData(containers);
+                    origProcessContainersData(containers, capacityGroups);
                 }
                 // Update resource charts
                 renderResourceCharts(containers);
+                renderCapacityByComposeProject(capacityGroups, containers);
             };
 
             // Initial load

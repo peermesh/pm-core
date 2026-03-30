@@ -40,11 +40,21 @@
     "connections": [
       {
         "type": "custom",
-        "provider": "social-profiles-read"
+        "provider": "social-profiles-read",
+        "surface": "social_profiles_read",
+        "contractVersion": "0.1.0",
+        "schemaName": "social_profiles",
+        "stability": "experimental",
+        "accessPolicy": "read_only_shared"
       },
       {
         "type": "custom",
-        "provider": "social-graph-read"
+        "provider": "social-graph-read",
+        "surface": "social_graph_read",
+        "contractVersion": "0.1.0",
+        "schemaName": "social_graph",
+        "stability": "experimental",
+        "accessPolicy": "read_only_shared"
       }
     ],
     "events": [

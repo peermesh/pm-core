@@ -39,6 +39,11 @@ def check_requires(module_id: str, requires: dict[str, Any]) -> list[str]:
             warnings.append(f"{module_id}: FAIL requires.connections[{idx}] is not an object")
             continue
 
+        # arch-009 composition contract applies to module-shared custom surfaces.
+        # infra wiring (database/cache/queue/eventbus) is audited elsewhere.
+        if str(conn.get("type", "")).lower() != "custom":
+            continue
+
         missing = [field for field in ("provider", "surface", "contractVersion", "access") if field not in conn]
         if missing:
             warnings.append(
@@ -67,6 +72,9 @@ def check_provides(module_id: str, provides: dict[str, Any]) -> list[str]:
     for idx, conn in enumerate(connections):
         if not isinstance(conn, dict):
             warnings.append(f"{module_id}: FAIL provides.connections[{idx}] is not an object")
+            continue
+
+        if str(conn.get("type", "")).lower() != "custom":
             continue
 
         missing = [

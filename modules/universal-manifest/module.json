@@ -49,7 +49,10 @@
         "alias": "um-api",
         "surface": "shared",
         "access": "read-write",
-        "contractVersion": "0.1.0"
+        "contractVersion": "0.1.0",
+        "schemaName": "universal_manifest_api",
+        "stability": "experimental",
+        "accessPolicy": "read_only_shared"
       }
     ],
     "events": [

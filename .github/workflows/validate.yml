@@ -142,6 +142,19 @@ jobs:
           chmod +x scripts/validation/module-data-composition-gate.sh
           ./scripts/validation/module-data-composition-gate.sh
 
+  arch009-schema-acl-isolation:
+    name: ARCH-009 Schema ACL Isolation (live Postgres)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run schema ACL integration + drift gate
+        env:
+          ARCH009_REPORT_DIR: ${{ runner.temp }}/arch009-schema-acl-reports
+        run: |
+          chmod +x scripts/validation/run-arch009-schema-acl-integration.sh
+          ./scripts/validation/run-arch009-schema-acl-integration.sh
+
   social-protocol-contract-tests:
     name: Social Protocol Contract Tests
     runs-on: ubuntu-latest

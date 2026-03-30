@@ -9,6 +9,7 @@
 
 -- Create the um schema
 CREATE SCHEMA IF NOT EXISTS um;
+CREATE SCHEMA IF NOT EXISTS universal_manifest_api;
 
 -- =============================================================================
 -- um.manifests — Manifest storage
@@ -115,3 +116,52 @@ CREATE TABLE IF NOT EXISTS um.schema_migrations (
 
 INSERT INTO um.schema_migrations (version) VALUES ('001')
 ON CONFLICT (version) DO NOTHING;
+
+-- =============================================================================
+-- Shared-surface ACL (ARCH-009): read-only API schema for consumer modules
+-- =============================================================================
+-- Expose safe read-only views from um.* under universal_manifest_api.*
+CREATE OR REPLACE VIEW universal_manifest_api.manifests AS
+SELECT
+    umid,
+    subject,
+    handle,
+    manifest_version,
+    version,
+    status,
+    is_active,
+    issued_at,
+    expires_at,
+    created_at,
+    updated_at
+FROM um.manifests;
+
+CREATE OR REPLACE VIEW universal_manifest_api.facet_registry AS
+SELECT
+    facet_name,
+    authorized_module,
+    description,
+    created_at
+FROM um.facet_registry;
+
+CREATE OR REPLACE VIEW universal_manifest_api.facet_writes AS
+SELECT
+    umid,
+    facet_name,
+    writer_module,
+    written_at
+FROM um.facet_writes;
+
+-- Reader role for shared API surface
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'universal_manifest_api_reader') THEN
+        CREATE ROLE universal_manifest_api_reader;
+    END IF;
+END;
+$$;
+
+GRANT USAGE ON SCHEMA universal_manifest_api TO universal_manifest_api_reader;
+GRANT SELECT ON ALL TABLES IN SCHEMA universal_manifest_api TO universal_manifest_api_reader;
+ALTER DEFAULT PRIVILEGES IN SCHEMA universal_manifest_api
+    GRANT SELECT ON TABLES TO universal_manifest_api_reader;

@@ -155,6 +155,19 @@ jobs:
           chmod +x scripts/validation/run-arch009-schema-acl-integration.sh
           ./scripts/validation/run-arch009-schema-acl-integration.sh
 
+  arch009-um-schema-acl-isolation:
+    name: ARCH-009 UM Schema ACL Isolation (live Postgres)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run UM schema ACL integration + drift gate
+        env:
+          ARCH009_REPORT_DIR: ${{ runner.temp }}/arch009-um-schema-acl-reports
+        run: |
+          chmod +x scripts/validation/run-arch009-um-schema-acl-integration.sh
+          ./scripts/validation/run-arch009-um-schema-acl-integration.sh
+
   social-protocol-contract-tests:
     name: Social Protocol Contract Tests
     runs-on: ubuntu-latest

@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """
-Compare a captured Postgres ACL snapshot against the ARCH-009 baseline for
-`social_lab_reader` on the Social module shared surfaces (social_profiles,
-social_graph). Exits non-zero on drift.
+Compare a captured Postgres ACL snapshot against ARCH-009 baselines.
+Profiles:
+- social: `social_lab_reader` on social_profiles/social_graph shared surfaces
+- um: `universal_manifest_api_reader` on universal_manifest_api shared surfaces
 
 Snapshot format (one line per privilege, sorted):
   SCHEMA:schema_name:PRIVILEGE
@@ -24,17 +25,26 @@ import argparse
 import sys
 
 
-# baseline after modules/social/migrations/001_initial_schema.sql (shared surfaces only)
-EXPECTED_LINES = frozenset(
-    {
-        "SCHEMA:social_graph:USAGE",
-        "SCHEMA:social_profiles:USAGE",
-        "TABLE:social_graph.social_graph:SELECT",
-        "TABLE:social_profiles.bio_links:SELECT",
-        "TABLE:social_profiles.platform_enrichment:SELECT",
-        "TABLE:social_profiles.profile_index:SELECT",
-    }
-)
+EXPECTED_LINES_BY_PROFILE = {
+    "social": frozenset(
+        {
+            "SCHEMA:social_graph:USAGE",
+            "SCHEMA:social_profiles:USAGE",
+            "TABLE:social_graph.social_graph:SELECT",
+            "TABLE:social_profiles.bio_links:SELECT",
+            "TABLE:social_profiles.platform_enrichment:SELECT",
+            "TABLE:social_profiles.profile_index:SELECT",
+        }
+    ),
+    "um": frozenset(
+        {
+            "SCHEMA:universal_manifest_api:USAGE",
+            "TABLE:universal_manifest_api.facet_registry:SELECT",
+            "TABLE:universal_manifest_api.facet_writes:SELECT",
+            "TABLE:universal_manifest_api.manifests:SELECT",
+        }
+    ),
+}
 
 
 def _normalize_lines(text: str) -> frozenset[str]:
@@ -48,7 +58,13 @@ def _normalize_lines(text: str) -> frozenset[str]:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="ARCH-009 schema ACL drift check (social_lab_reader)")
+    parser = argparse.ArgumentParser(description="ARCH-009 schema ACL drift check")
+    parser.add_argument(
+        "--profile",
+        choices=["social", "um"],
+        default="social",
+        help="baseline profile to validate (default: social)",
+    )
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--stdin", action="store_true", help="read snapshot lines from stdin")
     group.add_argument("--snapshot-file", type=str, help="path to snapshot file")
@@ -63,11 +79,13 @@ def main() -> int:
 
     actual = _normalize_lines(data)
 
-    missing = sorted(EXPECTED_LINES - actual)
-    extra = sorted(actual - EXPECTED_LINES)
+    expected = EXPECTED_LINES_BY_PROFILE[args.profile]
+    missing = sorted(expected - actual)
+    extra = sorted(actual - expected)
 
     print("ARCH009_ACL_DRIFT_BEGIN")
-    print(f"expected_count={len(EXPECTED_LINES)}")
+    print(f"profile={args.profile}")
+    print(f"expected_count={len(expected)}")
     print(f"actual_count={len(actual)}")
     if not missing and not extra:
         print("drift_status=PASS")

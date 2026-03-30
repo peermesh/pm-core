@@ -1646,11 +1646,22 @@ cmd_module() {
 
                                 if [[ -n "$explicit_value" ]]; then
                                     if [[ "$explicit_value" =~ ^/ ]] || [[ "$explicit_value" =~ ^\$\{PEERMESH_INSTANCE_ROOT\}/ ]]; then
-                                        log_debug "[$mod_name] ${explicit_var} path format valid"
-                                        if [[ "$explicit_var" == "PEERMESH_EXTENSIONS_CONFIG_PATH" ]]; then
-                                            ext_path_status="pass"
+                                        # Contract v1 clarification: explicit config path vars must reference files, not directories.
+                                        if [[ "$explicit_value" == */ ]]; then
+                                            log_error "[$mod_name] ${explicit_var} must reference a config file path, not a directory (found trailing '/': $explicit_value)"
+                                            ((mod_errors++)) || true
+                                            if [[ "$explicit_var" == "PEERMESH_EXTENSIONS_CONFIG_PATH" ]]; then
+                                                ext_path_status="error"
+                                            else
+                                                platform_path_status="error"
+                                            fi
                                         else
-                                            platform_path_status="pass"
+                                            log_debug "[$mod_name] ${explicit_var} path format valid"
+                                            if [[ "$explicit_var" == "PEERMESH_EXTENSIONS_CONFIG_PATH" ]]; then
+                                                ext_path_status="pass"
+                                            else
+                                                platform_path_status="pass"
+                                            fi
                                         fi
                                     else
                                         log_error "[$mod_name] ${explicit_var} must be absolute or use \${PEERMESH_INSTANCE_ROOT}/... (found: $explicit_value)"

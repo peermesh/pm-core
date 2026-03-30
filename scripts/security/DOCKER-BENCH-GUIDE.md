@@ -10,6 +10,9 @@ sudo ./scripts/security/run-docker-bench.sh
 
 # Run quick scan (skip host checks, good for development)
 ./scripts/security/run-docker-bench.sh --quick
+
+# Force native mode (bypass container API mismatch)
+./scripts/security/run-docker-bench.sh --mode native
 ```
 
 ## What is Docker Bench Security?
@@ -147,6 +150,14 @@ sudo ./scripts/security/run-docker-bench.sh
 # Skip host checks, run container-only checks
 ./scripts/security/run-docker-bench.sh --quick
 ```
+
+### Native Mode (API mismatch fallback)
+
+```bash
+./scripts/security/run-docker-bench.sh --mode native
+```
+
+Use this when container-mode benchmark execution fails with a Docker client/server API version mismatch.
 
 ### Manual Run with Docker
 

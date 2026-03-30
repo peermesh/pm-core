@@ -17,7 +17,7 @@ run_case() {
   local rc=0
 
   set +e
-  output="$($@ 2>&1)"
+  output="$("$@" 2>&1)"
   rc=$?
   set -e
 

@@ -77,6 +77,9 @@ sudo ./scripts/security/run-docker-bench.sh
 # Quick scan (skip host checks)
 ./scripts/security/run-docker-bench.sh --quick
 
+# Force native mode (bypass container API mismatch)
+./scripts/security/run-docker-bench.sh --mode native
+
 # Show help
 ./scripts/security/run-docker-bench.sh --help
 ```
@@ -96,6 +99,21 @@ Validates compose image references against baseline policy (explicit tag or dige
 
 # Legacy compatibility mode (allow external tags without digest)
 ./scripts/security/validate-image-policy.sh --allow-external-tags
+```
+
+### validate-dockerfile-base-image-policy.sh
+
+Validates Dockerfile `FROM` references against baseline policy.
+
+```bash
+# Baseline policy (fail on latest/missing tag, warn on explicit tag without digest)
+./scripts/security/validate-dockerfile-base-image-policy.sh
+
+# Strict mode (also fail on warnings)
+./scripts/security/validate-dockerfile-base-image-policy.sh --strict
+
+# Warning budget mode (hardened baseline)
+./scripts/security/validate-dockerfile-base-image-policy.sh --max-warnings 0
 ```
 
 ### generate-sbom.sh
@@ -136,6 +154,43 @@ Runs the full supply-chain baseline gate: image policy + SBOM + vulnerability th
 ./scripts/security/validate-supply-chain.sh --allow-external-tags
 ```
 
+### validate-host-hardening.sh
+
+Checks minimum host hardening signals used by deploy preflight.
+
+```bash
+# Advisory mode (default): logs failures/warnings but exits 0
+./scripts/security/validate-host-hardening.sh
+
+# Strict mode: exits non-zero on hardening failures
+./scripts/security/validate-host-hardening.sh --strict
+```
+
+**Checks**:
+- UFW active (when installed)
+- iptables INPUT policy is not ACCEPT
+- DOCKER-USER has at least one custom rule beyond default RETURN
+
+Deploy integration:
+
+- `scripts/deploy.sh` executes host hardening preflight automatically.
+- `HOST_HARDENING_STRICT=auto` (default) enforces strict mode for production deploys and advisory mode for non-production.
+
+### enforce-host-firewall.sh
+
+Operator helper for host firewall baseline with safe plan/apply workflow.
+
+```bash
+# plan only (no changes)
+./scripts/security/enforce-host-firewall.sh --plan
+
+# apply baseline
+sudo ./scripts/security/enforce-host-firewall.sh --apply --yes
+
+# apply baseline including matrix federation port
+sudo ./scripts/security/enforce-host-firewall.sh --apply --yes --allow-8448
+```
+
 ### audit-ownership.sh
 
 Validates runtime container ownership, capabilities, and security settings against the documented hardening policy.
@@ -162,6 +217,7 @@ Validates runtime container ownership, capabilities, and security settings again
 ## Documentation
 
 - [DOCKER-BENCH-GUIDE.md](DOCKER-BENCH-GUIDE.md) - Expected findings and mitigations
+- [Host Hardening Runbook](../../docs/security/HOST-HARDENING-RUNBOOK.md) - UFW apply/verify/rollback workflow
 - [Security Architecture](../../docs/SECURITY-ARCHITECTURE.md) - Full security design
 - [Security Checklist](../../docs/SECURITY-CHECKLIST.md) - CIS/OWASP controls
 - [Audit Preparation](../../docs/AUDIT-PREP.md) - Audit package

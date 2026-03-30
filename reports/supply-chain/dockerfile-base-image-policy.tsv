@@ -1,0 +1,8 @@
+dockerfile	line	image	status	reason
+./deploy/webhook/Dockerfile	9	almir/webhook@sha256:0758d1cf6186044ad1209e3e7202fc22c3e9ac232a140cea0e6a33fce2a45292	PASS	digest-pinned
+./examples/rss2bsky/Dockerfile	10	python@sha256:7747d47f92cfca63a6e2b50275e23dba8407c30d8ae929a88ddd49a5d3f2d331	PASS	digest-pinned
+./modules/backup/Dockerfile	1	restic/restic@sha256:63e86f6726e2afcd49c882d2fc67ae483a38a1ffcb50cbf5f474bd11f5129217	PASS	digest-pinned
+./modules/social/app/Dockerfile	1	node@sha256:4d64b49e6c891c8fc821007cb1cdc6c0db7773110ac2c34bf2e6960adef62ed3	PASS	digest-pinned
+./modules/universal-manifest/app/Dockerfile	1	node@sha256:4d64b49e6c891c8fc821007cb1cdc6c0db7773110ac2c34bf2e6960adef62ed3	PASS	digest-pinned
+./services/dashboard/Dockerfile	2	golang@sha256:2414035b086e3c42b99654c8b26e6f5b1b1598080d65fd03c7f499552ff4dc94	PASS	digest-pinned
+./services/dashboard/Dockerfile	27	alpine@sha256:6baf43584bcb78f2e5847d1de515f23499913ac9f12bdf834811a3145eb11ca1	PASS	digest-pinned

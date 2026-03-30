@@ -97,6 +97,11 @@ Options:
   -f FILE                        Include additional compose file (repeatable)
   --wait-seconds N               Health wait timeout (default: 180)
   --help, -h                     Show this help
+
+Environment variables:
+  HOST_HARDENING_STRICT=true|false|auto
+                                Control host-hardening preflight strictness.
+                                auto (default): strict in production, advisory otherwise.
 USAGE
 }
 
@@ -440,6 +445,11 @@ check_prerequisites() {
         failed=1
     fi
 
+    if [[ ! -x "$SCRIPT_DIR/security/validate-host-hardening.sh" ]]; then
+        log_error "Missing executable: scripts/security/validate-host-hardening.sh"
+        failed=1
+    fi
+
     if [[ ! -x "$SCRIPT_DIR/backup-predeploy.sh" ]]; then
         log_warn "scripts/backup-predeploy.sh missing or not executable (pre-deploy backup will be skipped)"
     fi
@@ -578,12 +588,15 @@ EOF
     local supply_chain_fail_on_latest
     local supply_chain_pull_missing
     local supply_chain_allow_auth_degraded
+    local host_hardening_strict
+    local host_hardening_effective_strict
     local idx=0
     supply_chain_threshold="${SUPPLY_CHAIN_SEVERITY_THRESHOLD:-CRITICAL}"
     supply_chain_strict="${SUPPLY_CHAIN_STRICT:-true}"
     supply_chain_fail_on_latest="${SUPPLY_CHAIN_FAIL_ON_LATEST:-true}"
     supply_chain_pull_missing="${SUPPLY_CHAIN_PULL_MISSING:-false}"
     supply_chain_allow_auth_degraded="${SUPPLY_CHAIN_ALLOW_AUTH_DEGRADED:-false}"
+    host_hardening_strict="${HOST_HARDENING_STRICT:-auto}"
 
     while [[ $idx -lt ${#COMPOSE_ARGS[@]} ]]; do
         supply_chain_args+=(--compose-file "${COMPOSE_ARGS[$((idx + 1))]}")
@@ -618,6 +631,31 @@ EOF
         SUPPLY_CHAIN_GATE_STATUS="FAIL"
         record_gate "supply-chain-baseline" "FAIL" "see preflight-supply-chain.log"
         log_error "Supply-chain preflight failed (see ${EVIDENCE_DIR}/preflight-supply-chain.log)"
+        failed=1
+    fi
+
+    local host_hardening_args=()
+    if [[ "$host_hardening_strict" == "auto" ]]; then
+        if [[ "$DEPLOY_ENVIRONMENT" == "production" ]]; then
+            host_hardening_effective_strict="true"
+        else
+            host_hardening_effective_strict="false"
+        fi
+    else
+        host_hardening_effective_strict="$host_hardening_strict"
+    fi
+
+    if [[ "$host_hardening_effective_strict" == true ]]; then
+        host_hardening_args+=(--strict)
+    fi
+    if run_and_capture "preflight-host-hardening" "$SCRIPT_DIR/security/validate-host-hardening.sh" "${host_hardening_args[@]}"; then
+        record_gate "host-hardening-baseline" "PASS" "firewall-input-policy docker-user ufw"
+        append_manifest "HOST_HARDENING_STRICT" "$host_hardening_strict"
+        append_manifest "HOST_HARDENING_EFFECTIVE_STRICT" "$host_hardening_effective_strict"
+        log_ok "Host hardening preflight passed"
+    else
+        record_gate "host-hardening-baseline" "FAIL" "see preflight-host-hardening.log"
+        log_error "Host hardening preflight failed (see ${EVIDENCE_DIR}/preflight-host-hardening.log)"
         failed=1
     fi
 

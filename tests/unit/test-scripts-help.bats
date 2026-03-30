@@ -33,6 +33,24 @@ load '../helpers/common'
   assert_output --partial "Usage:"
 }
 
+@test "validate-host-hardening shows help" {
+  run "$SCRIPTS_DIR/security/validate-host-hardening.sh" --help
+  assert_success
+  assert_output --partial "Usage:"
+}
+
+@test "validate-dockerfile-base-image-policy shows help" {
+  run "$SCRIPTS_DIR/security/validate-dockerfile-base-image-policy.sh" --help
+  assert_success
+  assert_output --partial "Usage:"
+}
+
+@test "enforce-host-firewall shows help" {
+  run "$SCRIPTS_DIR/security/enforce-host-firewall.sh" --help
+  assert_success
+  assert_output --partial "Usage:"
+}
+
 @test "smoke-http shows help" {
   assert_script_has_help "$SCRIPTS_DIR/testing/smoke-http.sh"
 }

@@ -8,6 +8,7 @@ PASS/WARN/FAIL with enough detail to plan remediation waves.
 
 from __future__ import annotations
 
+import argparse
 import json
 import pathlib
 import re
@@ -135,7 +136,20 @@ def audit_manifest(manifest_path: pathlib.Path) -> tuple[str, list[str]]:
     return module_id, warnings
 
 
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Audit module manifests for ARCH-009 composition contract baseline."
+    )
+    parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="Exit non-zero when any WARN or FAIL issues are present.",
+    )
+    return parser.parse_args()
+
+
 def main() -> int:
+    args = parse_args()
     repo_root = pathlib.Path(__file__).resolve().parents[2]
     modules_dir = repo_root / "modules"
     manifests = sorted(modules_dir.glob("*/module.json"))
@@ -165,6 +179,11 @@ def main() -> int:
     print(f"modules_with_warn={total_warn}")
     print(f"modules_with_fail={total_fail}")
     print("ARCH009_AUDIT_END")
+    if args.strict and (total_warn > 0 or total_fail > 0):
+        print("ARCH009_AUDIT_STRICT_RESULT=FAIL")
+        return 1
+    if args.strict:
+        print("ARCH009_AUDIT_STRICT_RESULT=PASS")
     return 0
 
 

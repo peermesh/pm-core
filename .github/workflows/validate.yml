@@ -235,6 +235,17 @@ jobs:
           chmod +x scripts/validation/run-strict-security-overlay-contract-gate.sh
           ./scripts/validation/run-strict-security-overlay-contract-gate.sh
 
+  federation-live-test-readiness-contract:
+    name: Federation live-test readiness (parent monorepo, non-strict)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Delegate to parent federation readiness validator when present
+        run: |
+          chmod +x scripts/validation/run-federation-live-test-readiness-gate.sh
+          ./scripts/validation/run-federation-live-test-readiness-gate.sh
+
   event-bus-noop-visibility:
     name: Event bus noop visibility (audit)
     runs-on: ubuntu-latest

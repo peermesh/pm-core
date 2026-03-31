@@ -2,6 +2,25 @@
 # smoke-test.sh — Automated endpoint smoke tests for Social
 # Runs against the live deployment. All tests use curl.
 # Exit non-zero if any test fails.
+#
+# Stub / live route contract (WO-PMDL-2026-03-31-212)
+# ─────────────────────────────────────────────────────
+# Stubbed JSON routes assert a marker via social_run_stub_route_contract() and the
+# embedded STUB_ROUTE_CONTRACT table (pipe-delimited rows). Columns:
+#   insert_tag|route_state|label|path|http_code|body_mode|body_literal|extra_header
+# body_mode:
+#   stub_marker — expect '"_stub":true' in the response body (shared stub semantics).
+#   literal     — expect body_literal as a fixed substring (use when a route graduates).
+# route_state: stub | live (documentation for operators; does not change runtime today).
+#
+# Graduation: For a route that no longer returns _stub, (1) set route_state to live,
+# (2) change body_mode from stub_marker to literal, (3) set body_literal to the new
+# stable substring you want the smoke test to grep for (same quoting rules as test_endpoint).
+#
+# Experimental stub guard (WO-PMDL-2026-03-31-224):
+# Set SOCIAL_LAB_RESTRICT_EXPERIMENTAL_STUBS=1 (or true/yes) in the *deployment* to hide
+# selected stub JSON routes (403 + code experimental_stub_disabled). When running smoke
+# against such a server, export the same variable in this shell so expectations match.
 
 set -euo pipefail
 
@@ -44,6 +63,14 @@ log_fail() {
   TOTAL=$((TOTAL + 1))
   FAILURES="${FAILURES}\n  - $1: $2"
   printf -- '%s\n' "${RED}FAIL${RESET}  $1 -- $2"
+}
+
+# True when smoke expectations should match SOCIAL_LAB_RESTRICT_EXPERIMENTAL_STUBS=1 on server.
+social_stub_exposure_restricted() {
+  case "$(printf '%s' "${SOCIAL_LAB_RESTRICT_EXPERIMENTAL_STUBS:-}" | tr '[:upper:]' '[:lower:]')" in
+    1|true|yes) return 0 ;;
+    *) return 1 ;;
+  esac
 }
 
 # test_endpoint LABEL METHOD PATH EXPECTED_CODE [EXPECTED_BODY] [EXTRA_HEADERS]
@@ -114,6 +141,36 @@ test_redirect() {
     return
   fi
   log_pass "$label"
+}
+
+# social_run_stub_route_contract INSERT_TAG
+#   Runs STUB_ROUTE_CONTRACT rows whose insert_tag matches. See file header for column format.
+social_run_stub_route_contract() {
+  local want_tag="$1"
+  local tag lbl p code bmode blit hdr body
+  # second column is route_state (stub|live); parsed for table alignment, not asserted here
+  while IFS='|' read -r tag _ lbl p code bmode blit hdr || [[ -n "$tag" ]]; do
+    [[ -z "$tag" || "${tag#\#}" != "$tag" ]] && continue
+    [[ "$tag" != "$want_tag" ]] && continue
+    if social_stub_exposure_restricted; then
+      code=403
+      body='"experimental_stub_disabled"'
+    else
+      case "$bmode" in
+        stub_marker) body='"_stub":true' ;;
+        literal) body="$blit" ;;
+        *)
+          printf -- 'smoke-test.sh: unknown body_mode %q for %s\n' "$bmode" "$lbl" >&2
+          exit 1
+          ;;
+      esac
+    fi
+    test_endpoint "$lbl" "$code" "$body" "${hdr}" "$p"
+  done <<'STUB_ROUTE_CONTRACT'
+dsnp-profilealice-stub|stub|GET /api/dsnp/profile/alice (stub flag)|/api/dsnp/profile/alice|200|stub_marker|||
+hypercore-feedalice-stub|stub|GET /api/hypercore/feed/alice (stub)|/api/hypercore/feed/alice|200|stub_marker|||
+braid-version-stub|stub|GET /api/braid/version/profile%2Fcard (stub)|/api/braid/version/profile%2Fcard|200|stub_marker|||
+STUB_ROUTE_CONTRACT
 }
 
 # test_signup_and_login — Create account via /signup, capture session cookie + profile ID
@@ -375,9 +432,17 @@ test_endpoint "GET /@alice (Farcaster badge)" 200 'Farcaster' '' '/@alice'
 
 # ── DSNP Protocol ─────────────────────────────────────────────────────
 section "DSNP Protocol (F-011)"
-test_endpoint "GET /api/dsnp/profile/alice" 200 '"dsnpUserId"' '' '/api/dsnp/profile/alice'
-test_endpoint "GET /api/dsnp/profile/alice (stub flag)" 200 '"_stub":true' '' '/api/dsnp/profile/alice'
-test_endpoint "GET /api/dsnp/profile/alice (cross-protocol)" 200 '"crossProtocolIdentity"' '' '/api/dsnp/profile/alice'
+if social_stub_exposure_restricted; then
+  test_endpoint "GET /api/dsnp/profile/alice" 403 '"experimental_stub_disabled"' '' '/api/dsnp/profile/alice'
+else
+  test_endpoint "GET /api/dsnp/profile/alice" 200 '"dsnpUserId"' '' '/api/dsnp/profile/alice'
+fi
+social_run_stub_route_contract dsnp-profilealice-stub
+if social_stub_exposure_restricted; then
+  test_endpoint "GET /api/dsnp/profile/alice (cross-protocol)" 403 '"experimental_stub_disabled"' '' '/api/dsnp/profile/alice'
+else
+  test_endpoint "GET /api/dsnp/profile/alice (cross-protocol)" 200 '"crossProtocolIdentity"' '' '/api/dsnp/profile/alice'
+fi
 test_endpoint "GET /api/dsnp/graph/alice" 200 '"connections"' '' '/api/dsnp/graph/alice'
 test_endpoint "GET /api/dsnp/graph/alice (empty graph)" 200 '"connectionCount":0' '' '/api/dsnp/graph/alice'
 test_endpoint "GET /api/dsnp/profile/nonexistent" 404 '"error"' '' '/api/dsnp/profile/nonexistent'
@@ -402,16 +467,32 @@ test_endpoint "GET /@alice (Zot badge)" 200 'Zot' '' '/@alice'
 
 # ── Data Sync Protocols (Hypercore + Braid) ──────────────────────────
 section "Data Sync Protocols (F-013 Hypercore + F-014 Braid)"
-test_endpoint "GET /api/hypercore/feed/alice" 200 '"protocol":"hypercore"' '' '/api/hypercore/feed/alice'
-test_endpoint "GET /api/hypercore/feed/alice (stub)" 200 '"_stub":true' '' '/api/hypercore/feed/alice'
-test_endpoint "GET /api/hypercore/feed/alice (status)" 200 '"status"' '' '/api/hypercore/feed/alice'
+if social_stub_exposure_restricted; then
+  test_endpoint "GET /api/hypercore/feed/alice" 403 '"experimental_stub_disabled"' '' '/api/hypercore/feed/alice'
+else
+  test_endpoint "GET /api/hypercore/feed/alice" 200 '"protocol":"hypercore"' '' '/api/hypercore/feed/alice'
+fi
+social_run_stub_route_contract hypercore-feedalice-stub
+if social_stub_exposure_restricted; then
+  test_endpoint "GET /api/hypercore/feed/alice (status)" 403 '"experimental_stub_disabled"' '' '/api/hypercore/feed/alice'
+else
+  test_endpoint "GET /api/hypercore/feed/alice (status)" 200 '"status"' '' '/api/hypercore/feed/alice'
+fi
 test_endpoint "GET /api/hypercore/feed/nonexistent" 404 '"error"' '' '/api/hypercore/feed/nonexistent'
 test_endpoint "GET /api/hypercore/status" 200 '"runtime":"not_running"' '' '/api/hypercore/status'
 test_endpoint "GET /api/hypercore/status (pear)" 200 '"detected":false' '' '/api/hypercore/status'
 test_endpoint "GET /api/hypercore/status (swarm)" 200 '"joined":false' '' '/api/hypercore/status'
-test_endpoint "GET /api/braid/version/profile%2Fcard" 200 '"protocol":"braid-http"' '' '/api/braid/version/profile%2Fcard'
-test_endpoint "GET /api/braid/version/profile%2Fcard (stub)" 200 '"_stub":true' '' '/api/braid/version/profile%2Fcard'
-test_endpoint "GET /api/braid/version/profile%2Fcard (versions)" 200 '"versionCount":0' '' '/api/braid/version/profile%2Fcard'
+if social_stub_exposure_restricted; then
+  test_endpoint "GET /api/braid/version/profile%2Fcard" 403 '"experimental_stub_disabled"' '' '/api/braid/version/profile%2Fcard'
+else
+  test_endpoint "GET /api/braid/version/profile%2Fcard" 200 '"protocol":"braid-http"' '' '/api/braid/version/profile%2Fcard'
+fi
+social_run_stub_route_contract braid-version-stub
+if social_stub_exposure_restricted; then
+  test_endpoint "GET /api/braid/version/profile%2Fcard (versions)" 403 '"experimental_stub_disabled"' '' '/api/braid/version/profile%2Fcard'
+else
+  test_endpoint "GET /api/braid/version/profile%2Fcard (versions)" 200 '"versionCount":0' '' '/api/braid/version/profile%2Fcard'
+fi
 
 # ── Profile Page Badges (Hypercore + Braid) ──────────────────────────
 section "Profile Page Badges (Hypercore + Braid)"
@@ -611,20 +692,51 @@ test_endpoint "GET /api/discover/directory (letters)" 200 '"available_letters"' 
 section "Notifications"
 test_endpoint "GET /api/notifications/vapid-key" 200 '"publicKey"' '' '/api/notifications/vapid-key'
 
-# ── Recovery ─────────────────────────────────────────────────────────
-# NOTE: Recovery module is a stub — routes not yet implemented.
-# When routes are added, uncomment and adjust expected codes.
-section "Recovery (stub check)"
-# Recovery status without auth should return 401 or 404 depending on implementation.
-# Since recovery.js is a stub with no routes registered, hitting the endpoint
-# will return a generic 404.
-label="GET /api/recovery/status (stub — expect 404)"
+# ── Recovery (F-027 baseline) ───────────────────────────────────────
+section "Recovery"
+test_endpoint "GET /api/recovery/status" 200 '"recovery"' '' '/api/recovery/status'
+test_endpoint "GET /api/recovery/status (database field)" 200 '"database"' '' '/api/recovery/status'
+test_endpoint "GET /api/recovery/status (capabilities)" 200 '"capabilities"' '' '/api/recovery/status'
+
+# Passphrase/social entry points require auth (studio uses them when logged in).
+label="GET /api/recovery/passphrase (no auth -> 401)"
 http_code=$(curl -s -o /dev/null -w "%{http_code}" \
-  --max-time 10 "${BASE_URL}/api/recovery/status" 2>/dev/null) || http_code="000"
-if [ "$http_code" = "404" ] || [ "$http_code" = "401" ]; then
+  --max-time 10 "${BASE_URL}/api/recovery/passphrase" 2>/dev/null) || http_code="000"
+if [ "$http_code" = "401" ]; then
   log_pass "$label"
 else
-  log_fail "$label" "expected HTTP 404 or 401, got $http_code"
+  log_fail "$label" "expected HTTP 401, got $http_code"
+fi
+
+label="GET /api/recovery/social (no auth -> 401)"
+http_code=$(curl -s -o /dev/null -w "%{http_code}" \
+  --max-time 10 "${BASE_URL}/api/recovery/social" 2>/dev/null) || http_code="000"
+if [ "$http_code" = "401" ]; then
+  log_pass "$label"
+else
+  log_fail "$label" "expected HTTP 401, got $http_code"
+fi
+
+label="POST /api/recovery/passphrase (no auth -> 401)"
+http_code=$(curl -s -X POST -o /dev/null -w "%{http_code}" \
+  -H "Content-Type: application/json" \
+  -d '{"passphrase":"testpassphrase123"}' \
+  --max-time 10 "${BASE_URL}/api/recovery/passphrase" 2>/dev/null) || http_code="000"
+if [ "$http_code" = "401" ]; then
+  log_pass "$label"
+else
+  log_fail "$label" "expected HTTP 401, got $http_code"
+fi
+
+label="POST /api/recovery/social (no auth -> 401)"
+http_code=$(curl -s -X POST -o /dev/null -w "%{http_code}" \
+  -H "Content-Type: application/json" \
+  -d '{"threshold":3,"totalShares":5}' \
+  --max-time 10 "${BASE_URL}/api/recovery/social" 2>/dev/null) || http_code="000"
+if [ "$http_code" = "401" ]; then
+  log_pass "$label"
+else
+  log_fail "$label" "expected HTTP 401, got $http_code"
 fi
 
 # ── Groups ───────────────────────────────────────────────────────────

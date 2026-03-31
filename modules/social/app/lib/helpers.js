@@ -16,6 +16,17 @@ const VERSION = '0.6.0';
 const MODULE = 'social';
 const startTime = Date.now();
 
+/** HTTP header marking JSON from Social protocol stub / thin-adapter surfaces (WO-PMDL-223). */
+const PEERMESH_STUB_SURFACE_HEADER = 'X-Peermesh-Social-Stub-Surface';
+const PEERMESH_STUB_SURFACE_VALUE = '1';
+
+function stubSurfaceHeaders(extra = {}) {
+  return {
+    [PEERMESH_STUB_SURFACE_HEADER]: PEERMESH_STUB_SURFACE_VALUE,
+    ...extra,
+  };
+}
+
 /**
  * Send a JSON response.
  */
@@ -24,6 +35,21 @@ function json(res, statusCode, body) {
   res.writeHead(statusCode, {
     'Content-Type': 'application/json; charset=utf-8',
     'Content-Length': Buffer.byteLength(payload),
+  });
+  res.end(payload);
+}
+
+/**
+ * JSON response for protocol stub or thin-adapter surfaces: adds machine-readable stub metadata header.
+ * See docs/contracts/SOCIAL-STUB-SURFACE-RUNTIME-METADATA.md
+ */
+function jsonStubSurface(res, statusCode, body) {
+  const payload = JSON.stringify(body);
+  res.writeHead(statusCode, {
+    ...stubSurfaceHeaders({
+      'Content-Type': 'application/json; charset=utf-8',
+      'Content-Length': Buffer.byteLength(payload),
+    }),
   });
   res.end(payload);
 }
@@ -48,6 +74,21 @@ function jsonWithType(res, statusCode, contentType, body, extraHeaders = {}) {
     'Content-Type': contentType,
     'Content-Length': Buffer.byteLength(payload),
     ...extraHeaders,
+  });
+  res.end(payload);
+}
+
+/**
+ * Like jsonWithType but adds stub-surface header (Matrix well-known, etc.).
+ */
+function jsonWithTypeStubSurface(res, statusCode, contentType, body, extraHeaders = {}) {
+  const payload = JSON.stringify(body);
+  res.writeHead(statusCode, {
+    ...stubSurfaceHeaders({
+      'Content-Type': contentType,
+      'Content-Length': Buffer.byteLength(payload),
+      ...extraHeaders,
+    }),
   });
   res.end(payload);
 }
@@ -228,9 +269,13 @@ export {
   VERSION,
   MODULE,
   startTime,
+  PEERMESH_STUB_SURFACE_HEADER,
+  PEERMESH_STUB_SURFACE_VALUE,
   json,
+  jsonStubSurface,
   html,
   jsonWithType,
+  jsonWithTypeStubSurface,
   xml,
   parseUrl,
   readJsonBody,

@@ -55,6 +55,34 @@ jobs:
             echo "::warning::Deprecated 'version' field found in compose files"
           fi
 
+  compose-smoke-lite:
+    name: Compose smoke (lite profile)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Smoke up, wait, verify (lite)
+        env:
+          DOMAIN: ci-smoke.example.test
+          ADMIN_EMAIL: ci-smoke@example.test
+          COMPOSE_WAIT_TIMEOUT: 300
+        run: |
+          chmod +x scripts/validation/validate-compose-smoke-lite.sh
+          ./scripts/validation/validate-compose-smoke-lite.sh
+
+      - name: Teardown lite stack (always)
+        if: always()
+        env:
+          DOMAIN: ci-smoke.example.test
+          ADMIN_EMAIL: ci-smoke@example.test
+          TRAEFIK_ACME_CASERVER: https://acme-v02.api.letsencrypt.org/directory
+        run: |
+          export TRAEFIK_DASHBOARD_AUTH="admin:$(printf '%s' pmdl-ci-smoke | openssl passwd -apr1 -stdin)"
+          docker compose -f docker-compose.yml --profile lite down -v --remove-orphans || true
+
   json-yaml-validate:
     name: JSON/YAML Schema
     runs-on: ubuntu-latest
@@ -108,8 +136,11 @@ jobs:
       - name: Run ShellCheck
         run: |
           sudo apt-get update && sudo apt-get install -y shellcheck
-          # Find all shell scripts and check them
-          find . -type f -name "*.sh" -not -path "./.git/*" -exec shellcheck -S error {} + || true
+          # Project-owned shell only (exclude submodule mirrors under .dev/reference-repos)
+          find . -type f -name "*.sh" \
+            -not -path "./.git/*" \
+            -not -path "./.dev/reference-repos/*" \
+            -exec shellcheck -S error {} +
 
   module-contract-gate:
     name: Module Contract Gate
@@ -142,13 +173,143 @@ jobs:
           chmod +x scripts/validation/module-data-composition-gate.sh
           ./scripts/validation/module-data-composition-gate.sh
 
+  opentofu-phase2-multi-vps-scaffold-integrity:
+    name: OpenTofu Phase-2 multi-VPS scaffold integrity (WO-PMDL-227)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up OpenTofu
+        uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_version: latest
+
+      - name: Validate Phase-2 multi-VPS non-production scaffold
+        run: |
+          chmod +x scripts/validation/validate-opentofu-phase2-multi-vps-scaffold.sh
+          ./scripts/validation/validate-opentofu-phase2-multi-vps-scaffold.sh
+
+  arch009-provider-event-surface-gate:
+    name: ARCH-009 Provider Event Surface Gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Run provider event surface gate (Social + Universal Manifest)
+        run: |
+          chmod +x scripts/validation/run-arch009-provider-event-surface-gate.sh
+          ./scripts/validation/run-arch009-provider-event-surface-gate.sh
+
+  security-provider-enforcement-visibility:
+    name: Security provider enforcement visibility (fail-closed vs in-tree providers)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Report fail-closed security requirements vs providers (non-strict default)
+        run: |
+          chmod +x scripts/validation/run-security-provider-enforcement-visibility-gate.sh
+          ./scripts/validation/run-security-provider-enforcement-visibility-gate.sh
+
+  strict-security-overlay-contract:
+    name: Strict security overlay contract (parent monorepo only)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Delegate to parent overlay validator when present
+        run: |
+          chmod +x scripts/validation/run-strict-security-overlay-contract-gate.sh
+          ./scripts/validation/run-strict-security-overlay-contract-gate.sh
+
+  event-bus-noop-visibility:
+    name: Event bus noop visibility (audit)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Report event bus noop contract signals (non-failing by default)
+        run: |
+          chmod +x scripts/validation/run-event-bus-noop-visibility-gate.sh
+          ./scripts/validation/run-event-bus-noop-visibility-gate.sh
+
+  social-protocol-stub-inventory-gate:
+    name: Social protocol stub inventory (contract drift gate)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Run social protocol stub inventory gate
+        run: |
+          chmod +x scripts/validation/run-social-protocol-stub-inventory-gate.sh
+          ./scripts/validation/run-social-protocol-stub-inventory-gate.sh
+
+  social-stub-surface-metadata-gate:
+    name: Social stub surface runtime metadata (WO-PMDL-223)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Run social stub surface metadata gate
+        run: |
+          chmod +x scripts/validation/run-social-stub-surface-metadata-gate.sh
+          ./scripts/validation/run-social-stub-surface-metadata-gate.sh
+
+  adapter-import-boundary-gate:
+    name: ARCH-008 Adapter Import Boundary Gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Run adapter import boundary validator
+        run: |
+          chmod +x scripts/validation/run-adapter-boundary-gate.sh
+          ./scripts/validation/run-adapter-boundary-gate.sh
+
+      - name: Run adapter boundary unit tests
+        run: |
+          cd scripts/validation && python3 test_adapter_import_boundaries.py -v
+
   arch009-schema-acl-isolation:
     name: ARCH-009 Schema ACL Isolation (live Postgres)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Run schema ACL integration + drift gate
+      - name: Run schema ACL integration + drift + consumer lifecycle (wave 8)
         env:
           ARCH009_REPORT_DIR: ${{ runner.temp }}/arch009-schema-acl-reports
         run: |
@@ -161,12 +322,41 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Run UM schema ACL integration + drift gate
+      - name: Run UM schema ACL integration + drift + consumer lifecycle (wave 8)
         env:
           ARCH009_REPORT_DIR: ${{ runner.temp }}/arch009-um-schema-acl-reports
         run: |
           chmod +x scripts/validation/run-arch009-um-schema-acl-integration.sh
           ./scripts/validation/run-arch009-um-schema-acl-integration.sh
+
+  arch009-sqlite-migration-compat:
+    name: ARCH-009 D1/SQLite Migration Compatibility Baseline
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Run SQLite/D1 static migration compatibility scan (Social + UM)
+        env:
+          ARCH009_SQLITE_REPORT_DIR: ${{ runner.temp }}/arch009-sqlite-migration-compat-reports
+        run: |
+          chmod +x scripts/validation/run-arch009-sqlite-migration-compat.sh
+          ./scripts/validation/run-arch009-sqlite-migration-compat.sh
+
+  arch009-module-dependency-resolver-gate:
+    name: ARCH-009 module dependency resolver (graph + fail-closed)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run module requires.modules[] resolver gate
+        run: |
+          chmod +x scripts/validation/run-arch009-module-dependency-resolver-gate.sh
+          ./scripts/validation/run-arch009-module-dependency-resolver-gate.sh
 
   social-protocol-contract-tests:
     name: Social Protocol Contract Tests
@@ -212,6 +402,14 @@ jobs:
       - name: Run data-layer conformance tests
         run: node --test test/data-layer.adapter-conformance.test.js
 
+      - name: Run ARCH-008 runtime hot-plug and event fanout integration
+        run: node --test test/data-layer.runtime-hotplug-integration.test.js
+
+      - name: Run ARCH-008 data sovereignty workflow (wave 9)
+        run: |
+          node --test test/data-layer.sovereignty-workflow.test.js
+          node scripts/run-data-sovereignty-workflow.mjs --json-out "${RUNNER_TEMP}/arch008-wave9-sovereignty-report.json"
+
   dockerfile-base-image-policy:
     name: Dockerfile Base Image Policy
     runs-on: ubuntu-latest
@@ -222,3 +420,14 @@ jobs:
         run: |
           chmod +x scripts/security/validate-dockerfile-base-image-policy.sh
           ./scripts/security/validate-dockerfile-base-image-policy.sh --max-warnings 0
+
+  security-evolution-scorecard-baseline:
+    name: Security Evolution Scorecard Baseline
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Emit security evolution trend baseline (json/tsv/md)
+        run: |
+          chmod +x scripts/security/security-evolution-scorecard-baseline.sh
+          ./scripts/security/security-evolution-scorecard-baseline.sh --out-dir reports/security-evolution-scorecard

@@ -22,7 +22,8 @@
 // Source blueprints: F-013 (Hypercore/Pear), F-014 (Braid Protocol)
 
 import { pool } from '../db.js';
-import { json, lookupProfileByHandle, BASE_URL } from '../lib/helpers.js';
+import { json, jsonStubSurface, lookupProfileByHandle, BASE_URL } from '../lib/helpers.js';
+import { denyExperimentalStubIfRestricted } from '../lib/stub-exposure-guard.js';
 
 export default function registerRoutes(routes) {
   // =========================================================================
@@ -38,6 +39,7 @@ export default function registerRoutes(routes) {
     method: 'GET',
     pattern: /^\/api\/hypercore\/feed\/([a-zA-Z0-9_.-]+)$/,
     handler: async (req, res, matches) => {
+      if (denyExperimentalStubIfRestricted(res, json)) return;
       const handle = matches[1];
       const profile = await lookupProfileByHandle(pool, handle);
       if (!profile) {
@@ -49,7 +51,7 @@ export default function registerRoutes(routes) {
 
       const feedKey = profile.hypercore_feed_key || null;
 
-      json(res, 200, {
+      jsonStubSurface(res, 200, {
         handle: profile.username,
         webid: profile.webid,
         hypercore: {
@@ -81,7 +83,7 @@ export default function registerRoutes(routes) {
     method: 'GET',
     pattern: '/api/hypercore/status',
     handler: async (req, res) => {
-      json(res, 200, {
+      jsonStubSurface(res, 200, {
         hypercore: {
           runtime: 'not_running',
           version: null,
@@ -126,9 +128,10 @@ export default function registerRoutes(routes) {
     method: 'GET',
     pattern: /^\/api\/braid\/version\/(.+)$/,
     handler: async (req, res, matches) => {
+      if (denyExperimentalStubIfRestricted(res, json)) return;
       const resource = decodeURIComponent(matches[1]);
 
-      json(res, 200, {
+      jsonStubSurface(res, 200, {
         resource,
         braid: {
           enabled: false,

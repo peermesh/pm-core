@@ -10,7 +10,8 @@
 
 import { createHash } from 'node:crypto';
 import { pool } from '../db.js';
-import { json, lookupProfileByHandle, BASE_URL, INSTANCE_DOMAIN } from '../lib/helpers.js';
+import { json, jsonStubSurface, lookupProfileByHandle, BASE_URL, INSTANCE_DOMAIN } from '../lib/helpers.js';
+import { denyExperimentalStubIfRestricted } from '../lib/stub-exposure-guard.js';
 
 /**
  * Generate a deterministic numeric DSNP User ID from an omni_account_id.
@@ -30,6 +31,7 @@ export default function registerRoutes(routes) {
     method: 'GET',
     pattern: /^\/api\/dsnp\/profile\/([a-zA-Z0-9_.-]+)$/,
     handler: async (req, res, matches) => {
+      if (denyExperimentalStubIfRestricted(res, json)) return;
       const handle = matches[1];
       const profile = await lookupProfileByHandle(pool, handle);
       if (!profile) {
@@ -54,7 +56,7 @@ export default function registerRoutes(routes) {
 
       const ourDomain = INSTANCE_DOMAIN;
 
-      json(res, 200, {
+      jsonStubSurface(res, 200, {
         '@context': 'https://spec.dsnp.org/v1',
         dsnpUserId: dsnpUserId,
         handle: handle,
@@ -98,7 +100,7 @@ export default function registerRoutes(routes) {
 
       // Return empty graph structure (stub)
       // In production, this queries the Frequency blockchain for graph state
-      json(res, 200, {
+      jsonStubSurface(res, 200, {
         '@context': 'https://spec.dsnp.org/v1',
         dsnpUserId: dsnpUserId,
         handle: handle,

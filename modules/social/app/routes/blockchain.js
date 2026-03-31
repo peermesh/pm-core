@@ -10,7 +10,7 @@
 // and user-initiated only. Protocol viability is uncertain.
 
 import { pool } from '../db.js';
-import { json, lookupProfileByHandle, BASE_URL } from '../lib/helpers.js';
+import { json, jsonStubSurface, lookupProfileByHandle, BASE_URL } from '../lib/helpers.js';
 
 export default function registerRoutes(routes) {
   // GET /api/lens/profile/:handle — Lens Profile mapping
@@ -39,7 +39,7 @@ export default function registerRoutes(routes) {
 
       const lensProfileId = result.rows[0]?.lens_profile_id || null;
 
-      json(res, 200, {
+      jsonStubSurface(res, 200, {
         handle: profile.username,
         webid: profile.webid,
         lens: {
@@ -87,7 +87,7 @@ export default function registerRoutes(routes) {
 
       const farcasterFid = result.rows[0]?.farcaster_fid || null;
 
-      json(res, 200, {
+      jsonStubSurface(res, 200, {
         handle: profile.username,
         webid: profile.webid,
         farcaster: {

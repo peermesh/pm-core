@@ -13,7 +13,15 @@
 // Source blueprint: F-015 (Matrix Protocol Surface)
 
 import { pool } from '../db.js';
-import { json, jsonWithType, lookupProfileByHandle, BASE_URL, INSTANCE_DOMAIN, DOMAIN } from '../lib/helpers.js';
+import {
+  json,
+  jsonStubSurface,
+  jsonWithTypeStubSurface,
+  lookupProfileByHandle,
+  BASE_URL,
+  INSTANCE_DOMAIN,
+  DOMAIN,
+} from '../lib/helpers.js';
 
 // Matrix homeserver domain (stub -- points to future homeserver)
 const MATRIX_DOMAIN = process.env.MATRIX_DOMAIN || INSTANCE_DOMAIN;
@@ -39,7 +47,7 @@ export default function registerRoutes(routes) {
       // Matrix ID: either stored in DB or derived from handle
       const matrixId = profile.matrix_id || `@${handle}:${MATRIX_DOMAIN}`;
 
-      json(res, 200, {
+      jsonStubSurface(res, 200, {
         handle,
         matrix_id: matrixId,
         homeserver: MATRIX_HOMESERVER_URL,
@@ -61,7 +69,7 @@ export default function registerRoutes(routes) {
         'm.server': `matrix.${DOMAIN}:443`,
       };
 
-      jsonWithType(res, 200, 'application/json', serverDelegation, {
+      jsonWithTypeStubSurface(res, 200, 'application/json', serverDelegation, {
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Methods': 'GET',
         'Cache-Control': 'max-age=86400, public',
@@ -82,7 +90,7 @@ export default function registerRoutes(routes) {
         },
       };
 
-      jsonWithType(res, 200, 'application/json', clientDiscovery, {
+      jsonWithTypeStubSurface(res, 200, 'application/json', clientDiscovery, {
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Methods': 'GET',
         'Cache-Control': 'max-age=86400, public',

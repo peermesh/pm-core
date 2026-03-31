@@ -527,8 +527,29 @@ validate_configuration() {
         log_ok "DOMAIN=${DOMAIN}"
     fi
 
-    if [[ -z "${ADMIN_EMAIL:-}" || "${ADMIN_EMAIL}" == "admin@example.com" ]]; then
-        log_warn "ADMIN_EMAIL is using default placeholder"
+    # ADMIN_EMAIL: fail-closed in production (placeholder or syntactically invalid)
+    local email_bad=0 email_reason=""
+    if [[ -z "${ADMIN_EMAIL:-}" ]]; then
+        email_bad=1
+        email_reason="empty"
+    elif [[ "${ADMIN_EMAIL}" == "admin@example.com" ]]; then
+        email_bad=1
+        email_reason="placeholder"
+    elif [[ "${ADMIN_EMAIL}" =~ ^[^@[:space:]]+@[^@[:space:]]+\.[^@[:space:]]+$ ]]; then
+        email_bad=0
+    else
+        email_bad=1
+        email_reason="invalid_format"
+    fi
+
+    if [[ "$email_bad" -eq 1 ]]; then
+        if [[ "$DEPLOY_ENVIRONMENT" == "production" ]]; then
+            log_error "ADMIN_EMAIL rejected for production (${email_reason}); set a real address (not admin@example.com) with user@domain.tld form"
+            failed=1
+        else
+            log_warn "ADMIN_EMAIL is not production-ready (${email_reason})"
+            log_info "Non-production (${DEPLOY_ENVIRONMENT}): continuing; fix ADMIN_EMAIL before --environment production."
+        fi
     else
         log_ok "ADMIN_EMAIL=${ADMIN_EMAIL}"
     fi

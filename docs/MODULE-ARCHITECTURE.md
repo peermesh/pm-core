@@ -52,7 +52,7 @@ At the parent project level, top-level components are now called **"services"** 
 
 ### Core "Modules" (This System)
 
-Inside the Core (`modules/`), the term "module" refers to **infrastructure extensions** -- operational capabilities that plug into the Core foundation. Things like backup systems, PKI certificate authorities, and federation protocol adapters. Each one has a `module.json` manifest, lifecycle hooks, dashboard registration, dependency declarations, and is managed through the CLI with `launch_pm-core.sh module enable/disable`.
+Inside the Core (`modules/`), the term "module" refers to **infrastructure extensions** -- operational capabilities that plug into the Core foundation. Things like backup systems, PKI certificate authorities, and federation protocol adapters. Each one has a `module.json` manifest, lifecycle hooks, dashboard registration, dependency declarations, and is managed through the CLI (`./launch_core.sh module …` from the Core repo root). The `launch_pm-core.sh` entry point forwards to `launch_core.sh`.
 
 These are not application logic. They extend the platform itself. They are governed by JSON schemas at `foundation/schemas/module.schema.json`, and they follow a formal plugin architecture with well-defined contracts.
 
@@ -144,7 +144,7 @@ Each profile follows a standard structure with a compose file, init scripts, bac
 
 The foundation defines a connection abstraction system that allows modules to declare what they need (a "database" or a "cache") without specifying which profile provides it. At deployment time, the connection resolver maps abstract requirements to concrete profiles. This is how the same module can work with PostgreSQL in production and SQLite in testing -- the module declares a "database" connection, and the deployment configuration determines which profile satisfies it.
 
-The connection abstraction is defined in `foundation/schemas/` and `foundation/interfaces/`, and resolution is handled by `foundation/lib/connection-resolve.sh`. Note that while the schema and interface layers are solid, the runtime resolution is not yet fully exercised in production.
+The connection abstraction is defined in `foundation/schemas/` and `foundation/interfaces/`, and resolution is handled by `foundation/lib/connection-resolve.sh`. `module enable` invokes the resolver for each module in the resolved dependency order before install/start hooks; deployment-specific gaps may still appear if required profiles are not enabled.
 
 ---
 
@@ -291,7 +291,7 @@ Dashboard registration is how modules appear in the web UI. Routes add navigatio
 }
 ```
 
-Each hook script is called at the corresponding point in the module's lifecycle. The `install` hook runs once when the module is first added. The `health` hook runs periodically or on demand and should output JSON conforming to the foundation health schema. The `validate` hook runs before install to verify prerequisites.
+At runtime, `launch_core.sh` invokes hooks by filename under `hooks/` when they exist and are executable: on **`module enable`** (in dependency order, after connection resolution), **`install.sh`** then **`start.sh`** (or, if there is no start hook, **`docker compose up -d`** for that module’s `docker-compose.yml`). On **`module disable`**, it runs **`stop.sh`** (or **`docker compose down`**) then optional **`uninstall.sh`**, in reverse dependency order. **`module health`** runs **`hooks/health.sh`** when present. The optional manifest field **`lifecycle.validate`** (and **`hooks/validate.sh`**) is **not** executed automatically during enable; use **`module validate`** for schema and contract checks. The **`upgrade`** hook is not orchestrated by the CLI today; use **`module update`** to pull images and recreate containers.
 
 **Configuration schema:**
 
@@ -334,15 +334,21 @@ The backup and pki modules are the best references for well-formed module implem
 
 ### CLI Integration
 
-The `launch_pm-core.sh` script provides module management commands:
+`launch_core.sh` (and the `launch_pm-core.sh` wrapper) provide module management commands:
 
 | Command | Purpose |
 |---------|---------|
-| `module list` | Show installed modules and their status |
-| `module enable <name>` | Enable a module (with dependency resolution) |
-| `module enable <name> --dry-run` | Preview what enabling would do |
-| `module disable <name>` | Disable a module (docker compose down) |
-| `module status <name>` | Show container status for a module |
+| `module list` | List modules and available compose profiles |
+| `module enable <name>` | Resolve dependencies and connections, then run install/start hooks (or compose up) per module in order |
+| `module enable <name> --dry-run` | Show dependency resolution only |
+| `module disable <name>` | Run stop/uninstall hooks (or compose down) in reverse dependency order |
+| `module status <name>` | Show `docker compose ps` for the module |
+| `module health [name]` | Run `hooks/health.sh` for one module or all running modules |
+| `module validate [name]` | Validate `module.json` (and optional `--contract` / `--contract-json` reports) |
+| `module create <name>` | Scaffold a new module from `foundation/templates/module-template` |
+| `module update <name>` | Pull images and recreate containers for a running module |
+
+**Verification:** From the Core repository root, `./launch_core.sh help` includes the current module subcommand list; inspect `cmd_module` in `launch_core.sh` for the exact enable/disable sequence.
 
 See the [CLI Reference](cli.md) for complete command documentation.
 
@@ -380,39 +386,37 @@ The module system is a living architecture. Some parts are fully implemented and
 
 | Feature | Evidence | Confidence |
 |---------|----------|------------|
-| `module.json` manifest spec | Five modules have valid manifests; JSON schema exists and validates | High |
+| `module.json` manifest spec | Multiple modules with manifests; JSON schema validates on enable | High |
 | Dashboard registration | Dashboard UI exists; modules declare routes and widgets | High |
-| Dependency resolution | `foundation/lib/dependency-resolve.sh` with topological sort and cycle detection | High |
-| `module enable/disable` (basic) | Works for compose up/down operations | High |
-| Compose base patterns | All modules extend from foundation base services | High |
-| Network topology | Four-network model is enforced in all compose files | High |
-| Secrets management | File-based secrets pattern is consistent across all modules | High |
+| Dependency resolution | `foundation/lib/dependency-resolve.sh` with topological sort and cycle detection; used by enable/disable | High |
+| `module enable` / `module disable` | Connection resolution, then install/start (or compose up); teardown via stop/uninstall (or compose down) in reverse order | High |
+| Lifecycle hooks (install, start, stop, uninstall, health) | Invoked from `launch_core.sh` when `hooks/*.sh` are executable | High |
+| `module validate`, `module create`, `module update` | Implemented in `launch_core.sh` | High |
+| Compose base patterns | Modules extend foundation base services | High |
+| Network topology | Four-network model is enforced in compose files | High |
+| Secrets management | File-based secrets pattern is consistent across modules | High |
 
 ### Defined but Not Fully Wired
 
 | Feature | Current State | Gap |
 |---------|--------------|-----|
-| Lifecycle hook orchestration | Hook scripts exist in modules, but `module enable` only runs `docker compose up -d` -- it does not invoke install, validate, or health hooks | CLI must be updated to call hooks in sequence |
-| Connection abstraction | Schemas and interfaces exist; unclear if runtime resolution is exercised in production | Needs integration testing |
-| Event bus | Interfaces defined at `foundation/interfaces/`; no implementation installed | Requires an event bus provider module (redis, nats, or memory) |
-| Module validation | No `module validate` CLI command exists | Would check schema compliance, file existence, compose validity |
-| Module scaffolding | No `module create` CLI command exists | Would copy template and rename placeholders |
-| Foundation migration system | CLI and scripts exist; unclear if tested in production | Needs validation |
+| Manifest `lifecycle.validate` / `lifecycle.upgrade` | Not run automatically during enable/disable | Use `module validate` and `module update` (or custom automation) instead |
+| Connection abstraction | Resolver runs on `module enable` (`foundation/lib/connection-resolve.sh`) | Broader production exercise and tests still useful |
+| Event bus | Interfaces at `foundation/interfaces/`; no default provider wired | Requires an event bus provider module (e.g. Redis, NATS) |
+| Foundation migration system | CLI and scripts exist; production coverage varies | Needs validation in your environment |
 
 ### Not Yet Implemented
 
 | Feature | Description |
 |---------|-------------|
-| Module registry/catalog | A central listing of available modules with descriptions and versions |
-| Module packaging | A standard way to distribute modules as archives |
-| Module upgrade orchestration | Automated version migration using the `upgrade` lifecycle hook |
-| Integration test suite | End-to-end testing of the create-enable-health-disable cycle |
+| Module registry/catalog | Central listing of available modules with descriptions and versions |
+| Module packaging | Standard distribution as archives |
+| Automatic `upgrade` hook orchestration | Manifest `upgrade` script not chained by CLI (distinct from `module update`) |
+| Integration test suite | End-to-end coverage of full create-enable-health-disable cycles |
 
 ### Overall Assessment
 
-The module system is approximately **60% implemented**. The manifest specification, JSON schemas, compose patterns, and basic CLI operations are solid. The biggest gap is lifecycle hook orchestration -- the hooks exist as scripts inside each module, but the CLI does not call them during `module enable` or `module disable`. This means the module system functions as a compose management layer today, with the lifecycle automation defined but not yet connected.
-
-This is a deliberate staging choice, not a design flaw. The manifest and schema layers were built first to establish the contract, and the orchestration layer will follow. The architecture is sound; the wiring is incomplete.
+The module system is **largely implemented** for day-to-day operations: manifests, schemas, dependency and connection resolution on enable, compose patterns, and **core lifecycle hook wiring** in `launch_core.sh` are in place. Remaining work is mostly optional features (event bus provider, packaging, catalog) and deeper validation of connection resolution and migrations in real deployments—not “hooks exist but the CLI ignores them.”
 
 ---
 
@@ -445,7 +449,7 @@ Create shell scripts under `hooks/` for at least `install.sh` and `health.sh`. A
 
 ### Step 5: Test
 
-Enable your module with `launch_pm-core.sh module enable my-module` and verify that services start, health checks pass, and Traefik routing works (if applicable). Run the health hook manually to confirm it produces valid output.
+Enable your module with `./launch_core.sh module enable my-module` and verify that services start, hooks run as expected, and Traefik routing works (if applicable). Run `./launch_core.sh module health my-module` (or the hook directly) to confirm health output.
 
 ### Step 6: Document
 
@@ -475,7 +479,7 @@ Until the hello-module is available, use the existing foundation template at `fo
 ### Module Development
 
 - [MODULE-RUBRIC.md](MODULE-RUBRIC.md) -- Quality and compatibility checklist for modules
-- [CLI Reference](cli.md) -- `launch_pm-core.sh` module management commands
+- [CLI Reference](cli.md) -- `launch_core.sh` module management commands
 - [Foundation README](../foundation/README.md) -- Foundation layer documentation
 - `foundation/docs/MODULE-MANIFEST.md` -- Detailed manifest field documentation
 - `foundation/docs/LIFECYCLE-HOOKS.md` -- Lifecycle hook specifications
@@ -497,5 +501,5 @@ Until the hello-module is available, use the existing foundation template at `fo
 
 ---
 
-*Document version: 1.0.0*
-*Last updated: 2026-02-26*
+*Document version: 1.1.0*
+*Last updated: 2026-03-30*

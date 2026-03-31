@@ -883,5 +883,3 @@ After successful deployment:
 - [Webhook Deployment](WEBHOOK-DEPLOYMENT.md) - Automated deployment setup
 - [Deployment Promotion Runbook](DEPLOYMENT-PROMOTION-RUNBOOK.md) - Canonical promotion and rollback workflow
 - [Federation Adapter Boundary](FEDERATION-ADAPTER-BOUNDARY.md) - Optional federation module boundary rules
-<!-- TODO: Add operational runbook documentation -->
-<!-- - [Operational Runbook](system-design-docs/06-operations/OPERATIONAL-RUNBOOK.md) - Day-to-day operations -->

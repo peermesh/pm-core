@@ -10,7 +10,7 @@
 
 import { createHash } from 'node:crypto';
 import { pool } from '../db.js';
-import { json, lookupProfileByHandle, BASE_URL, INSTANCE_DOMAIN } from '../lib/helpers.js';
+import { json, jsonStubSurface, lookupProfileByHandle, BASE_URL, INSTANCE_DOMAIN } from '../lib/helpers.js';
 
 /**
  * Generate a deterministic Zot channel hash from an omni_account_id.
@@ -54,7 +54,7 @@ export default function registerRoutes(routes) {
 
       // Return a Zot-compatible channel info document (stub)
       // Modeled after Hubzilla's zot-info endpoint structure
-      json(res, 200, {
+      jsonStubSurface(res, 200, {
         success: true,
         guid: zotChannelHash,
         guid_sig: null,
@@ -111,7 +111,7 @@ export default function registerRoutes(routes) {
 
       // Return a Zot xchan (cross-channel) identity document
       // Maps the Zot identity back to the canonical WebID
-      json(res, 200, {
+      jsonStubSurface(res, 200, {
         xchan_hash: zotChannelHash,
         xchan_guid: zotChannelHash,
         xchan_guid_sig: null,

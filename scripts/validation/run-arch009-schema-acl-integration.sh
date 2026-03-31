@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
-# ARCH-009 wave-6: live Postgres checks for social_lab_reader isolation
-# (shared SELECT allowed; private schemas denied; shared writes denied;
-# migration registry row present; ACL snapshot drift vs baseline).
+# ARCH-009 wave-6 baseline + wave-8 lifecycle: social_lab_reader isolation,
+# consumer removal, provider continuity (shared surfaces + drift re-check).
 set -euo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -16,8 +15,8 @@ else
 fi
 ts="$(date -u +%Y-%m-%d-%H-%M-%SZ)"
 mkdir -p "$reports_dir"
-transcript="$reports_dir/${ts}-arch-009-wave6-schema-acl-integration-transcript.txt"
-report_md="$reports_dir/${ts}-arch-009-wave6-schema-acl-integration-report.md"
+transcript="$reports_dir/${ts}-arch-009-wave8-schema-acl-lifecycle-transcript.txt"
+report_md="$reports_dir/${ts}-arch-009-wave8-schema-acl-lifecycle-report.md"
 exec > >(tee "$transcript") 2>&1
 
 migration_sql="$core_root/modules/social/migrations/001_initial_schema.sql"
@@ -98,6 +97,22 @@ expect_denied() {
   fi
 }
 
+expect_connect_fail() {
+  local name="$1"
+  shift
+  set +e
+  out="$("$@" 2>&1)"
+  rc=$?
+  set -e
+  if [[ $rc -ne 0 ]]; then
+    echo "[acl-integration] PASS: $name (session rejected as expected)"
+    pass=$((pass + 1))
+  else
+    echo "[acl-integration] FAIL: $name (expected failure, got success) output=$out" >&2
+    fail=$((fail + 1))
+  fi
+}
+
 expect_ok "shared read social_profiles.profile_index" \
   "${psql_consumer[@]}" -c "SELECT 1 FROM social_profiles.profile_index LIMIT 1;"
 
@@ -160,10 +175,54 @@ set -e
 rm -f "$snap_file"
 
 if [[ $drift_rc -eq 0 ]]; then
-  echo "[acl-integration] PASS: acl drift baseline"
+  echo "[acl-integration] PASS: acl drift baseline (pre-lifecycle)"
   pass=$((pass + 1))
 else
   echo "[acl-integration] FAIL: acl drift baseline (exit $drift_rc)" >&2
+  fail=$((fail + 1))
+fi
+
+echo "[acl-integration] === wave8 lifecycle: drop consumer, re-validate provider surfaces ==="
+"${psql_db[@]}" -c "DROP ROLE IF EXISTS pmdl_consumer_acl;"
+
+expect_connect_fail "consumer login rejected after role drop" \
+  docker exec "$cid" psql -v ON_ERROR_STOP=1 -U pmdl_consumer_acl -d social_lab -c "SELECT 1;"
+
+psql_provider=(docker exec "$cid" psql -v ON_ERROR_STOP=1 -U postgres -d social_lab)
+
+expect_ok "provider continuity: shared read social_profiles.profile_index as social_lab_reader" \
+  "${psql_provider[@]}" -c "SET ROLE social_lab_reader; SELECT 1 FROM social_profiles.profile_index LIMIT 1;"
+
+expect_ok "provider continuity: shared read social_graph.social_graph as social_lab_reader" \
+  "${psql_provider[@]}" -c "SET ROLE social_lab_reader; SELECT 1 FROM social_graph.social_graph LIMIT 1;"
+
+expect_denied "provider continuity: private read still denied (social_federation)" \
+  "${psql_provider[@]}" -c "SET ROLE social_lab_reader; SELECT 1 FROM social_federation.ap_actors LIMIT 1;"
+
+expect_denied "provider continuity: private read still denied (social_keys)" \
+  "${psql_provider[@]}" -c "SET ROLE social_lab_reader; SELECT 1 FROM social_keys.key_metadata LIMIT 1;"
+
+_reg_post="$("${psql_db[@]}" -tAc "SELECT 1 FROM social_pipeline.schema_migrations WHERE version = '001';" | tr -d '[:space:]')"
+if [[ "$_reg_post" == "1" ]]; then
+  echo "[acl-integration] PASS: migration registry intact after consumer drop"
+  pass=$((pass + 1))
+else
+  echo "[acl-integration] FAIL: migration registry missing 001 after lifecycle (got '${_reg_post}')" >&2
+  fail=$((fail + 1))
+fi
+
+snap_file_post="$(mktemp)"
+"${psql_db[@]}" -tAc "$snapshot_sql" | sed '/^$/d' | sort -u >"$snap_file_post"
+set +e
+python3 "$drift_py" --snapshot-file "$snap_file_post"
+drift_post_rc=$?
+set -e
+rm -f "$snap_file_post"
+if [[ $drift_post_rc -eq 0 ]]; then
+  echo "[acl-integration] PASS: acl drift baseline (post-lifecycle)"
+  pass=$((pass + 1))
+else
+  echo "[acl-integration] FAIL: acl drift post-lifecycle (exit $drift_post_rc)" >&2
   fail=$((fail + 1))
 fi
 
@@ -176,10 +235,10 @@ echo "[acl-integration] summary pass=$pass fail=$fail total=$total exit_code=$ex
 
 # markdown report (written outside tee would duplicate; write via absolute path)
 {
-  printf '%s\n' "# ARCH-009 Wave 6 — Schema ACL and consumer isolation"
+  printf '%s\n' "# ARCH-009 Wave 8 — Schema ACL, consumer lifecycle, provider resilience (social)"
   printf '%s\n' ""
   printf '%s\n' "Date (UTC): $ts"
-  printf '%s\n' "Work order: WO-PMDL-2026-03-30-172"
+  printf '%s\n' "Work order: WO-PMDL-2026-03-30-179 (extends wave-6 baseline)"
   printf '%s\n' ""
   printf '%s\n' "## Summary"
   printf '%s\n' ""
@@ -187,6 +246,12 @@ echo "[acl-integration] summary pass=$pass fail=$fail total=$total exit_code=$ex
   printf '%s\n' "- fail=$fail"
   printf '%s\n' "- total=$total"
   printf '%s\n' "- exit_code=$exit_code"
+  printf '%s\n' ""
+  printf '%s\n' "## Wave 8 lifecycle phases"
+  printf '%s\n' ""
+  printf '%s\n' "- pre-removal: consumer boundary checks + ACL drift (baseline)"
+  printf '%s\n' "- \`DROP ROLE\` consumer login; expect subsequent consumer connection failure"
+  printf '%s\n' "- post-removal: \`SET ROLE social_lab_reader\` shared reads + private denial + registry + drift re-check"
   printf '%s\n' ""
   printf '%s\n' "## Artifacts"
   printf '%s\n' ""

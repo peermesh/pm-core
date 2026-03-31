@@ -92,6 +92,10 @@ Modules that **require** security can set `enforcementMode: "fail-closed"`:
 
 With `fail-closed`, the module **refuses to start** if the required security provider is unavailable. This prevents accidental insecure operation for security-critical modules.
 
+**CI visibility (non-strict default):** `scripts/validation/run-security-provider-enforcement-visibility-gate.sh` prints a JSON report comparing each `fail-closed` manifest to in-tree `provides.securityServices` and always succeeds in CI so gaps stay visible without blocking merges.
+
+**Strict mode (operators / release gates):** set `SECURITY_PROVIDER_ENFORCEMENT_STRICT=1` or pass `--strict` to `validate_security_provider_enforcement_visibility.py` to exit non-zero when any required service is missing an in-tree provider module.
+
 ## Security Interfaces (Phase 1A)
 
 ### Identity Interface

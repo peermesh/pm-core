@@ -139,9 +139,23 @@ Use this checklist before coding:
 
 - `sub-repos/core/docs/DEPLOYMENT-REPO-PATTERN.md`
 - `sub-repos/core/docs/module-authoring-guide.md`
+- `sub-repos/core/docs/DATA-LAYER-OPERATIONS.md`
+- `sub-repos/core/docs/SCHEMA-MAPPING-REFERENCE.md`
+- `sub-repos/core/docs/MODULE-DATA-COMPOSITION-CONSUMER-GUIDE.md`
 - `sub-repos/core/docs/DEPLOYMENT-PROMOTION-RUNBOOK.md`
 - `sub-repos/core/docs/MULTI-ENVIRONMENT.md`
 - `sub-repos/core/docs/WEBHOOK-DEPLOYMENT.md`
+
+## Event bus noop visibility (operators)
+
+CI runs `scripts/validation/run-event-bus-noop-visibility-gate.sh`, which prints a deterministic JSON report about foundation noop artifacts, schema registration, and which modules declare eventbus requirements versus in-tree non-noop provider modules. The job does not fail by default.
+
+For production or promotion pipelines that must not rely on a noop-only event bus snapshot, run the same validator with strict mode:
+
+- `EVENT_BUS_NOOP_VISIBILITY_STRICT=1` (or `true` / `yes` / `required`): exit non-zero when any **required** `eventbus` connection in `modules/*/module.json` has no matching in-tree provider module for its preferred providers list.
+- `EVENT_BUS_NOOP_VISIBILITY_STRICT=all`: exit non-zero when any module declares an eventbus requirement but **no** in-tree module provides a real eventbus (`redis`, `nats`, `kafka`, or `memory`).
+
+CLI equivalents: `python3 scripts/validation/validate_event_bus_noop_visibility.py --strict` and `--strict-all`.
 
 ## Notes for module teams
 

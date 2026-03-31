@@ -1,0 +1,267 @@
+{
+  "schema_version": 1,
+  "scan_roots": [
+    "modules/social/app/routes",
+    "modules/social/app/lib/adapters"
+  ],
+  "entries": [
+    {
+      "path": "modules/social/app/lib/adapters/bonfire-adapter.js",
+      "line": 42,
+      "kind": "status_stub_literal",
+      "excerpt": "status: 'stub',"
+    },
+    {
+      "path": "modules/social/app/lib/adapters/braid-adapter.js",
+      "line": 5,
+      "kind": "status_stub_literal",
+      "excerpt": "// Returns status: 'stub' and documents what the Braid-HTTP middleware needs"
+    },
+    {
+      "path": "modules/social/app/lib/adapters/braid-adapter.js",
+      "line": 56,
+      "kind": "status_stub_literal",
+      "excerpt": "status: 'stub',"
+    },
+    {
+      "path": "modules/social/app/lib/adapters/deso-adapter.js",
+      "line": 74,
+      "kind": "status_stub_literal",
+      "excerpt": "status: 'stub',"
+    },
+    {
+      "path": "modules/social/app/lib/adapters/dsnp-adapter.js",
+      "line": 5,
+      "kind": "status_stub_literal",
+      "excerpt": "// per F-011 blueprint. Returns status: 'stub' and documents what the Frequency"
+    },
+    {
+      "path": "modules/social/app/lib/adapters/dsnp-adapter.js",
+      "line": 90,
+      "kind": "status_stub_literal",
+      "excerpt": "status: 'stub',"
+    },
+    {
+      "path": "modules/social/app/lib/adapters/farcaster-adapter.js",
+      "line": 5,
+      "kind": "status_stub_literal",
+      "excerpt": "// Returns status: 'stub' and documents what the Hub SDK needs for FID"
+    },
+    {
+      "path": "modules/social/app/lib/adapters/farcaster-adapter.js",
+      "line": 94,
+      "kind": "status_stub_literal",
+      "excerpt": "status: 'stub',"
+    },
+    {
+      "path": "modules/social/app/lib/adapters/holochain-adapter.js",
+      "line": 5,
+      "kind": "status_stub_literal",
+      "excerpt": "// Returns status: 'stub' and documents what the Holochain Conductor runtime"
+    },
+    {
+      "path": "modules/social/app/lib/adapters/holochain-adapter.js",
+      "line": 38,
+      "kind": "status_stub_literal",
+      "excerpt": "status: 'stub',"
+    },
+    {
+      "path": "modules/social/app/lib/adapters/hypercore-adapter.js",
+      "line": 5,
+      "kind": "status_stub_literal",
+      "excerpt": "// Returns status: 'stub' and documents what the Hypercore ecosystem needs for"
+    },
+    {
+      "path": "modules/social/app/lib/adapters/hypercore-adapter.js",
+      "line": 66,
+      "kind": "status_stub_literal",
+      "excerpt": "status: 'stub',"
+    },
+    {
+      "path": "modules/social/app/lib/adapters/keyhive-adapter.js",
+      "line": 258,
+      "kind": "status_stub_literal",
+      "excerpt": "status: 'stub', // StubProtocolAdapter enforces 'stub'; logical status is 'design-only'"
+    },
+    {
+      "path": "modules/social/app/lib/adapters/lens-adapter.js",
+      "line": 5,
+      "kind": "status_stub_literal",
+      "excerpt": "// Returns status: 'stub' and documents what the Lens SDK needs for Profile NFT"
+    },
+    {
+      "path": "modules/social/app/lib/adapters/lens-adapter.js",
+      "line": 82,
+      "kind": "status_stub_literal",
+      "excerpt": "status: 'stub',"
+    },
+    {
+      "path": "modules/social/app/lib/adapters/matrix-adapter.js",
+      "line": 5,
+      "kind": "status_stub_literal",
+      "excerpt": "// Returns status: 'stub' and documents what the Matrix SDK needs for identity"
+    },
+    {
+      "path": "modules/social/app/lib/adapters/matrix-adapter.js",
+      "line": 67,
+      "kind": "status_stub_literal",
+      "excerpt": "status: 'stub',"
+    },
+    {
+      "path": "modules/social/app/lib/adapters/ocapn-adapter.js",
+      "line": 280,
+      "kind": "status_stub_literal",
+      "excerpt": "status: 'stub', // StubProtocolAdapter enforces 'stub'; logical status is 'design-only'"
+    },
+    {
+      "path": "modules/social/app/lib/adapters/ocapn-adapter.js",
+      "line": 344,
+      "kind": "phase1_metadata_key",
+      "excerpt": "'phase-1': 'TS-native capability objects following OCapN semantics',"
+    },
+    {
+      "path": "modules/social/app/lib/adapters/ssb-adapter.js",
+      "line": 5,
+      "kind": "status_stub_literal",
+      "excerpt": "// Returns status: 'stub' and documents what ssb-server needs for full"
+    },
+    {
+      "path": "modules/social/app/lib/adapters/ssb-adapter.js",
+      "line": 38,
+      "kind": "status_stub_literal",
+      "excerpt": "status: 'stub',"
+    },
+    {
+      "path": "modules/social/app/lib/adapters/vc-adapter.js",
+      "line": 202,
+      "kind": "underscore_stub_property",
+      "excerpt": "_stubNote: 'This is a structural stub. Production implementation requires real Ed25519 signing.',"
+    },
+    {
+      "path": "modules/social/app/lib/adapters/vc-adapter.js",
+      "line": 390,
+      "kind": "underscore_stub_property",
+      "excerpt": "_stubNote: structurallyValid"
+    },
+    {
+      "path": "modules/social/app/lib/adapters/vc-adapter.js",
+      "line": 404,
+      "kind": "status_stub_literal",
+      "excerpt": "status: 'stub',"
+    },
+    {
+      "path": "modules/social/app/lib/adapters/willow-adapter.js",
+      "line": 5,
+      "kind": "status_stub_literal",
+      "excerpt": "// Returns status: 'stub' and documents what the iroh-willow stack needs for"
+    },
+    {
+      "path": "modules/social/app/lib/adapters/willow-adapter.js",
+      "line": 74,
+      "kind": "status_stub_literal",
+      "excerpt": "status: 'stub',"
+    },
+    {
+      "path": "modules/social/app/lib/adapters/xmtp-adapter.js",
+      "line": 5,
+      "kind": "status_stub_literal",
+      "excerpt": "// Returns status: 'stub' and documents what the XMTP SDK needs for identity"
+    },
+    {
+      "path": "modules/social/app/lib/adapters/xmtp-adapter.js",
+      "line": 69,
+      "kind": "status_stub_literal",
+      "excerpt": "status: 'stub',"
+    },
+    {
+      "path": "modules/social/app/lib/adapters/zot-adapter.js",
+      "line": 43,
+      "kind": "status_stub_literal",
+      "excerpt": "status: 'stub',"
+    },
+    {
+      "path": "modules/social/app/routes/blockchain.js",
+      "line": 19,
+      "kind": "phase1_stub_signal",
+      "excerpt": "// Phase 1 stub: returns the stored lens_profile_id or a placeholder"
+    },
+    {
+      "path": "modules/social/app/routes/datasync.js",
+      "line": 36,
+      "kind": "phase1_stub_signal",
+      "excerpt": "// Phase 1 stub: returns the stored hypercore_feed_key or a placeholder"
+    },
+    {
+      "path": "modules/social/app/routes/datasync.js",
+      "line": 67,
+      "kind": "underscore_stub_property",
+      "excerpt": "_stub: true,"
+    },
+    {
+      "path": "modules/social/app/routes/datasync.js",
+      "line": 80,
+      "kind": "phase1_stub_signal",
+      "excerpt": "// on this Social instance. Phase 1 stub: always returns"
+    },
+    {
+      "path": "modules/social/app/routes/datasync.js",
+      "line": 92,
+      "kind": "phase1_stub_signal",
+      "excerpt": "note: 'Hypercore runtime not yet integrated. This is a Phase 1 stub endpoint.',"
+    },
+    {
+      "path": "modules/social/app/routes/datasync.js",
+      "line": 106,
+      "kind": "underscore_stub_property",
+      "excerpt": "_stub: true,"
+    },
+    {
+      "path": "modules/social/app/routes/datasync.js",
+      "line": 121,
+      "kind": "phase1_stub_signal",
+      "excerpt": "// Phase 1 stub: returns an empty version history with metadata"
+    },
+    {
+      "path": "modules/social/app/routes/datasync.js",
+      "line": 146,
+      "kind": "phase1_stub_signal",
+      "excerpt": "note: 'Braid versioning not yet active. This is a Phase 1 stub. When enabled, this endpoint will return the version DAG for the specified resource.',"
+    },
+    {
+      "path": "modules/social/app/routes/datasync.js",
+      "line": 148,
+      "kind": "underscore_stub_property",
+      "excerpt": "_stub: true,"
+    },
+    {
+      "path": "modules/social/app/routes/dsnp.js",
+      "line": 67,
+      "kind": "status_stub_literal",
+      "excerpt": "status: 'stub',"
+    },
+    {
+      "path": "modules/social/app/routes/dsnp.js",
+      "line": 82,
+      "kind": "underscore_stub_property",
+      "excerpt": "_stub: true,"
+    },
+    {
+      "path": "modules/social/app/routes/dsnp.js",
+      "line": 111,
+      "kind": "underscore_stub_property",
+      "excerpt": "_stub: true,"
+    },
+    {
+      "path": "modules/social/app/routes/zot.js",
+      "line": 92,
+      "kind": "underscore_stub_property",
+      "excerpt": "_stub: true,"
+    },
+    {
+      "path": "modules/social/app/routes/zot.js",
+      "line": 138,
+      "kind": "underscore_stub_property",
+      "excerpt": "_stub: true,"
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "header_name": "X-Peermesh-Social-Stub-Surface",
+  "header_value": "1",
+  "helpers_module": "modules/social/app/lib/helpers.js",
+  "route_modules": [
+    {
+      "path": "modules/social/app/routes/blockchain.js",
+      "min_body_stub_true": null
+    },
+    {
+      "path": "modules/social/app/routes/datasync.js",
+      "min_body_stub_true": 3
+    },
+    {
+      "path": "modules/social/app/routes/dsnp.js",
+      "min_body_stub_true": 2
+    },
+    {
+      "path": "modules/social/app/routes/matrix.js",
+      "min_body_stub_true": null
+    },
+    {
+      "path": "modules/social/app/routes/xmtp.js",
+      "min_body_stub_true": null
+    },
+    {
+      "path": "modules/social/app/routes/zot.js",
+      "min_body_stub_true": 2
+    }
+  ]
+}

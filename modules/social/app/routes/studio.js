@@ -2093,7 +2093,7 @@ const SETTINGS_ICONS = {
   globe: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>',
 };
 
-function settingsContent(profile) {
+function settingsContent(profile, backupStatus) {
   const handle = profile ? escapeHtml(profile.username || '') : '';
   const profileId = profile ? profile.id : '';
   const ourDomain = INSTANCE_DOMAIN;
@@ -2106,9 +2106,29 @@ function settingsContent(profile) {
   }).join('');
   const counts = registry.getStatusCounts();
 
-  // ---- 2. Recovery / Backup status (placeholder — no backup table yet) ----
-  const hasBackup = false; // TODO: query backup status from DB when available
-  const lastBackupDate = null;
+  // ---- 2. Recovery / Backup status (runtime probe: social_keys.recovery_backups) ----
+  const bs = backupStatus && typeof backupStatus === 'object'
+    ? backupStatus
+    : { state: 'unknown', lastBackupDate: null };
+  const backupState = bs.state === 'protected' || bs.state === 'unprotected' ? bs.state : 'unknown';
+  const lastBackupDate = typeof bs.lastBackupDate === 'string' ? bs.lastBackupDate : null;
+  const backupHint = backupState === 'protected'
+    ? (lastBackupDate
+      ? `Last backup: ${escapeHtml(lastBackupDate)}`
+      : 'Passphrase backup on record')
+    : backupState === 'unprotected'
+      ? 'No passphrase backup on record'
+      : 'Backup status could not be verified';
+  const backupDotClass = backupState === 'protected'
+    ? 'dot-active'
+    : backupState === 'unknown'
+      ? 'dot-partial'
+      : 'dot-unavailable';
+  const backupStatusLabel = backupState === 'protected'
+    ? 'Protected'
+    : backupState === 'unknown'
+      ? 'Unknown'
+      : 'Unprotected';
 
   // ---- 3. Notification preferences (placeholder defaults) ----
   const pushEnabled = false;
@@ -2150,21 +2170,28 @@ function settingsContent(profile) {
           <div class="settings-section-icon">${SETTINGS_ICONS.shield}</div>
           <div class="settings-section-title">Security &amp; Recovery</div>
         </div>
-        ${!hasBackup ? `
+        ${backupState === 'unprotected' ? `
         <div class="recovery-warning">
           <div class="recovery-warning-icon">${SETTINGS_ICONS.warning}</div>
           <div class="recovery-warning-text">
             <strong>Your keys are not backed up.</strong> If you lose access to this device, you may lose your identity permanently. Create a backup now.
           </div>
         </div>` : ''}
+        ${backupState === 'unknown' ? `
+        <div class="recovery-warning">
+          <div class="recovery-warning-icon">${SETTINGS_ICONS.warning}</div>
+          <div class="recovery-warning-text">
+            <strong>Backup status unknown.</strong> The server could not confirm whether a passphrase backup exists (for example if recovery tables are not migrated yet). If you have not created a backup, use the actions below.
+          </div>
+        </div>` : ''}
         <div class="settings-row">
           <div class="settings-label-group">
             <span class="settings-label">Backup Status</span>
-            <span class="settings-label-hint">${hasBackup ? `Last backup: ${lastBackupDate}` : 'No backup configured'}</span>
+            <span class="settings-label-hint">${backupHint}</span>
           </div>
           <span class="settings-value">
-            <span class="settings-status-dot ${hasBackup ? 'dot-active' : 'dot-unavailable'}"></span>
-            ${hasBackup ? 'Protected' : 'Unprotected'}
+            <span class="settings-status-dot ${backupDotClass}"></span>
+            ${backupStatusLabel}
           </span>
         </div>
         <div class="settings-actions">
@@ -3484,6 +3511,40 @@ async function loadLinks(profile) {
   return getBioLinks(pool, profile.webid);
 }
 
+/**
+ * Runtime probe for passphrase backup row in social_keys.recovery_backups.
+ * On missing schema/table or query errors, returns unknown (does not throw).
+ *
+ * @param {string|null|undefined} userWebid
+ * @returns {Promise<{ state: 'protected'|'unprotected'|'unknown', lastBackupDate: string|null }>}
+ */
+async function fetchStudioBackupStatus(userWebid) {
+  if (!userWebid) {
+    return { state: 'unknown', lastBackupDate: null };
+  }
+  try {
+    const result = await pool.query(
+      `SELECT created_at
+       FROM social_keys.recovery_backups
+       WHERE user_webid = $1 AND is_active = TRUE
+       LIMIT 1`,
+      [userWebid]
+    );
+    if (result.rowCount > 0) {
+      const raw = result.rows[0].created_at;
+      const dt = raw instanceof Date ? raw : new Date(raw);
+      const lastBackupDate = Number.isNaN(dt.getTime())
+        ? null
+        : dt.toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
+      return { state: 'protected', lastBackupDate };
+    }
+    return { state: 'unprotected', lastBackupDate: null };
+  } catch (err) {
+    console.error('[studio] recovery_backups probe failed:', err.message);
+    return { state: 'unknown', lastBackupDate: null };
+  }
+}
+
 // =============================================================================
 // Route Registration
 // =============================================================================
@@ -3872,7 +3933,8 @@ export default function registerRoutes(routes) {
       const session = authGate(req, res);
       if (!session) return;
       const profile = await loadProfileFromSession(session);
-      const content = settingsContent(profile);
+      const backupStatus = await fetchStudioBackupStatus(profile?.webid);
+      const content = settingsContent(profile, backupStatus);
       html(res, 200, studioShell({
         title: 'Settings',
         activePage: 'settings',

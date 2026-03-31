@@ -34,9 +34,9 @@ SECRET_FILE="/run/secrets/$SECRET_NAME"
 if [[ -f "$SECRET_FILE" ]]; then
     # Read from mounted secret file (production mode with _FILE suffix)
     PASSWORD=$(cat "$SECRET_FILE")
-elif [[ -n "${[ENV_PASSWORD_VAR]:-}" ]]; then
-    # Fallback: Use environment variable (development mode without _FILE)
-    PASSWORD="${[ENV_PASSWORD_VAR]}"
+elif [[ -n "${ENV_PASSWORD_VAR:-}" ]]; then
+    # Fallback: env var (development). Rename ENV_PASSWORD_VAR when copying from template (e.g. MYSQL_PASSWORD).
+    PASSWORD="${ENV_PASSWORD_VAR}"
 else
     # No password available - might be intentional for some setups
     # Check if service allows passwordless local connections

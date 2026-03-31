@@ -6,7 +6,7 @@ Boundary rules:
 
 1. OpenTofu provisions infrastructure prerequisites only.
 2. Docker Compose + webhook pull-deploy remain runtime source of truth.
-3. Multi-VPS extension is blocked until single-VPS validation evidence exists.
+3. Multi-VPS extension is blocked until single-VPS validation evidence exists. A **non-production** Phase-2 scaffold lives under `stacks/phase-2-multi-vps/` and `modules/phase-2-multi-vps-contract/` for controlled iteration only (see those READMEs).
 
 Canonical deployment model:
 
@@ -40,8 +40,19 @@ infra/opentofu/
       variables.tf
       main.tf
       outputs.tf
+    phase-2-multi-vps-contract/
+      README.md
+      variables.tf
+      main.tf
+      outputs.tf
   stacks/
     pilot-single-vps/
+      README.md
+      versions.tf
+      variables.tf
+      main.tf
+      outputs.tf
+    phase-2-multi-vps/
       README.md
       versions.tf
       variables.tf

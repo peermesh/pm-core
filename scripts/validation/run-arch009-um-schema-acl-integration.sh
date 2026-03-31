@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# ARCH-009 follow-on: universal-manifest shared-surface ACL integration checks
+# ARCH-009: universal-manifest shared-surface ACL + wave-8 consumer lifecycle / provider continuity
 set -euo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -14,8 +14,8 @@ else
 fi
 ts="$(date -u +%Y-%m-%d-%H-%M-%SZ)"
 mkdir -p "$reports_dir"
-transcript="$reports_dir/${ts}-arch-009-wave7-um-schema-acl-integration-transcript.txt"
-report_md="$reports_dir/${ts}-arch-009-wave7-um-schema-acl-integration-report.md"
+transcript="$reports_dir/${ts}-arch-009-wave8-um-schema-acl-lifecycle-transcript.txt"
+report_md="$reports_dir/${ts}-arch-009-wave8-um-schema-acl-lifecycle-report.md"
 exec > >(tee "$transcript") 2>&1
 
 migration_sql="$core_root/modules/universal-manifest/migrations/001_initial.sql"
@@ -81,6 +81,21 @@ expect_denied() {
   fi
 }
 
+expect_connect_fail() {
+  local name="$1"; shift
+  set +e
+  out="$("$@" 2>&1)"
+  rc=$?
+  set -e
+  if [[ $rc -ne 0 ]]; then
+    echo "[um-acl-integration] PASS: $name (session rejected as expected)"
+    pass=$((pass + 1))
+  else
+    echo "[um-acl-integration] FAIL: $name (expected failure, got success) output=$out" >&2
+    fail=$((fail + 1))
+  fi
+}
+
 expect_ok "shared read universal_manifest_api.manifests" \
   "${psql_consumer[@]}" -c "SELECT 1 FROM universal_manifest_api.manifests LIMIT 1;"
 expect_ok "shared read universal_manifest_api.facet_registry" \
@@ -132,10 +147,54 @@ drift_rc=$?
 set -e
 rm -f "$snap_file"
 if [[ $drift_rc -eq 0 ]]; then
-  echo "[um-acl-integration] PASS: acl drift baseline"
+  echo "[um-acl-integration] PASS: acl drift baseline (pre-lifecycle)"
   pass=$((pass + 1))
 else
   echo "[um-acl-integration] FAIL: acl drift baseline (exit $drift_rc)" >&2
+  fail=$((fail + 1))
+fi
+
+echo "[um-acl-integration] === wave8 lifecycle: drop consumer, re-validate provider surfaces ==="
+"${psql_db[@]}" -c "DROP ROLE IF EXISTS pmdl_consumer_um;"
+
+expect_connect_fail "consumer login rejected after role drop" \
+  docker exec "$cid" psql -v ON_ERROR_STOP=1 -U pmdl_consumer_um -d universal_manifest -c "SELECT 1;"
+
+psql_provider=(docker exec "$cid" psql -v ON_ERROR_STOP=1 -U postgres -d universal_manifest)
+
+expect_ok "provider continuity: shared read universal_manifest_api.manifests" \
+  "${psql_provider[@]}" -c "SET ROLE universal_manifest_api_reader; SELECT 1 FROM universal_manifest_api.manifests LIMIT 1;"
+expect_ok "provider continuity: shared read universal_manifest_api.facet_registry" \
+  "${psql_provider[@]}" -c "SET ROLE universal_manifest_api_reader; SELECT 1 FROM universal_manifest_api.facet_registry LIMIT 1;"
+expect_ok "provider continuity: shared read universal_manifest_api.facet_writes" \
+  "${psql_provider[@]}" -c "SET ROLE universal_manifest_api_reader; SELECT 1 FROM universal_manifest_api.facet_writes LIMIT 1;"
+
+expect_denied "provider continuity: private read still denied (um.signing_keys)" \
+  "${psql_provider[@]}" -c "SET ROLE universal_manifest_api_reader; SELECT 1 FROM um.signing_keys LIMIT 1;"
+expect_denied "provider continuity: private read still denied (um.schema_migrations)" \
+  "${psql_provider[@]}" -c "SET ROLE universal_manifest_api_reader; SELECT 1 FROM um.schema_migrations LIMIT 1;"
+
+_reg_post="$("${psql_db[@]}" -tAc "SELECT 1 FROM um.schema_migrations WHERE version = '001';" | tr -d '[:space:]')"
+if [[ "$_reg_post" == "1" ]]; then
+  echo "[um-acl-integration] PASS: migration registry intact after consumer drop"
+  pass=$((pass + 1))
+else
+  echo "[um-acl-integration] FAIL: migration registry missing 001 after lifecycle (got '${_reg_post}')" >&2
+  fail=$((fail + 1))
+fi
+
+snap_post="$(mktemp)"
+"${psql_db[@]}" -tAc "$snapshot_sql" | sed '/^$/d' | sort -u >"$snap_post"
+set +e
+python3 "$drift_py" --profile um --snapshot-file "$snap_post"
+drift_post_rc=$?
+set -e
+rm -f "$snap_post"
+if [[ $drift_post_rc -eq 0 ]]; then
+  echo "[um-acl-integration] PASS: acl drift baseline (post-lifecycle)"
+  pass=$((pass + 1))
+else
+  echo "[um-acl-integration] FAIL: acl drift post-lifecycle (exit $drift_post_rc)" >&2
   fail=$((fail + 1))
 fi
 
@@ -147,11 +206,15 @@ fi
 echo "[um-acl-integration] summary pass=$pass fail=$fail total=$total exit_code=$exit_code"
 
 {
-  printf "# ARCH-009 Wave 7 — UM Schema ACL and consumer isolation\n\n"
+  printf "# ARCH-009 Wave 8 — UM schema ACL, consumer lifecycle, provider resilience\n\n"
   printf "Date (UTC): %s\n" "$ts"
-  printf "Work order: WO-PMDL-2026-03-30-174\n\n"
+  printf "Work order: WO-PMDL-2026-03-30-179 (extends wave-7 UM baseline)\n\n"
   printf "## Summary\n\n"
   printf -- "- pass=%s\n- fail=%s\n- total=%s\n- exit_code=%s\n\n" "$pass" "$fail" "$total" "$exit_code"
+  printf "## Wave 8 lifecycle phases\n\n"
+  printf -- "- pre-removal: consumer boundary checks + ACL drift (baseline)\n"
+  printf -- "- \`DROP ROLE\` consumer login; expect subsequent consumer connection failure\n"
+  printf -- "- post-removal: \`SET ROLE universal_manifest_api_reader\` shared reads + private denial + registry + drift re-check\n\n"
   printf "## Artifacts\n\n"
   printf -- "- transcript: \`%s\`\n" "$transcript"
   printf -- "- postgres image: \`postgres:16\` (ephemeral container)\n"

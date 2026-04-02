@@ -170,6 +170,11 @@ social_run_stub_route_contract() {
 dsnp-profilealice-stub|stub|GET /api/dsnp/profile/alice (stub flag)|/api/dsnp/profile/alice|200|stub_marker|||
 hypercore-feedalice-stub|stub|GET /api/hypercore/feed/alice (stub)|/api/hypercore/feed/alice|200|stub_marker|||
 braid-version-stub|stub|GET /api/braid/version/profile%2Fcard (stub)|/api/braid/version/profile%2Fcard|200|stub_marker|||
+matrix-identity-live|live|GET /api/matrix/identity/alice (graduated literal)|/api/matrix/identity/alice|200|literal|"bridge_status"||
+xmtp-identity-live|live|GET /api/xmtp/identity/alice (graduated literal)|/api/xmtp/identity/alice|200|literal|"bridge_status"||
+lens-profile-live|live|GET /api/lens/profile/alice (graduated literal)|/api/lens/profile/alice|200|literal|"protocol":"lens"||
+farcaster-identity-live|live|GET /api/farcaster/identity/alice (graduated literal)|/api/farcaster/identity/alice|200|literal|"protocol":"farcaster"||
+zot-channel-live|live|GET /api/zot/channel/alice (graduated literal)|/api/zot/channel/alice|200|literal|"protocol":"zot6"||
 STUB_ROUTE_CONTRACT
 }
 
@@ -424,6 +429,7 @@ test_endpoint "GET /api/lens/profile/nonexistent" 404 '"error"' '' '/api/lens/pr
 test_endpoint "GET /api/farcaster/identity/alice" 200 '"protocol":"farcaster"' '' '/api/farcaster/identity/alice'
 test_endpoint "GET /api/farcaster/identity/alice (opt-in)" 200 '"optInOnly":true' '' '/api/farcaster/identity/alice'
 test_endpoint "GET /api/farcaster/identity/nonexistent" 404 '"error"' '' '/api/farcaster/identity/nonexistent'
+social_run_stub_route_contract priorityplus-live
 
 # ── Profile Page Badges (Lens + Farcaster) ───────────────────────────
 section "Profile Page Badges"

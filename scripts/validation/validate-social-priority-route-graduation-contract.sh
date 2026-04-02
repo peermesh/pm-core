@@ -37,6 +37,18 @@ check_pattern() {
   fi
 }
 
+check_not_pattern() {
+  local p="$1"
+  local f="$2"
+  local label="$3"
+  if rg -q "$p" "$f"; then
+    printf '%s\n' "FAIL: ${label}" >&2
+    fail=1
+  else
+    printf '%s\n' "PASS: ${label}"
+  fi
+}
+
 printf '%s\n' "validate-social-priority-route-graduation-contract (core_root=${core_root})"
 
 check_file "$smoke_file"
@@ -70,6 +82,19 @@ check_pattern '/api/xmtp/identity/alice' "$smoke_file" "smoke covers xmtp identi
 check_pattern '/api/lens/profile/alice' "$smoke_file" "smoke covers lens profile route"
 check_pattern '/api/farcaster/identity/alice' "$smoke_file" "smoke covers farcaster identity route"
 check_pattern '/api/zot/channel/alice' "$smoke_file" "smoke covers zot channel route"
+
+# wave-3 non-stub behavior assertions (graduated surfaces are not restricted-mode gated)
+check_not_pattern 'denyExperimentalStubIfRestricted' "$matrix_route" "matrix route is not restricted-mode gated"
+check_not_pattern 'denyExperimentalStubIfRestricted' "$xmtp_route" "xmtp route is not restricted-mode gated"
+check_not_pattern 'denyExperimentalStubIfRestricted' "$blockchain_route" "blockchain route is not restricted-mode gated"
+check_not_pattern 'denyExperimentalStubIfRestricted' "$zot_route" "zot route is not restricted-mode gated"
+
+# smoke contract table must keep live literal assertions for wave-3 targets
+check_pattern 'matrix-identity-live\|live\|' "$smoke_file" "smoke contract includes matrix live literal assertion row"
+check_pattern 'xmtp-identity-live\|live\|' "$smoke_file" "smoke contract includes xmtp live literal assertion row"
+check_pattern 'lens-profile-live\|live\|' "$smoke_file" "smoke contract includes lens live literal assertion row"
+check_pattern 'farcaster-identity-live\|live\|' "$smoke_file" "smoke contract includes farcaster live literal assertion row"
+check_pattern 'zot-channel-live\|live\|' "$smoke_file" "smoke contract includes zot live literal assertion row"
 
 printf '%s\n' "SOCIAL_PRIORITY_ROUTE_GRADUATION_CONTRACT_FAIL=${fail}"
 exit "$fail"

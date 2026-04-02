@@ -8,6 +8,10 @@ smoke_file="$core_root/modules/social/tests/smoke-test.sh"
 guard_file="$core_root/modules/social/app/lib/stub-exposure-guard.js"
 dsnp_route="$core_root/modules/social/app/routes/dsnp.js"
 datasync_route="$core_root/modules/social/app/routes/datasync.js"
+matrix_route="$core_root/modules/social/app/routes/matrix.js"
+xmtp_route="$core_root/modules/social/app/routes/xmtp.js"
+blockchain_route="$core_root/modules/social/app/routes/blockchain.js"
+zot_route="$core_root/modules/social/app/routes/zot.js"
 
 fail=0
 
@@ -39,6 +43,10 @@ check_file "$smoke_file"
 check_file "$guard_file"
 check_file "$dsnp_route"
 check_file "$datasync_route"
+check_file "$matrix_route"
+check_file "$xmtp_route"
+check_file "$blockchain_route"
+check_file "$zot_route"
 
 # priority-1 graduated/guarded route surface must remain explicitly tracked
 check_pattern 'dsnp-profilealice-stub' "$smoke_file" "smoke contract includes dsnp priority route"
@@ -55,6 +63,13 @@ check_pattern 'denyExperimentalStubIfRestricted' "$datasync_route" "datasync rou
 # guard implementation contract
 check_pattern 'SOCIAL_LAB_RESTRICT_EXPERIMENTAL_STUBS' "$guard_file" "guard references canonical env toggle"
 check_pattern 'experimental_stub_disabled' "$guard_file" "guard emits canonical denial code"
+
+# priority-plus route coverage must remain visible in smoke contract
+check_pattern '/api/matrix/identity/alice' "$smoke_file" "smoke covers matrix identity route"
+check_pattern '/api/xmtp/identity/alice' "$smoke_file" "smoke covers xmtp identity route"
+check_pattern '/api/lens/profile/alice' "$smoke_file" "smoke covers lens profile route"
+check_pattern '/api/farcaster/identity/alice' "$smoke_file" "smoke covers farcaster identity route"
+check_pattern '/api/zot/channel/alice' "$smoke_file" "smoke covers zot channel route"
 
 printf '%s\n' "SOCIAL_PRIORITY_ROUTE_GRADUATION_CONTRACT_FAIL=${fail}"
 exit "$fail"

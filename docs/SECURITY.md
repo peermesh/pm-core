@@ -11,6 +11,7 @@ PeerMesh Core implements defense-in-depth with multiple security layers:
 3. **Non-Root Containers** - Minimal privileges for all services
 4. **Docker Socket Protection** - Proxy isolates Docker API access
 5. **Automatic HTTPS** - TLS termination at reverse proxy
+6. **Security Response Headers** - HSTS, CSP, Permissions-Policy via Traefik middleware
 
 ## OpenBao Fallback Policy
 
@@ -230,6 +231,38 @@ For local development without valid domain:
 ```env
 TRAEFIK_ACME_STAGING=true
 ```
+
+## Security Response Headers
+
+All HTTPS traffic receives security headers automatically via Traefik middleware defined in `configs/traefik/dynamic.yml`.
+
+### Default Headers (applied to all websecure traffic)
+
+The `security-headers@file` middleware is set as the entrypoint-level default on `websecure`, so every router inherits it without explicit labels.
+
+| Header | Value | Purpose |
+|--------|-------|---------|
+| Strict-Transport-Security | max-age=31536000; includeSubDomains; preload | Force HTTPS for 1 year |
+| Content-Security-Policy | default-src 'self'; script-src 'self'; ... | Restrict resource loading |
+| X-Frame-Options | DENY | Prevent clickjacking |
+| X-Content-Type-Options | nosniff | Prevent MIME sniffing |
+| Permissions-Policy | camera=(), microphone=(), ... | Disable browser features |
+| Referrer-Policy | strict-origin-when-cross-origin | Limit referrer leakage |
+| X-Powered-By | (stripped) | Hide technology stack |
+| Server | (stripped) | Hide server identity |
+
+### API Headers Override
+
+API-only routes (JSON endpoints) can use `api-security-headers@file` instead, which sets a stricter CSP (`default-src 'none'`) appropriate for non-HTML responses. Apply via Traefik label:
+
+```yaml
+labels:
+  - "traefik.http.routers.myapi.middlewares=api-security-headers@file"
+```
+
+### Per-Service Overrides
+
+Services that need a custom CSP (e.g., embedding iframes, loading external scripts) can define their own headers middleware via Docker labels. The per-router middleware list replaces the entrypoint default, so the service takes full control of its headers.
 
 ## Dashboard API Authentication
 

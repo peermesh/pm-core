@@ -176,9 +176,14 @@ services:
       - "--providers.docker.exposedbydefault=false"
       - "--providers.docker.network=pmdl_proxy-external"
 
+      # File provider for dynamic config (security headers, etc.)
+      - "--providers.file.directory=/etc/traefik"
+      - "--providers.file.watch=true"
+
       # Entrypoints
       - "--entrypoints.web.address=:80"
       - "--entrypoints.websecure.address=:443"
+      - "--entrypoints.websecure.http.middlewares=security-headers@file"
       - "--entrypoints.matrix-fed.address=:8448"
       - "--entrypoints.traefik.address=:8080"
 
@@ -236,14 +241,22 @@ services:
     labels:
       - "traefik.enable=true"
       # Dashboard router (optional, for remote access)
+      # Dashboard router (optional, for remote access)
+      # SECURITY: Requires TRAEFIK_DASHBOARD_AUTH to be set with valid htpasswd credentials.
+      # When unset/empty, basicAuth has no users and Traefik rejects all requests with 500,
+      # which is safe-by-default but not intentional. Set via:
+      #   htpasswd -nb admin your_secure_password
       - "traefik.http.routers.traefik-dashboard.rule=Host(`traefik.${DOMAIN}`)"
       - "traefik.http.routers.traefik-dashboard.entrypoints=websecure"
       - "traefik.http.routers.traefik-dashboard.tls.certresolver=letsencrypt"
       - "traefik.http.routers.traefik-dashboard.service=api@internal"
-      - "traefik.http.routers.traefik-dashboard.middlewares=dashboard-auth"
-      # SECURITY: No default — compose will fail if TRAEFIK_DASHBOARD_AUTH is unset,
-      # preventing an unauthenticated dashboard from being exposed.
+      - "traefik.http.routers.traefik-dashboard.middlewares=dashboard-auth,dashboard-auth-ratelimit"
       - "traefik.http.middlewares.dashboard-auth.basicauth.users=${TRAEFIK_DASHBOARD_AUTH}"
+      - "traefik.http.middlewares.dashboard-auth.basicauth.realm=Traefik Dashboard"
+      # Rate limit on dashboard auth to prevent brute-force (HIGH-003)
+      - "traefik.http.middlewares.dashboard-auth-ratelimit.ratelimit.average=5"
+      - "traefik.http.middlewares.dashboard-auth-ratelimit.ratelimit.burst=10"
+      - "traefik.http.middlewares.dashboard-auth-ratelimit.ratelimit.period=1m"
 
   # Dashboard - System monitoring and module registry
   dashboard:

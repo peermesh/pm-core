@@ -1,0 +1,145 @@
+# ==============================================================
+# Traefik Dynamic Configuration
+# ==============================================================
+# Loaded via providers.file in static config (docker-compose.yml).
+# This file defines middlewares applied to all routers.
+# ==============================================================
+
+http:
+  middlewares:
+    # ----------------------------------------------------------
+    # Default Security Headers
+    # ----------------------------------------------------------
+    # Applied automatically to ALL websecure (HTTPS) traffic via
+    # entryPoints.websecure.http.middlewares in static config.
+    #
+    # Individual services can override by chaining their own
+    # headers middleware AFTER this one.
+    # ----------------------------------------------------------
+    security-headers:
+      headers:
+        # -- HSTS --
+        stsSeconds: 31536000
+        stsIncludeSubdomains: true
+        stsPreload: true
+
+        # -- Framing --
+        frameDeny: true                        # X-Frame-Options: DENY
+        customFrameOptionsValue: "DENY"
+
+        # -- Content sniffing --
+        contentTypeNosniff: true               # X-Content-Type-Options: nosniff
+
+        # -- XSS filter (legacy but harmless) --
+        browserXssFilter: true
+
+        # -- Content-Security-Policy --
+        contentSecurityPolicy: >-
+          default-src 'self';
+          script-src 'self';
+          style-src 'self' 'unsafe-inline';
+          font-src 'self';
+          img-src 'self' data:;
+          frame-ancestors 'none';
+          base-uri 'self';
+          form-action 'self'
+
+        # -- Permissions-Policy --
+        permissionsPolicy: >-
+          camera=(),
+          microphone=(),
+          geolocation=(),
+          interest-cohort=(),
+          payment=(),
+          usb=()
+
+        # -- Referrer-Policy --
+        referrerPolicy: "strict-origin-when-cross-origin"
+
+        # -- Strip revealing headers --
+        customResponseHeaders:
+          X-Powered-By: ""
+          Server: ""
+          X-Forwarded-Server: ""
+          X-Robots-Tag: "noindex,nofollow"
+          X-Permitted-Cross-Domain-Policies: "none"
+
+    # ----------------------------------------------------------
+    # Deny-All Middleware (for catchall router)
+    # ----------------------------------------------------------
+    # Returns 403 Forbidden for any request that doesn't match
+    # a defined router. Prevents information leakage from
+    # Traefik's default backend or stray services.
+    # ----------------------------------------------------------
+    deny-all:
+      ipWhiteList:
+        sourceRange:
+          - "127.0.0.1/32"
+
+    # ----------------------------------------------------------
+    # API Security Headers
+    # ----------------------------------------------------------
+    # For API-only routes (social module, webhooks, etc.) that
+    # need a relaxed CSP because they return JSON, not HTML.
+    # Apply via label:
+    #   traefik.http.routers.myapi.middlewares=api-security-headers@file
+    # ----------------------------------------------------------
+    api-security-headers:
+      headers:
+        stsSeconds: 31536000
+        stsIncludeSubdomains: true
+        stsPreload: true
+        frameDeny: true
+        contentTypeNosniff: true
+        browserXssFilter: true
+
+        # APIs serve JSON — CSP is irrelevant but we set a safe default
+        contentSecurityPolicy: "default-src 'none'; frame-ancestors 'none'"
+
+        permissionsPolicy: >-
+          camera=(),
+          microphone=(),
+          geolocation=(),
+          interest-cohort=(),
+          payment=(),
+          usb=()
+
+        referrerPolicy: "strict-origin-when-cross-origin"
+
+        customResponseHeaders:
+          X-Powered-By: ""
+          Server: ""
+          X-Forwarded-Server: ""
+
+  # ============================================================
+  # Catchall Router — Deny unmatched requests (HIGH-001 fix)
+  # ============================================================
+  # Priority 1 (lowest) ensures this only matches when no other
+  # router does. The deny-all middleware returns 403 Forbidden
+  # with no body, preventing internal info leakage.
+  # ============================================================
+  routers:
+    catchall:
+      rule: "PathPrefix(`/`)"
+      entryPoints:
+        - websecure
+        - web
+      priority: 1
+      middlewares:
+        - deny-all
+      service: noop@file
+      tls: {}
+
+  # ============================================================
+  # Services — noop backend for catchall
+  # ============================================================
+  # The deny-all ipWhiteList middleware blocks all external
+  # requests before they reach this service, so the empty
+  # backend is never actually hit. It exists only to satisfy
+  # Traefik's requirement that every router has a service.
+  # ============================================================
+  services:
+    noop:
+      loadBalancer:
+        servers:
+          - url: "http://127.0.0.1:0"

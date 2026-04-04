@@ -96,11 +96,10 @@ Do not start onboarding, tracking, or maintenance checks unless the user explici
 **🎯 CRITICAL OUTPUT CONTROL:**
 Only output the contents of `~/.agents/TOOLS-INDEX.md` when the user explicitly requests tools ("/tools", "list tools", or "/init").
 
-**🚨 PATH REQUIREMENTS (MOST VIOLATED RULE — READ CAREFULLY):**
+**🚨 PATH REQUIREMENTS:**
 - ALWAYS USE ABSOLUTE PATHS - every path must start with `/Users/` (or equivalent)
 - EVERY message with an actionable outcome (built app, created file, fixed bug, running service) MUST end with absolute paths
 - Users should NEVER have to ask "where is that?"
-- If you present deliverables without full absolute paths, **you have failed the task**
 
 **🚨 OUTPUT FORMATTING:**
 - NO MARKDOWN TABLES IN CLI OUTPUT (unreadable in terminals)
@@ -182,8 +181,6 @@ User assigns a role with phrases like:
 | `blueprint keeper`, `check vision`, `vision alignment` | `agent-blueprint-keeper.md` | **L2 Hierarchy.** Strategic vision guardian. Cascades vision changes. |
 | `request router`, `route request`, `evaluate request` | `agent-request-router.md` | **L3 Hierarchy.** Blueprint-aware gatekeeper. Creates WOs from validated requests. |
 | `gas manager`, `gas team`, `gas teams`, `launch gas team`, `launch gas teams`, `execute work orders`, `run gas loop` | `agent-gas-manager.md` | **L4 Hierarchy.** Autonomous WO execution engine. Spawns workers, monitors completion. |
-| `paperclip worker`, `paperclip agent` | `agent-paperclip-worker.md` | Paperclip-managed heartbeat worker |
-| `mac agent`, `mac help`, `mac tech`, `mac doctor` | `agent-mac-performance-diagnostics-specialist.md` | macOS performance diagnostics specialist |
 | `trio`, `activate trio` | All three agents | Multi-agent coordination |
 | `commit agent`, `smart commit` | `SMART-COMMIT-MODE.md` | Intelligent commits |
 | `design parity audit`, `run design audit`, `design audit`, `DPA`, `journey audit`, `check design parity`, `are the specs implemented` | `DESIGN-PARITY-AUDIT-MODE.md` | Three-parity audit: Vision-to-Design, Design-to-Code, Journey-to-Experience. Parallel agents, delta tracking, remediation WOs. |
@@ -290,7 +287,6 @@ User Input -> Triage (capture) -> Dev (implement) -> QA (verify) -> Complete
 
 ### Available Overviews
 
-- **GAS Architecture (7-Pillar Overview)**: `~/.agents/docs/ARCHITECTURE.md`
 - **Ralph Wiggum (Iterative Loop)**: `~/.agents/docs/overviews/RALPH-LOOP-OVERVIEW.md`
 - **Beads (Task Graph)**: `~/.agents/docs/overviews/BEADS-OVERVIEW.md`
 - **Gastown (Multi-Agent)**: `~/.agents/docs/overviews/GASTOWN-OVERVIEW.md`
@@ -299,7 +295,6 @@ User Input -> Triage (capture) -> Dev (implement) -> QA (verify) -> Complete
 
 ### Available Guides
 
-- **GAS Installation Guide**: `~/.agents/docs/INSTALL.md`
 - **Programmatic Agent Teams**: `~/.agents/docs/guides/PROGRAMMATIC-AGENT-TEAMS.md`
 
 ## 🧩 MULTI-AGENT ENABLEMENT BY MODEL (SETTINGS REFERENCE)
@@ -1088,16 +1083,6 @@ wc -l CLAUDE.md AGENTS.md PROJECT-RULES.md .cursor/rules/default-rules.mdc
 
 **Why:** Users are not in your terminal. They cannot see your working directory. Never make them ask for paths.
 
-**🚨🚨🚨 DELIVERABLES RULE (MOST VIOLATED — READ THIS) 🚨🚨🚨**
-
-**Every time you complete work that produces files, you MUST list every file with its FULL ABSOLUTE PATH.** Not relative paths. Not "in the docs/ directory." Not "see the file we created." The FULL path starting with `/Users/`. If you present a list of deliverables without absolute paths, **you have failed the task.** This is the user's most repeated complaint. Agents systematically fail at this. Do not be one of them.
-
-**Anti-patterns (FORBIDDEN):**
-- "I created the report in `.dev/ai/reports/`" — WRONG. Full path required.
-- "The file is in the docs directory" — WRONG. Full path required.
-- "See `report.md` for details" — WRONG. Full path required.
-- Listing filenames without paths — WRONG. Full path required.
-
 ---
 
 ## 🎬 Session End Protocol (INBOX)
@@ -1312,28 +1297,6 @@ agents_dir = "~/.agents"  # DISASTER
 | `"~/.agents/"` | Python string | ❌ No | ❌ Creates ~/dir |
 
 **Remember:** If your path contains a literal `~` character after assignment, it's NOT expanded - you WILL create a `~` directory!
-
----
-
-## 🌐 GAS LLM GATEWAY (PAPERCLIP AGENTS)
-
-Paperclip-managed agents can optionally call the GAS LLM gateway for supplementary completions (routing, summarization, parallel queries) without replacing their primary Claude/Codex adapter.
-
-**Env var:** `GAS_LLM_GATEWAY_URL` — injected automatically into all Paperclip agent processes.
-**Default value:** `http://127.0.0.1:8201`
-**Health check:** `GET $GAS_LLM_GATEWAY_URL/health`
-
-**Usage from agent code:**
-```python
-import os, httpx
-gateway = os.environ.get("GAS_LLM_GATEWAY_URL")
-if gateway:
-    resp = httpx.post(f"{gateway}/v1/chat", json={"model": "claude-cli/sonnet", "messages": [...]})
-```
-
-**How it is injected (two mechanisms):**
-1. **Per-agent (adapterConfig.env):** Each agent's `adapterConfig.env` can include `GAS_LLM_GATEWAY_URL` with `{type: "plain", value: "http://127.0.0.1:8201"}`. Resolved by Paperclip secrets service at heartbeat time.
-2. **Server-level (LaunchAgent):** `ai.gas.paperclip` plist and `run-paperclip-launchd.sh` export `GAS_LLM_GATEWAY_URL` so all spawned agent processes inherit it via `process.env`. Takes effect on next Paperclip server restart.
 
 ---
 

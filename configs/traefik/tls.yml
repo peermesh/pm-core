@@ -1,0 +1,22 @@
+# ==============================================================
+# TLS Options — Hardened defaults
+# ==============================================================
+# Defines default TLS options for the file provider.
+# Resolves "unknown TLS options: default@file" for routers
+# that reference tls.options=default@file in Docker labels.
+#
+# NOTE: Traefik v2 does not support cross-provider TLS option
+# references (Docker labels referencing file provider TLS options).
+# This config applies to file-provider routers (e.g., catchall@file).
+# Docker-provider routers should use tls.options=default@docker
+# or omit the options label to use Traefik's built-in defaults.
+# ==============================================================
+tls:
+  options:
+    default:
+      minVersion: VersionTLS12
+      cipherSuites:
+        - TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+        - TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+        - TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
+        - TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256

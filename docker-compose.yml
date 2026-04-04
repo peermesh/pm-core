@@ -243,15 +243,15 @@ services:
       # Dashboard router (optional, for remote access)
       # Dashboard router (optional, for remote access)
       # SECURITY: Requires TRAEFIK_DASHBOARD_AUTH to be set with valid htpasswd credentials.
-      # When unset/empty, basicAuth has no users and Traefik rejects all requests with 500,
-      # which is safe-by-default but not intentional. Set via:
-      #   htpasswd -nb admin your_secure_password
+      # When unset/empty, the default is an unparseable bcrypt hash that prevents Traefik
+      # from panicking (index out of range on empty users list) while denying all logins.
+      # Set a real value via: htpasswd -nb admin your_secure_password
       - "traefik.http.routers.traefik-dashboard.rule=Host(`traefik.${DOMAIN}`)"
       - "traefik.http.routers.traefik-dashboard.entrypoints=websecure"
       - "traefik.http.routers.traefik-dashboard.tls.certresolver=letsencrypt"
       - "traefik.http.routers.traefik-dashboard.service=api@internal"
       - "traefik.http.routers.traefik-dashboard.middlewares=dashboard-auth,dashboard-auth-ratelimit"
-      - "traefik.http.middlewares.dashboard-auth.basicauth.users=${TRAEFIK_DASHBOARD_AUTH}"
+      - "traefik.http.middlewares.dashboard-auth.basicauth.users=${TRAEFIK_DASHBOARD_AUTH:-__disabled__:$$2y$$10$$xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx}"
       - "traefik.http.middlewares.dashboard-auth.basicauth.realm=Traefik Dashboard"
       # Rate limit on dashboard auth to prevent brute-force (HIGH-003)
       - "traefik.http.middlewares.dashboard-auth-ratelimit.ratelimit.average=5"

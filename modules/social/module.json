@@ -83,7 +83,7 @@
     },
     "contract": {
       "network": {
-        "access": "proxy-external"
+        "access": "unrestricted"
       },
       "filesystemAccess": {
         "accessLevel": "own-directory-only"

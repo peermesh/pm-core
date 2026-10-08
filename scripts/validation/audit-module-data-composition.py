@@ -91,7 +91,7 @@ def check_provides(module_id: str, provides: dict[str, Any]) -> list[str]:
         schema_name = str(conn.get("schemaName", ""))
         if not SCHEMA_NAME_RE.match(schema_name):
             warnings.append(
-                f"{module_id}: WARN provides.connections[{idx}] schemaName='{schema_name}' not {module}_{domain} pattern"
+                f"{module_id}: WARN provides.connections[{idx}] schemaName='{schema_name}' not {{module}}_{{domain}} pattern"
             )
 
         contract_version = str(conn.get("contractVersion", ""))

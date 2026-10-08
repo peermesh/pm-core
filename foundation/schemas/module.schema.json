@@ -383,7 +383,41 @@
         "provider": {
           "type": "string",
           "description": "Provider identifier (e.g., 'postgres', 'redis', 'minio')"
+        },
+        "surface": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Shared data surface this provider exposes"
+        },
+        "contractVersion": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$",
+          "description": "Shared data surface contract version"
+        },
+        "schemaName": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+_[a-z0-9_]+$",
+          "description": "Provider-owned schema using the module_domain naming pattern"
+        },
+        "stability": {
+          "type": "string",
+          "enum": ["experimental", "stable", "deprecated"],
+          "description": "Shared data surface stability"
+        },
+        "accessPolicy": {
+          "type": "string",
+          "enum": ["read_only_shared", "private"],
+          "description": "Shared data surface access policy"
         }
+      },
+      "if": {
+        "properties": {
+          "type": { "const": "custom" }
+        },
+        "required": ["type"]
+      },
+      "then": {
+        "required": ["surface", "contractVersion", "schemaName", "stability", "accessPolicy"]
       },
       "additionalProperties": false
     },

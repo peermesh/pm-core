@@ -80,7 +80,7 @@ Extracted from `docker-compose*.yml` / `docker-compose*.yaml` under this tree (s
 ### `louislam/uptime-kuma@sha256:3d632903e6af34139a37f18055c4f1bfd9b7205ae1138f1e5e8940ddc1d176f9`
 - `profiles/observability-lite/docker-compose.observability-lite.yml`
 
-### `matrixdotorg/synapse@sha256:339b18c57de915e0746d0ae1d4e425e914e4ee034763a37bd5c4e63723582c8c`
+### `matrixdotorg/synapse@sha256:c3c21919a322f74d177a43bce8031adc81ef839ddd117a8dd03cfec350e76e02`
 - `examples/matrix/docker-compose.matrix.yml`
 
 ### `minio/minio@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e`
@@ -138,7 +138,7 @@ Extracted from `docker-compose*.yml` / `docker-compose*.yaml` under this tree (s
 ### `prom/prometheus:v2.51.2`
 - `profiles/observability-full/docker-compose.observability-full.yml`
 
-### `redis@sha256:8b81dd37ff027bec4e516d41acfbe9fe2460070dc6d4a4570a2ac5b9d59df065`
+### `redis@sha256:57e4255cc971b1c8d6f8a6ca283ac01bc3ecdd914273ef6bfaede87aaecd6541`
 - `docker-compose.yml`
 - `examples/peertube/docker-compose.peertube.yml`
 - `profiles/redis/docker-compose.redis.yml`
@@ -159,10 +159,10 @@ Extracted from `docker-compose*.yml` / `docker-compose*.yaml` under this tree (s
 ### `traefik/whoami@sha256:1699d99cb4b9acc17f74ca670b3d8d0b7ba27c948b3445f0593b58ebece92f04`
 - `modules/federation-adapter/docker-compose.yml`
 
-### `traefik@sha256:a6e718e8f84d4e45282a53a8e7338ab74372abac3ff78f9261a015bc8b45be95`
+### `traefik@sha256:9d21c49aab4a76eada128ab057dc2976a4e797aae4d3f5d33a23847adc9f99cf`
 - `docker-compose.yml`
 
-### `vectorim/element-web@sha256:3f031bba174a062d21dcb506662031ce717586c05c03d018063c19470941ac70`
+### `vectorim/element-web@sha256:f8700633d4336258af7a05b53865a4f479e0d628cf2d9ca83d28b5939314d4ce`
 - `examples/matrix/docker-compose.matrix.yml`
 
 ### `wordpress@sha256:ee74dc0ebbe7ec43b7f473c0fb4f1dfb6b211d7785f0a95bcdfa10e628c2e67f`

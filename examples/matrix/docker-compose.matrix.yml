@@ -90,7 +90,7 @@ services:
   # - PostgreSQL for data storage
   # =============================================================
   synapse:
-    image: matrixdotorg/synapse@sha256:339b18c57de915e0746d0ae1d4e425e914e4ee034763a37bd5c4e63723582c8c
+    image: matrixdotorg/synapse@sha256:c3c21919a322f74d177a43bce8031adc81ef839ddd117a8dd03cfec350e76e02
     container_name: pmdl_synapse
 
     # ---------------------------------------------------------
@@ -226,7 +226,7 @@ services:
   # - Full Matrix feature support
   # =============================================================
   element-web:
-    image: vectorim/element-web@sha256:3f031bba174a062d21dcb506662031ce717586c05c03d018063c19470941ac70
+    image: vectorim/element-web@sha256:f8700633d4336258af7a05b53865a4f479e0d628cf2d9ca83d28b5939314d4ce
     container_name: pmdl_element
 
     # ---------------------------------------------------------

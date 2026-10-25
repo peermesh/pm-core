@@ -23,7 +23,7 @@ services:
   # ==============================================================
   # Use this for: Session storage, job queues, data that should survive restarts
   redis:
-    image: redis@sha256:8b81dd37ff027bec4e516d41acfbe9fe2460070dc6d4a4570a2ac5b9d59df065
+    image: redis@sha256:57e4255cc971b1c8d6f8a6ca283ac01bc3ecdd914273ef6bfaede87aaecd6541
     container_name: pmdl_redis
 
     # Use init script for secrets-aware startup
@@ -85,7 +85,7 @@ services:
   # Use this for: Pure caching where data loss on restart is acceptable
   # Activate with: docker compose --profile ephemeral-cache up redis-ephemeral
   redis-ephemeral:
-    image: redis@sha256:8b81dd37ff027bec4e516d41acfbe9fe2460070dc6d4a4570a2ac5b9d59df065
+    image: redis@sha256:57e4255cc971b1c8d6f8a6ca283ac01bc3ecdd914273ef6bfaede87aaecd6541
     container_name: pmdl_redis_ephemeral
 
     # Direct command without authentication (internal-only use)

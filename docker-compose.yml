@@ -150,7 +150,7 @@ services:
   # Error: "client version 1.24 is too old. Minimum supported API version is 1.44"
   # See: docs/decisions/0001-traefik-reverse-proxy.md
   traefik:
-    image: traefik@sha256:a6e718e8f84d4e45282a53a8e7338ab74372abac3ff78f9261a015bc8b45be95
+    image: traefik@sha256:9d21c49aab4a76eada128ab057dc2976a4e797aae4d3f5d33a23847adc9f99cf
     container_name: pmdl_traefik
     <<: *secured-service
     # Non-root disabled: Traefik v2.11 ACME certificate storage requires root.
@@ -486,7 +486,7 @@ services:
 
   # Redis 7
   redis:
-    image: redis@sha256:8b81dd37ff027bec4e516d41acfbe9fe2460070dc6d4a4570a2ac5b9d59df065
+    image: redis@sha256:57e4255cc971b1c8d6f8a6ca283ac01bc3ecdd914273ef6bfaede87aaecd6541
     container_name: pmdl_redis
     profiles:
       - redis

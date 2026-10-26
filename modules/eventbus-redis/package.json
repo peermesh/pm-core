@@ -1,0 +1,10 @@
+{
+  "name": "@peermesh/eventbus-redis",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {".": {"types": "./lib/eventbus-redis.d.ts", "import": "./lib/eventbus-redis.mjs"}},
+  "files": ["lib", "README.md"],
+  "engines": {"node": ">=22"},
+  "dependencies": {"redis": "4.7.0"}
+}

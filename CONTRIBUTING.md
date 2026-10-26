@@ -30,8 +30,24 @@ just validate ghost production
 ```
 3. Validate compose output:
 ```bash
+make compose-equivalence
 docker compose -f docker-compose.yml config -q
 ```
+
+The equivalence gate compares the PostgreSQL, MySQL, MongoDB, Redis and MinIO
+standalone services with `docker-compose.yml`, including their service dependency
+closure and referenced networks, volumes, secrets and configs. It uses a synthetic
+environment and only runs Compose config parsing. It reports field paths without
+values and fails on divergence or a render error. It also checks interpolation
+requirements so a fixture default cannot hide a changed required variable.
+
+Standalone fragment paths resolve from the fragment directory. Root-relative
+binds and secret/config paths must be rebased there (for example, a root path
+`./profiles/postgresql/init-scripts` becomes `./init-scripts`, and root
+`./secrets/NAME` becomes `../../secrets/NAME`). Paths are compared after Compose
+resolution; security, runtime and credential requirements are not ignored.
+Optional services outside the five selected services and their dependency closure
+remain outside this gate. A failing baseline must be reconciled, not allowlisted.
 4. Run supply-chain validation (if Docker images changed):
 ```bash
 ./scripts/security/validate-supply-chain.sh

@@ -40,6 +40,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Set synthetic dashboard auth for CI
+        run: |
+          set -euo pipefail
+          fixture_hash="$(openssl rand -hex 24 | openssl passwd -apr1 -stdin)"
+          printf 'TRAEFIK_DASHBOARD_AUTH=ci:%s\n' "$fixture_hash" >> "$GITHUB_ENV"
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 

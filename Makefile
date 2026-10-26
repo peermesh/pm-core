@@ -1,4 +1,4 @@
-.PHONY: lint validate security-scan integration ci dashboard-dev dashboard-build dashboard-test smoke-local
+.PHONY: lint validate security-scan integration ci dashboard-dev dashboard-build dashboard-test smoke-local compose-equivalence
 
 # Dashboard directory
 DASHBOARD_DIR := services/dashboard
@@ -7,10 +7,14 @@ lint:
 	yamllint -c .yamllint.yml .
 	find . -name "*.sh" -exec shellcheck {} +
 
-validate:
+validate: compose-equivalence
 	docker compose --profile lite config --quiet
 	docker compose --profile core config --quiet
 	docker compose --profile full config --quiet
+
+# Offline config parsing only: no containers, deployment env or secret reads.
+compose-equivalence:
+	python3 scripts/validation/validate-compose-equivalence.py
 
 security-scan:
 	trivy config .

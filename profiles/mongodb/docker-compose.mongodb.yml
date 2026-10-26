@@ -1,140 +1,111 @@
-# ==============================================================
-# MongoDB 7.0 - Docker Compose Service Definition
-# ==============================================================
-# Profile Version: 1.0
-# Documentation: profiles/mongodb/PROFILE-SPEC.md
-#
-# Usage:
-#   - Copy this file to your project or include via extends
-#   - Ensure secrets are generated before first run
-#   - Adjust wiredTigerCacheSizeGB based on container memory limit
-#
-# Memory Sizing:
-#   Container Limit | wiredTigerCacheSizeGB
-#   512 MB          | 0.25
-#   1 GB            | 0.5
-#   2 GB            | 1.0
-#   4 GB            | 2.0
-# ==============================================================
-
-services:
-  mongodb:
-    image: mongo@sha256:f2b40853c0f796b105e672e04045d2b3e127bd54782dfe7e9b08aebbd9f602ce
-    container_name: pmdl-mongodb
-    restart: unless-stopped
-
-    # ==========================================================
-    # Secrets Configuration
-    # ==========================================================
-    # All passwords via file-based secrets (per D3.1)
-    secrets:
-      - mongodb_root_password
-      - librechat_mongo_password
-
-    # ==========================================================
-    # Environment Variables
-    # ==========================================================
-    # Uses _FILE suffix for password (native Docker image support)
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: mongo
-      MONGO_INITDB_ROOT_PASSWORD_FILE: /run/secrets/mongodb_root_password
-
-    # ==========================================================
-    # Command: Performance Tuning
-    # ==========================================================
-    # CRITICAL: Always set wiredTigerCacheSizeGB explicitly
-    # Default formula (RAM-1GB)/2 is dangerous in containers
-    command:
-      - "mongod"
-      - "--auth"                       # Enforce authentication
-      - "--wiredTigerCacheSizeGB=0.5"  # 50% of 1GB container limit
-      - "--quiet"                      # Reduce logging noise
-
-    # ==========================================================
-    # Volumes
-    # ==========================================================
-    volumes:
-      # Data persistence (named volume per D9)
-      - pmdl_mongodb_data:/data/db
-      # Init scripts (run only on empty data volume)
-      - ./profiles/mongodb/init-scripts:/docker-entrypoint-initdb.d:ro
-      # Healthcheck script (secrets-aware)
-      - ./profiles/mongodb/healthcheck-scripts/healthcheck.sh:/healthcheck.sh:ro
-
-    # ==========================================================
-    # Health Check (per D4.1)
-    # ==========================================================
-    # Simple mongosh ping - works for most cases
-    # For authenticated healthcheck, mount and use /healthcheck.sh
-    healthcheck:
-      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 60s
-
-    # ==========================================================
-    # Network Isolation (per D3.3)
-    # ==========================================================
-    # Database internal network only - not exposed to frontend
-    networks:
-      - db-internal
-
-    # ==========================================================
-    # Resource Constraints (per D4.2)
-    # ==========================================================
-    deploy:
-      resources:
-        limits:
-          memory: 1G
-        reservations:
-          memory: 512M
-
-    # ==========================================================
-    # Performance Optimization
-    # ==========================================================
-    # Disable swap - WiredTiger cache should stay in RAM
-    mem_swappiness: 0
-
-    # ==========================================================
-    # Logging Configuration
-    # ==========================================================
-    # Prevent unbounded log growth on commodity VPS
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-
-# ==============================================================
-# Secrets Definitions
-# ==============================================================
-# Generate with: scripts/generate-secrets.sh
-secrets:
-  mongodb_root_password:
-    file: ./secrets/mongodb_root_password
-  librechat_mongo_password:
-    file: ./secrets/librechat_mongo_password
-
-# ==============================================================
-# Volume Definitions (per D9)
-# ==============================================================
-volumes:
-  pmdl_mongodb_data:
-    driver: local
-    # For attached block storage, uncomment:
-    # driver_opts:
-    #   type: none
-    #   device: /mnt/block-storage/mongodb
-    #   o: bind
-
-# ==============================================================
-# Network Definitions
-# ==============================================================
-networks:
-  db-internal:
-    # Reference external network if defined elsewhere
-    external: true
-    # Or define inline:
-    # internal: true
-    # name: db-internal
+# Root-canonical service definition; generated with retained optional consumers.
+# Relative paths are based at this standalone fragment directory.
+{
+  "services": {
+    "mongodb": {
+      "cap_add": [
+        "CHOWN",
+        "DAC_OVERRIDE",
+        "FOWNER",
+        "SETGID",
+        "SETUID"
+      ],
+      "cap_drop": [
+        "ALL"
+      ],
+      "command": [
+        "--wiredTigerCacheSizeGB",
+        "${MONGODB_CACHE_SIZE_GB:-0.25}"
+      ],
+      "container_name": "pmdl_mongodb",
+      "deploy": {
+        "resources": {
+          "limits": {
+            "memory": "${MONGODB_MEMORY_LIMIT:-1G}"
+          },
+          "reservations": {
+            "memory": "${MONGODB_MEMORY_RESERVATION:-512M}"
+          }
+        }
+      },
+      "environment": {
+        "MONGO_INITDB_ROOT_PASSWORD_FILE": "/run/secrets/mongodb_root_password",
+        "MONGO_INITDB_ROOT_USERNAME": "root"
+      },
+      "healthcheck": {
+        "interval": "30s",
+        "retries": 5,
+        "start_period": "120s",
+        "test": [
+          "CMD",
+          "mongosh",
+          "--eval",
+          "db.adminCommand('ping')"
+        ],
+        "timeout": "10s"
+      },
+      "image": "mongo@sha256:03cda579c8caad6573cb98c2b3d5ff5ead452a6450561129b89595b4b9c18de2",
+      "logging": {
+        "driver": "json-file",
+        "options": {
+          "max-file": "3",
+          "max-size": "10m"
+        }
+      },
+      "networks": {
+        "db-internal": null
+      },
+      "profiles": [
+        "mongodb"
+      ],
+      "read_only": true,
+      "restart": "unless-stopped",
+      "secrets": [
+        {
+          "source": "mongodb_root_password",
+          "target": "/run/secrets/mongodb_root_password"
+        }
+      ],
+      "security_opt": [
+        "no-new-privileges:true"
+      ],
+      "tmpfs": [
+        "/tmp:size=64m"
+      ],
+      "volumes": [
+        {
+          "source": "pmdl_mongodb_data",
+          "target": "/data/db",
+          "type": "volume",
+          "volume": {}
+        },
+        {
+          "bind": {
+            "create_host_path": true
+          },
+          "read_only": true,
+          "source": "init-scripts",
+          "target": "/docker-entrypoint-initdb.d",
+          "type": "bind"
+        }
+      ]
+    }
+  },
+  "networks": {
+    "db-internal": {
+      "internal": true,
+      "name": "pmdl_db-internal"
+    }
+  },
+  "volumes": {
+    "pmdl_mongodb_data": {
+      "driver": "local"
+    }
+  },
+  "secrets": {
+    "mongodb_root_password": {
+      "file": "../../secrets/mongodb_root_password"
+    }
+  },
+  "configs": {}
+}

@@ -9,6 +9,10 @@ on:
       - '.env.example'
       - 'profiles/**'
       - 'config/**'
+      - 'configs/**'
+      - 'Makefile'
+      - 'scripts/validation/validate-compose-equivalence.py'
+      - '.github/workflows/integration.yml'
   workflow_dispatch:
 
 permissions:
@@ -19,6 +23,14 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  compose-equivalence:
+    name: Canonical database Compose equivalence
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fail on database fragment divergence
+        run: make compose-equivalence
+
   healthcheck:
     name: Container Health (${{ matrix.profile }}, ${{ matrix.arch }})
     runs-on: ${{ matrix.runner }}
@@ -40,6 +52,12 @@ jobs:
             emulate: true
     steps:
       - uses: actions/checkout@v4
+
+      - name: Set synthetic dashboard auth for CI
+        run: |
+          set -euo pipefail
+          fixture_hash="$(openssl rand -hex 24 | openssl passwd -apr1 -stdin)"
+          printf 'TRAEFIK_DASHBOARD_AUTH=ci:%s\n' "$fixture_hash" >> "$GITHUB_ENV"
 
       - name: Set up QEMU (ARM64 emulation)
         if: matrix.emulate == true
@@ -98,6 +116,12 @@ jobs:
         arch: [amd64, arm64]
     steps:
       - uses: actions/checkout@v4
+
+      - name: Set synthetic dashboard auth for CI
+        run: |
+          set -euo pipefail
+          fixture_hash="$(openssl rand -hex 24 | openssl passwd -apr1 -stdin)"
+          printf 'TRAEFIK_DASHBOARD_AUTH=ci:%s\n' "$fixture_hash" >> "$GITHUB_ENV"
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3

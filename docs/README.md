@@ -13,6 +13,15 @@ Use this file when asked to make changes that must become part of Core, or when 
 - Agents asked to upstream shared runtime behavior into Core.
 - Operators who need a deterministic "what belongs where" contract.
 
+## Offline deployment evidence
+
+- [Deployment snapshot comparison](./DEPLOYMENT-SNAPSHOT-COMPARISON.md): compare
+  explicit router, middleware and dynamic-file snapshots without host access.
+- [Docker provider projection](./DOCKER-PROVIDER-PROJECTION.md): compare resolved
+  Docker labels with independently supplied rawdata.
+- [Docker provider capture](./DOCKER-PROVIDER-CAPTURE.md): one-shot capture of an
+  explicitly owned synthetic Docker fixture.
+
 ## Read this first (in order)
 
 1. `docs/README.md` (root docs boundary and map)

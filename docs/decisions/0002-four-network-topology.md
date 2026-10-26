@@ -1,3 +1,14 @@
+---
+gas_schema: gas.doc.v1
+type: decision
+title: Four-Network Topology
+status: accepted
+created: 2026-10-24T15:20:58Z
+updated: 2026-10-24T15:20:58Z
+project: peermesh-core
+project_root: .
+---
+
 # ADR-0002: Four-Network Topology
 
 ## Metadata
@@ -183,3 +194,26 @@ docker exec app ping -c1 postgres
 |------|--------|--------|
 | 2026-01-02 | Initial draft | AI-assisted |
 | 2026-01-02 | Status changed to accepted | AI-assisted |
+
+## 2026-10-24 C11 addendum: dashboard control network
+
+The four-network decision above remains the historical baseline. The canonical
+Compose candidate adds a fifth network, `socket-proxy-dashboard`, specifically
+to isolate the dashboard's volume-reading Docker API endpoint from Traefik.
+This is an explicit extension of the original topology, not a claim that the
+earlier four-network diagram already described dashboard access.
+
+The internal `socket-proxy` network contains only Traefik and its narrow proxy.
+The internal `socket-proxy-dashboard` network contains only dashboard and its
+own proxy. Each proxy joins exactly one control network, has no published port
+and has no membership in `proxy-external`, `app-internal` or `db-internal`.
+Dashboard and Traefik retain their normal `proxy-external` memberships for HTTP
+routing; they share no Docker API network or proxy endpoint. The existing
+database/application network assignments remain unchanged.
+
+[ADR-0004](./0004-docker-socket-proxy.md#2026-10-24-c11-addendum-separate-consumer-permissions)
+defines the per-consumer permissions, remaining container-metadata exposure and
+deployment/rollback boundary. Verification must show an allowed request from
+each control network and refusal to connect to the other proxy's actual IP,
+not merely failure to resolve its DNS name. The candidate and synthetic fixture
+proof do not establish production deployment or full runtime acceptance.

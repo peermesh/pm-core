@@ -108,11 +108,13 @@ services:
       NETWORKS: 1
       INFO: 1
       VERSION: 1
+      EVENTS: 1
+      PING: 1
       # Everything else disabled
       SERVICES: 0
       TASKS: 0
       SWARM: 0
-      VOLUMES: 1
+      VOLUMES: 0
       POST: 0
       BUILD: 0
       COMMIT: 0
@@ -120,16 +122,71 @@ services:
       DISTRIBUTION: 0
       EXEC: 0
       GRPC: 0
-      IMAGES: 1
+      IMAGES: 0
       NODES: 0
       PLUGINS: 0
       SECRETS: 0
       SESSION: 0
-      SYSTEM: 1
+      SYSTEM: 0
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     networks:
       - socket-proxy
+    logging: *default-logging
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z localhost 2375 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 32M
+        reservations:
+          memory: 16M
+
+  # Dashboard Docker API access is isolated from Traefik (ADR-0004 C11).
+  socket-proxy-dashboard:
+    image: tecnativa/docker-socket-proxy@sha256:1f3a6f303320723d199d2316a3e82b2e2685d86c275d5e3deeaf182573b47476
+    container_name: pmdl_socket-proxy-dashboard
+    restart: unless-stopped
+    # Exception: Must run as root to access Docker socket.
+    user: "0:0"
+    # Preserve writable image templates required by the proxy entrypoint.
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    environment:
+      CONTAINERS: 1
+      NETWORKS: 1
+      INFO: 1
+      VERSION: 1
+      EVENTS: 1
+      PING: 1
+      # Dashboard volume listing needs this read; Traefik does not.
+      VOLUMES: 1
+      SERVICES: 0
+      TASKS: 0
+      SWARM: 0
+      POST: 0
+      BUILD: 0
+      COMMIT: 0
+      CONFIGS: 0
+      DISTRIBUTION: 0
+      EXEC: 0
+      GRPC: 0
+      IMAGES: 0
+      NODES: 0
+      PLUGINS: 0
+      SECRETS: 0
+      SESSION: 0
+      SYSTEM: 0
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - socket-proxy-dashboard
     logging: *default-logging
     healthcheck:
       test: ["CMD-SHELL", "nc -z localhost 2375 || exit 1"]
@@ -254,10 +311,9 @@ services:
       - "traefik.enable=true"
       # Dashboard router (optional, for remote access)
       # Dashboard router (optional, for remote access)
-      # SECURITY: Requires TRAEFIK_DASHBOARD_AUTH to be set with valid htpasswd credentials.
-      # When unset/empty, the default is an unparseable bcrypt hash that prevents Traefik
-      # from panicking (index out of range on empty users list) while denying all logins.
-      # Set a real value via: htpasswd -nb admin your_secure_password
+      # SECURITY: Compose refuses an unset or empty dashboard-auth input.
+      # Supply an explicit operator BasicAuth value; CI uses a synthetic fixture.
+      # Runtime credential validity remains an operator responsibility.
       - "traefik.http.routers.traefik-dashboard.rule=Host(`traefik.${DOMAIN}`)"
       - "traefik.http.routers.traefik-dashboard.entrypoints=websecure"
       - "traefik.http.routers.traefik-dashboard.tls.certresolver=letsencrypt"
@@ -269,7 +325,7 @@ services:
       - "traefik.http.routers.catchall-https.priority=1"
       - "traefik.http.routers.catchall-https.service=api@internal"
       - "traefik.http.routers.catchall-https.middlewares=deny-all@file"
-      - "traefik.http.middlewares.dashboard-auth.basicauth.users=${TRAEFIK_DASHBOARD_AUTH:-__disabled__:$$2y$$10$$xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx}"
+      - "traefik.http.middlewares.dashboard-auth.basicauth.users=${TRAEFIK_DASHBOARD_AUTH:?Set TRAEFIK_DASHBOARD_AUTH to a nonempty operator BasicAuth value}"
       - "traefik.http.middlewares.dashboard-auth.basicauth.realm=Traefik Dashboard"
       # Rate limit on dashboard auth to prevent brute-force (HIGH-003)
       - "traefik.http.middlewares.dashboard-auth-ratelimit.ratelimit.average=5"
@@ -287,18 +343,18 @@ services:
     user: "1000:1000"
     environment:
       - PORT=8080
-      - DOCKER_HOST=tcp://socket-proxy:2375
+      - DOCKER_HOST=tcp://socket-proxy-dashboard:2375
       # Core Dashboard auth (see docs/GLOSSARY.md for naming)
       - DOCKERLAB_USERNAME=${DOCKERLAB_USERNAME:-${DASHBOARD_USERNAME:-admin}}
       - DOCKERLAB_PASSWORD=${DOCKERLAB_PASSWORD:-${DASHBOARD_PASSWORD:-}}
       - DOCKERLAB_DEMO_MODE=${DOCKERLAB_DEMO_MODE:-${DEMO_MODE:-false}}
     depends_on:
-      socket-proxy:
+      socket-proxy-dashboard:
         condition: service_started
       traefik:
         condition: service_healthy
     networks:
-      - socket-proxy
+      - socket-proxy-dashboard
       - proxy-external
     logging: *default-logging
     healthcheck:
@@ -626,6 +682,11 @@ networks:
   socket-proxy:
     internal: true
     name: pmdl_socket-proxy
+
+  # Separate Docker API control network for dashboard volume reads (ADR-0002 C11).
+  socket-proxy-dashboard:
+    internal: true
+    name: pmdl_socket-proxy-dashboard
 
   # Database network - only databases and apps that need DB access
   # Not accessible from internet or proxy

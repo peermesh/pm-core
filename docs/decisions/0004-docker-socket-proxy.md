@@ -1,3 +1,14 @@
+---
+gas_schema: gas.doc.v1
+type: decision
+title: Docker Socket Proxy
+status: accepted
+created: 2026-10-24T15:20:58Z
+updated: 2026-10-24T15:20:58Z
+project: peermesh-core
+project_root: .
+---
+
 # ADR-0004: Docker Socket Proxy
 
 ## Metadata
@@ -206,3 +217,46 @@ The `socket-proxy` network is marked `internal: true`, meaning:
 |------|--------|--------|
 | 2026-01-02 | Initial draft | AI-assisted |
 | 2026-01-02 | Status changed to accepted | AI-assisted |
+
+## 2026-10-24 C11 addendum: separate consumer permissions
+
+The earlier sections record the original decision. The canonical Compose
+candidate extends it with two distinct Docker API networks and endpoints:
+
+- Traefik uses `socket-proxy:2375` on the internal `socket-proxy` network.
+- Dashboard uses `socket-proxy-dashboard:2375` on the internal
+  `socket-proxy-dashboard` network, with no membership in `socket-proxy`.
+- Both proxies retain the same pinned image, root socket-access exception,
+  dropped capabilities, no-new-privileges, healthcheck and resource limits.
+  Neither proxy publishes a port or joins an application, database or external
+  routing network. Neither consumer mounts the Docker socket.
+
+Both proxies permit container, network, info, version, event and ping reads.
+Only the dashboard proxy permits volume reads, which its volume-list handler
+uses. `IMAGES` and `SYSTEM` remain disabled on both: current dashboard callers
+use container inspection/statistics, `/volumes`, `/version`, `/info` and
+`/_ping`, not image listing or `/system/df`. `POST`, `EXEC`, `SECRETS` and other
+unneeded categories remain disabled. The pinned proxy's default `AUTH` and
+container start/stop/restart exceptions remain disabled as well.
+
+The separate networks prevent a consumer on the narrower Docker API network
+from reaching the volume-enabled endpoint. Traefik and dashboard still share
+the external routing network for normal HTTP routing; neither Docker API proxy
+is attached to that network. This is an API-category boundary, not per-container
+authorization: permitted container inspection can reveal metadata and environment
+values for containers visible to the daemon. Volume listing also exposes host
+storage metadata. These residual read capabilities require trusted consumers.
+
+The bounded verification uses the actual pinned proxy image against a synthetic
+Unix socket that accepts all fixture requests. Compose-derived permissions,
+denial without upstream access, allowed response bodies and cross-network IP
+isolation must be proven. This does not establish real daemon discovery,
+dashboard-session behavior or deployed Traefik compatibility.
+
+Deployment is a separate step: capture the existing configuration, admit an
+exclusive deployment window, add the dashboard proxy/network, update the
+dashboard endpoint/membership and narrow Traefik's proxy. Verify actual discovery
+and dashboard reads before accepting the change. Rollback restores the previous
+Compose configuration and consumer memberships, then removes only the newly
+introduced proxy/network after disconnecting its owned consumers. Rollback
+restores the former wider shared read surface. No deployment is asserted here.

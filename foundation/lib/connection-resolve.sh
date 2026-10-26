@@ -261,22 +261,25 @@ resolve_connections() {
         local req_type req_providers req_required req_name
         req_type=$(echo "$req" | jq -r '.type')
         req_providers=$(echo "$req" | jq -r '.providers | join(" ")')
-        req_required=$(echo "$req" | jq -r '.required // true')
+        req_required=$(echo "$req" | jq -r 'if .required == null then true else .required end')
         req_name=$(echo "$req" | jq -r '.name // .type')
 
         local found=false
         local matched_provider=""
         local matched_module=""
 
-        # Try to find a matching provider from module manifests
-        while IFS=: read -r provider provider_type module; do
-            if [[ -n "$provider" && "$provider_type" == "$req_type" ]] && provider_satisfies "$provider" "$req_providers"; then
-                found=true
-                matched_provider="$provider"
-                matched_module="$module"
-                break
-            fi
-        done <<< "$available_providers"
+        # Honor provider preference, then existing module order within each provider.
+        local preferred_provider
+        for preferred_provider in $req_providers; do
+            while IFS=: read -r provider provider_type module; do
+                if [[ -n "$provider" && "$provider_type" == "$req_type" ]] && provider_satisfies "$provider" "$preferred_provider"; then
+                    found=true
+                    matched_provider="$provider"
+                    matched_module="$module"
+                    break 2
+                fi
+            done <<< "$available_providers"
+        done
 
         # Fallback: check if any provider is running as a Docker container (handles profiles)
         # Profiles (postgres, redis, mongodb, minio, etc.) run as containers with pmdl_ prefix

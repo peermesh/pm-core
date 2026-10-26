@@ -262,7 +262,7 @@ resolve_connections() {
         req_type=$(echo "$req" | jq -r '.type')
         req_providers=$(echo "$req" | jq -r '.providers | join(" ")')
         req_required=$(echo "$req" | jq -r 'if .required == null then true else .required end')
-        req_name=$(echo "$req" | jq -r '.name // .type')
+        req_name=$(echo "$req" | jq -r '.name // .alias // .type')
 
         local found=false
         local matched_provider=""

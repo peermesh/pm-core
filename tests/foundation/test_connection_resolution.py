@@ -14,17 +14,19 @@ ROOT = Path(__file__).resolve().parents[2]
 RESOLVER = ROOT / 'foundation/lib/connection-resolve.sh'
 UNRESOLVED = {'requirement': {'name': 'eventbus', 'type': 'eventbus', 'providers': ['redis']},
               'reason': 'No matching provider installed'}
+UNRESOLVED_ALIAS = {'requirement': {'name': 'ignored-synthetic-alias', 'type': 'eventbus', 'providers': ['redis']},
+                    'reason': 'No matching provider installed'}
 OPTIONAL = {'type': 'eventbus', 'providers': ['redis'], 'required': False, 'alias': 'ignored-synthetic-alias'}
 REQUIRED = {'type': 'database', 'providers': ['postgres'], 'required': True, 'name': 'primary-db'}
 UNRESOLVED_DB = {'requirement': {'name': 'primary-db', 'type': 'database', 'providers': ['postgres']},
                  'reason': 'No matching provider installed'}
-WARNING = "Optional connection 'eventbus' not available"
+WARNING = "Optional connection 'ignored-synthetic-alias' not available"
 MATRIX = {
     'optional': {'requirements': [OPTIONAL], 'exit': 0,
-        'json': {'success': True, 'resolved': [], 'unresolved': [UNRESOLVED], 'warnings': [WARNING]},
+        'json': {'success': True, 'resolved': [], 'unresolved': [UNRESOLVED_ALIAS], 'warnings': [WARNING]},
         'docker_providers': ['redis']},
     'required': {'requirements': [dict(OPTIONAL, required=True)], 'exit': 1,
-        'json': {'success': False, 'resolved': [], 'unresolved': [UNRESOLVED], 'warnings': []},
+        'json': {'success': False, 'resolved': [], 'unresolved': [UNRESOLVED_ALIAS], 'warnings': []},
         'docker_providers': ['redis']},
     'omitted': {'requirements': [{'type': 'eventbus', 'providers': ['redis']}], 'exit': 1,
         'json': {'success': False, 'resolved': [], 'unresolved': [UNRESOLVED], 'warnings': []},
@@ -36,12 +38,51 @@ MATRIX = {
                  'providerName': 'redis', 'type': 'eventbus', 'config': {}}], 'unresolved': [], 'warnings': []},
         'docker_providers': []},
     'optional_then_required': {'requirements': [OPTIONAL, REQUIRED], 'exit': 1,
-        'json': {'success': False, 'resolved': [], 'unresolved': [UNRESOLVED, UNRESOLVED_DB], 'warnings': [WARNING]},
+        'json': {'success': False, 'resolved': [], 'unresolved': [UNRESOLVED_ALIAS, UNRESOLVED_DB], 'warnings': [WARNING]},
         'docker_providers': ['redis', 'postgres']},
     'required_then_optional': {'requirements': [REQUIRED, OPTIONAL], 'exit': 1,
-        'json': {'success': False, 'resolved': [], 'unresolved': [UNRESOLVED_DB, UNRESOLVED], 'warnings': [WARNING]},
+        'json': {'success': False, 'resolved': [], 'unresolved': [UNRESOLVED_DB, UNRESOLVED_ALIAS], 'warnings': [WARNING]},
         'docker_providers': ['postgres', 'redis']},
 }
+# Module aliases are defined by the module schema and manifest contract.
+MATRIX.update({'alias_only': {'requirements': [{'type': 'eventbus',
+                                  'providers': ['noop'],
+                                  'required': True,
+                                  'alias': 'module-events'}],
+                'exit': 0,
+                'docker_providers': [],
+                'json': {'success': True,
+                         'resolved': [{'requirementName': 'module-events',
+                                       'providerModule': 'foundation',
+                                       'providerName': 'noop',
+                                       'type': 'eventbus',
+                                       'config': {}}],
+                         'unresolved': [],
+                         'warnings': []}},
+ 'distinct_aliases': {'requirements': [{'type': 'eventbus',
+                                        'providers': ['noop'],
+                                        'required': True,
+                                        'alias': 'first-events'},
+                                       {'type': 'eventbus',
+                                        'providers': ['noop'],
+                                        'required': True,
+                                        'alias': 'second-events'}],
+                      'exit': 0,
+                      'docker_providers': [],
+                      'json': {'success': True,
+                               'resolved': [{'requirementName': 'first-events',
+                                             'providerModule': 'foundation',
+                                             'providerName': 'noop',
+                                             'type': 'eventbus',
+                                             'config': {}},
+                                            {'requirementName': 'second-events',
+                                             'providerModule': 'foundation',
+                                             'providerName': 'noop',
+                                             'type': 'eventbus',
+                                             'config': {}}],
+                               'unresolved': [],
+                               'warnings': []}}})
+
 # Preference expectations come from the declared interface, independently of selection code.
 MATRIX.update({
     'nats_first': {
@@ -225,6 +266,13 @@ class ConnectionResolutionTests(unittest.TestCase):
         for name in ('optional_then_required', 'required_then_optional'):
             with self.subTest(order=name):
                 self.run_case(name)
+
+
+    def test_module_alias_only_is_resolved(self):
+        self.run_case('alias_only')
+
+    def test_module_aliases_same_type_remain_distinct(self):
+        self.run_case('distinct_aliases')
 
 
     def test_provider_preference_nats_beats_directory_order(self):

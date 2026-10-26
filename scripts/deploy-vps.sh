@@ -115,7 +115,11 @@ build_compose_args() {
 }
 
 compose() {
-    mapfile -t _args < <(build_compose_args)
+    local args
+    local -a _args
+    # Process substitution hides builder failures from mapfile.
+    args="$(build_compose_args)" || return
+    mapfile -t _args <<< "$args"
     ( cd "$DOCKER_LAB_DIR" && docker compose "${_args[@]}" "$@" )
 }
 

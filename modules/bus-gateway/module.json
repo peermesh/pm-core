@@ -1,0 +1,102 @@
+{
+  "$schema": "../../foundation/schemas/module.schema.json",
+  "id": "bus-gateway",
+  "version": "0.1.0",
+  "name": "Core Bus Gateway",
+  "description": "Internal-only HTTP gateway that alone holds the event bus connection. Modules publish their declared events with a per-module key; the gateway stamps the source module and publishes through the eventbus-redis provider.",
+  "foundation": {
+    "minVersion": "1.0.0"
+  },
+  "requires": {
+    "connections": [
+      {
+        "type": "cache",
+        "providers": ["redis"],
+        "required": true,
+        "alias": "bus-gateway-redis"
+      }
+    ],
+    "modules": [
+      {
+        "id": "eventbus-redis",
+        "minVersion": "1.0.0"
+      }
+    ]
+  },
+  "provides": {
+    "capabilities": [
+      {
+        "id": "eventbus.gateway-publish",
+        "category": "custom",
+        "version": "0.1.0",
+        "description": "POST /v1/publish on the internal network: per-module bearer key, manifest-declared topic allow-list (provides.events), source stamping, 202 only after the bus accepted the event."
+      }
+    ]
+  },
+  "config": {
+    "version": "1.0",
+    "properties": {
+      "keysFile": {
+        "type": "string",
+        "description": "Path of the JSON key file {\"<module-id>\": \"<key>\"}. Keys are hashed in memory at startup.",
+        "secret": true,
+        "env": "BUS_GATEWAY_KEYS_FILE"
+      },
+      "manifests": {
+        "type": "string",
+        "description": "Module manifest paths, separated by ':'. Each manifest's provides.events is that module's publish allow-list.",
+        "env": "BUS_GATEWAY_MANIFESTS"
+      },
+      "redisUrl": {
+        "type": "string",
+        "description": "Credential-free Redis URL passed to the eventbus-redis provider.",
+        "default": "redis://redis:6379",
+        "env": "BUS_GATEWAY_REDIS_URL"
+      },
+      "redisPasswordFile": {
+        "type": "string",
+        "description": "Path of the Core Redis password file (mode 0600 or 0400, not a symlink). Passed to the eventbus-redis provider as passwordFile; the gateway never reads or logs the value. Unset for a Redis without a password.",
+        "secret": true,
+        "env": "BUS_GATEWAY_REDIS_PASSWORD_FILE"
+      },
+      "redisUsername": {
+        "type": "string",
+        "description": "Redis ACL user name; requires redisPasswordFile. Unset for the default user.",
+        "env": "BUS_GATEWAY_REDIS_USERNAME"
+      },
+      "streamPrefix": {
+        "type": "string",
+        "default": "eventbus",
+        "env": "BUS_GATEWAY_STREAM_PREFIX"
+      },
+      "host": {
+        "type": "string",
+        "default": "127.0.0.1",
+        "env": "BUS_GATEWAY_HOST"
+      },
+      "port": {
+        "type": "number",
+        "default": 8080,
+        "minimum": 0,
+        "maximum": 65535,
+        "env": "BUS_GATEWAY_PORT"
+      },
+      "publishTimeoutMs": {
+        "type": "number",
+        "default": 5000,
+        "minimum": 1,
+        "maximum": 60000,
+        "env": "BUS_GATEWAY_PUBLISH_TIMEOUT_MS"
+      },
+      "connectTimeoutMs": {
+        "type": "number",
+        "default": 5000,
+        "minimum": 1,
+        "maximum": 60000,
+        "env": "BUS_GATEWAY_CONNECT_TIMEOUT_MS"
+      }
+    },
+    "required": ["keysFile", "manifests"]
+  },
+  "tags": ["eventbus", "gateway", "internal"]
+}

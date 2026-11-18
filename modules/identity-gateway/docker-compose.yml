@@ -1,0 +1,97 @@
+# Core Identity Gateway (WO-PMSYS-20261023-235, Podcast edge stage)
+#
+# Forward-auth target for Traefik only. No published host port, no proxy
+# labels, and one internal network (pmdl_edge-control) that only Traefik and
+# this service may join. Never attach it to a module network: forwarded
+# fields alone prove no caller.
+#
+# Production wiring (not done here, owner-gated):
+# - Traefik must join pmdl_edge-control to reach http://identity-gateway:8080.
+# - The network is internal, so the gateway cannot reach the internet. Its
+#   provider calls go to https://peers.social; give Traefik the network alias
+#   peers.social on pmdl_edge-control (Traefik then serves Social's real
+#   certificate), or change this design before rollout.
+# - The four secret files must exist (see secrets-required.txt).
+
+services:
+  identity-gateway:
+    # node:22-bookworm digest recorded by the Groups WO-270 fixture (image-node.log), as in bus-gateway.
+    image: node@sha256:63538dfe497cc29dfafdda25ada09b46db68a3f4cc205abf1f5d6bf0913f3384
+    container_name: pmdl_identity_gateway
+    profiles:
+      - identity-gateway
+    restart: unless-stopped
+    user: "1000:1000"
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    working_dir: /opt/identity-gateway
+    command: ["node", "src/server.mjs"]
+    environment:
+      IDENTITY_SOCIAL_ORIGIN: https://peers.social
+      IDENTITY_AUDIENCE: ${IDENTITY_AUDIENCE:-}
+      IDENTITY_TENANT_ID: ${IDENTITY_TENANT_ID:-}
+      IDENTITY_PROPERTY_ID: ${IDENTITY_PROPERTY_ID:-}
+      IDENTITY_BROWSER_ORIGINS: ${IDENTITY_BROWSER_ORIGINS:-}
+      IDENTITY_TENANT_KEY_FILE: /run/secrets/identity_tenant_key
+      PUBLISHER_HOST: ${PUBLISHER_HOST:-}
+      MEDIA_HOST: ${MEDIA_HOST:-}
+      PODCAST_HOST: ${PODCAST_HOST:-}
+      PUBLISHER_GATEWAY_SECRET_FILE: /run/secrets/publisher_gateway_secret
+      MEDIA_GATEWAY_SECRET_FILE: /run/secrets/media_gateway_secret
+      PODCAST_GATEWAY_SECRET_FILE: /run/secrets/podcast_gateway_secret
+    volumes:
+      - type: bind
+        source: ./src
+        target: /opt/identity-gateway/src
+        read_only: true
+    secrets:
+      - source: identity_tenant_key
+        uid: "1000"
+        gid: "1000"
+        mode: 0400
+      - source: publisher_gateway_secret
+        uid: "1000"
+        gid: "1000"
+        mode: 0400
+      - source: media_gateway_secret
+        uid: "1000"
+        gid: "1000"
+        mode: 0400
+      - source: podcast_gateway_secret
+        uid: "1000"
+        gid: "1000"
+        mode: 0400
+    networks:
+      edge-control:
+        aliases:
+          - identity-gateway
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8080/health').then(r=>process.exit(r.status===204?0:1),()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+        reservations:
+          memory: 32M
+
+secrets:
+  identity_tenant_key:
+    file: ${IDENTITY_GATEWAY_SECRETS_DIR:-./secrets}/identity_tenant_key
+  publisher_gateway_secret:
+    file: ${IDENTITY_GATEWAY_SECRETS_DIR:-./secrets}/publisher_gateway_secret
+  media_gateway_secret:
+    file: ${IDENTITY_GATEWAY_SECRETS_DIR:-./secrets}/media_gateway_secret
+  podcast_gateway_secret:
+    file: ${IDENTITY_GATEWAY_SECRETS_DIR:-./secrets}/podcast_gateway_secret
+
+networks:
+  edge-control:
+    internal: true
+    name: pmdl_edge-control

@@ -1,0 +1,10 @@
+{
+  "name": "@peermesh/identity-gateway",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "files": ["src", "README.md"],
+  "engines": {"node": ">=22"},
+  "scripts": {"test": "node --test tests/gateway.test.mjs tests/identity.test.mjs"},
+  "dependencies": {}
+}

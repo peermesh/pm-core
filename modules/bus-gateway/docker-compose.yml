@@ -1,0 +1,84 @@
+# Core Bus Gateway (WO-PMSYS-20261110-298)
+#
+# Internal only: no published host port, no proxy labels, and one internal
+# network (pmdl_app-internal, where the Core Redis profile also runs).
+# Modules on that network call http://bus-gateway:8080/v1/publish.
+#
+# Before `up`: the eventbus-redis provider needs its locked dependency
+# installed (npm ci in modules/eventbus-redis), the key file must exist at
+# BUS_GATEWAY_KEYS_FILE, and BUS_GATEWAY_MANIFEST_DIR must hold the manifests
+# named in BUS_GATEWAY_MANIFESTS.
+
+services:
+  bus-gateway:
+    # node:22-bookworm digest recorded by the Groups WO-270 fixture (image-node.log).
+    image: node@sha256:63538dfe497cc29dfafdda25ada09b46db68a3f4cc205abf1f5d6bf0913f3384
+    container_name: pmdl_bus_gateway
+    profiles:
+      - bus-gateway
+    restart: unless-stopped
+    user: "1000:1000"
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    working_dir: /opt/bus-gateway
+    command: ["node", "lib/server.mjs"]
+    environment:
+      BUS_GATEWAY_HOST: 0.0.0.0
+      BUS_GATEWAY_PORT: "8080"
+      BUS_GATEWAY_KEYS_FILE: /run/secrets/bus_gateway_keys
+      BUS_GATEWAY_MANIFESTS: ${BUS_GATEWAY_MANIFESTS:-/opt/manifests/groups.json}
+      BUS_GATEWAY_REDIS_URL: ${BUS_GATEWAY_REDIS_URL:-redis://redis:6379}
+      # The Core Redis password; the provider refuses the file unless it is 0600/0400 for uid 1000.
+      BUS_GATEWAY_REDIS_PASSWORD_FILE: /run/secrets/redis_password
+      BUS_GATEWAY_STREAM_PREFIX: ${EVENTBUS_STREAM_PREFIX:-eventbus}
+      BUS_GATEWAY_PROVIDER: /opt/eventbus-redis/lib/eventbus-redis.mjs
+    volumes:
+      - type: bind
+        source: ./lib
+        target: /opt/bus-gateway/lib
+        read_only: true
+      - type: bind
+        source: ../eventbus-redis
+        target: /opt/eventbus-redis
+        read_only: true
+      - type: bind
+        source: ${BUS_GATEWAY_MANIFEST_DIR:-./manifests}
+        target: /opt/manifests
+        read_only: true
+    secrets:
+      - bus_gateway_keys
+      - source: bus_gateway_redis_password
+        target: redis_password
+        uid: "1000"
+        gid: "1000"
+        mode: 0400
+    networks:
+      - app-internal
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8080/healthz').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+        reservations:
+          memory: 32M
+
+secrets:
+  bus_gateway_keys:
+    file: ${BUS_GATEWAY_KEYS_FILE:-./secrets/bus-gateway-keys.json}
+  # Own name so a merge with the Core root compose cannot redefine the root redis_password secret.
+  # The default path is relative to the project directory (Core root when merged), like the key file.
+  bus_gateway_redis_password:
+    file: ${BUS_GATEWAY_REDIS_PASSWORD_SOURCE:-./secrets/redis_password}
+
+networks:
+  app-internal:
+    external: true
+    name: pmdl_app-internal

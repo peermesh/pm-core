@@ -1,0 +1,14 @@
+{
+  "name": "@peermesh/bus-gateway",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./client": {"types": "./lib/client.d.ts", "import": "./lib/client.mjs"},
+    "./gateway": {"import": "./lib/gateway.mjs"}
+  },
+  "files": ["lib", "README.md"],
+  "engines": {"node": ">=22"},
+  "scripts": {"test": "node --test tests/gateway.test.mjs"},
+  "dependencies": {}
+}

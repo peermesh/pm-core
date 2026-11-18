@@ -1,0 +1,96 @@
+{
+  "$schema": "../../foundation/schemas/module.schema.json",
+  "id": "identity-gateway",
+  "version": "0.1.0",
+  "name": "Core Identity Gateway",
+  "description": "Traefik forward-auth target for module user routes. Verifies a peers.social access token (provider JWKS) or a Core browser session, re-checks the session with the provider profile endpoint on every request, and answers the five X-Peermesh-* identity headers plus the selected module's hop secret. Routes: GET /verify/(publisher|media|podcast)(/operator)?. Adopted from the accepted WO-PMSYS-20261023-235 runtime snapshot, with Podcast added.",
+  "foundation": {
+    "minVersion": "1.0.0"
+  },
+  "provides": {
+    "capabilities": [
+      {
+        "id": "identity.forward-auth",
+        "category": "custom",
+        "version": "0.1.0",
+        "description": "GET /verify/<module>[/operator] on the edge-control network only: 204 with X-Peermesh-Auth-Subject, X-Peermesh-Actor-WebID, X-Peermesh-Tenant-ID, X-Peermesh-Property-ID, X-Peermesh-Roles and X-Module-Secret for that module; 401 (or 403 on a failed CSRF check) otherwise. Modules: publisher, media, podcast."
+      }
+    ]
+  },
+  "config": {
+    "version": "1.0",
+    "properties": {
+      "socialOrigin": {
+        "type": "string",
+        "description": "Identity provider origin. Must be https://peers.social outside fixture mode.",
+        "default": "https://peers.social",
+        "env": "IDENTITY_SOCIAL_ORIGIN"
+      },
+      "audience": {
+        "type": "string",
+        "description": "Token audience and OAuth client ID. Must equal the tenant ID.",
+        "env": "IDENTITY_AUDIENCE"
+      },
+      "tenantId": {
+        "type": "string",
+        "description": "Answered as X-Peermesh-Tenant-ID. Must equal the audience.",
+        "env": "IDENTITY_TENANT_ID"
+      },
+      "propertyId": {
+        "type": "string",
+        "description": "Answered as X-Peermesh-Property-ID.",
+        "env": "IDENTITY_PROPERTY_ID"
+      },
+      "tenantKeyFile": {
+        "type": "string",
+        "description": "File holding the tenant key sent to the provider profile endpoint (at least 32 printable characters).",
+        "default": "/run/secrets/identity_tenant_key",
+        "secret": true,
+        "env": "IDENTITY_TENANT_KEY_FILE"
+      },
+      "browserOrigins": {
+        "type": "string",
+        "description": "Comma-separated https origins served by the browser session routes (/_core/auth/*). 1 to 8 origins; peers.social is refused.",
+        "env": "IDENTITY_BROWSER_ORIGINS"
+      },
+      "publisherHost": {
+        "type": "string",
+        "description": "Publisher's public host name. Distinct from the other module hosts; never peers.social.",
+        "env": "PUBLISHER_HOST"
+      },
+      "mediaHost": {
+        "type": "string",
+        "description": "Media's public host name. Distinct from the other module hosts; never peers.social.",
+        "env": "MEDIA_HOST"
+      },
+      "podcastHost": {
+        "type": "string",
+        "description": "Podcast's public host name. Distinct from the other module hosts; never peers.social.",
+        "env": "PODCAST_HOST"
+      },
+      "publisherGatewaySecretFile": {
+        "type": "string",
+        "description": "File holding Publisher's hop secret (32 to 1024 printable characters, distinct from every other module's).",
+        "default": "/run/secrets/publisher_gateway_secret",
+        "secret": true,
+        "env": "PUBLISHER_GATEWAY_SECRET_FILE"
+      },
+      "mediaGatewaySecretFile": {
+        "type": "string",
+        "description": "File holding Media's hop secret, MEDIA_GATEWAY_SECRET (32 to 1024 printable characters, distinct from every other module's).",
+        "default": "/run/secrets/media_gateway_secret",
+        "secret": true,
+        "env": "MEDIA_GATEWAY_SECRET_FILE"
+      },
+      "podcastGatewaySecretFile": {
+        "type": "string",
+        "description": "File holding Podcast's hop secret, PODCAST_GATEWAY_SECRET (32 to 1024 printable characters, distinct from every other module's).",
+        "default": "/run/secrets/podcast_gateway_secret",
+        "secret": true,
+        "env": "PODCAST_GATEWAY_SECRET_FILE"
+      }
+    },
+    "required": ["audience", "tenantId", "propertyId", "browserOrigins", "publisherHost", "mediaHost", "podcastHost"]
+  },
+  "tags": ["identity", "forward-auth", "gateway", "internal"]
+}

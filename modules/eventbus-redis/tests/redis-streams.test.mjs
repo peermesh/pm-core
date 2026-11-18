@@ -198,7 +198,7 @@ group('6-before',async()=>{
   const invalid=await bus('pm267invalid','groups','publisher');
   for(const [type,payload,opts] of [[T,null,{}],[T,[],{}],[T,{bad:NaN},{}],[T,{}, {waitForAck:true}],
       [T,{}, {deliveryTier:'compliance-critical'}],[T,{}, {deliveryGuarantee:'exactly-once'}],
-      ['groups.unknown.event',{},{}],[T,{}, {unknown:true}],[T,{}, {correlationId:'bad'}]]){
+      ['groups.Unknown.event',{},{}],[T,{}, {unknown:true}],[T,{}, {correlationId:'bad'}]]){
     await assert.rejects(invalid.publish(type,payload,opts));
   }
   assert.equal((await entries(c,'pm267invalid')).length,0);await invalid.close();

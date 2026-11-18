@@ -57,10 +57,10 @@
         "default": 6379,
         "env": "EVENTBUS_REDIS_PORT"
       },
-      "redisPassword": {
+      "redisPasswordFile": {
         "type": "string",
-        "secret": true,
-        "env": "REDIS_PASSWORD"
+        "env": "EVENTBUS_REDIS_PASSWORD_FILE",
+        "description": "Path to a file (mode 0400 or 0600, not a symlink) holding only the Redis password; passed as RedisStreamsConfig.passwordFile. Omit for a Redis without a password."
       },
       "streamPrefix": {
         "type": "string",

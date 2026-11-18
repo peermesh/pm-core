@@ -1,11 +1,27 @@
 import { randomUUID } from 'node:crypto';
-import { createClient } from 'redis';
+import { constants as fsConstants } from 'node:fs';
+import { lstat, open } from 'node:fs/promises';
+import { ClientClosedError, ClientOfflineError, ConnectionTimeoutError, DisconnectsClientError, ErrorReply,
+  ReconnectStrategyError, SocketClosedUnexpectedlyError, createClient } from 'redis';
 
-const TOPICS = new Set(['groups.group.created', 'groups.group.updated', 'groups.member.joined',
-  'groups.member.left', 'groups.member.approved']);
+// A topic is module-scoped: lowercase dot-separated segments of [a-z0-9-], at least three, and its
+// first segment is the publishing module's source (checked at publish and on every stored envelope).
+// The gateway's per-module allow-list, read from each manifest's provides.events, decides which
+// topics a module may publish. 128 bounds the stream and contract keys; the longest topic today is 41.
 const TOPIC = /^[a-z0-9-]+(?:\.[a-z0-9-]+){2,}$/;
+const TOPIC_MAX_LENGTH = 128;
 const NAME = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const USERNAME = /^[\x21-\x7e]{1,256}$/;
+const PASSWORD_FILE_MAX_BYTES = 4096;
+const RECONNECT_BASE_MS = 100;
+const RECONNECT_MAX_MS = 5000;
+// Broker replies that clear after a restart or a lost group; every other reply is terminal.
+const RETRYABLE_REPLY = /^(LOADING|NOGROUP|BUSY|MASTERDOWN|TRYAGAIN)\b/;
+const TRANSPORT_ERRORS = [ClientClosedError, ClientOfflineError, ConnectionTimeoutError, DisconnectsClientError,
+  ReconnectStrategyError, SocketClosedUnexpectedlyError];
+const NETWORK_CODES = new Set(['ECONNREFUSED','ECONNRESET','ECONNABORTED','EPIPE','ETIMEDOUT','EHOSTUNREACH',
+  'ENETUNREACH','ENETDOWN','EAI_AGAIN','ENOTFOUND']);
 
 // Contract creation and conflict detection are a single broker operation.
 const REGISTER = `
@@ -48,11 +64,14 @@ function jsonValue(value) {
   Object.values(value).forEach(jsonValue);
 }
 function topic(value) {
-  if (!TOPICS.has(value)) throw new TypeError('Unsupported exact topic');
+  if (typeof value !== 'string' || value.length > TOPIC_MAX_LENGTH || !TOPIC.test(value)) throw new TypeError('Unsupported exact topic');
 }
-function dlq(value) {
-  if (typeof value !== 'string' || !TOPIC.test(value) || !value.startsWith('groups.') || TOPICS.has(value)) {
-    throw new TypeError('Invalid distinct Groups dead-letter topic');
+// A dead-letter topic follows the topic rule, lives in the namespace of the topic it serves (its
+// first segment is that topic's source) and differs from that topic.
+function dlq(value, forTopic) {
+  if (typeof value !== 'string' || value.length > TOPIC_MAX_LENGTH || !TOPIC.test(value) ||
+      value.split('.')[0] !== forTopic.split('.')[0] || value === forTopic) {
+    throw new TypeError('Invalid distinct dead-letter topic for the topic source');
   }
 }
 function envelope(value, expectedTopic) {
@@ -70,11 +89,51 @@ function envelope(value, expectedTopic) {
     if (m.deliveryGuarantee !== undefined && m.deliveryGuarantee !== 'at-least-once') throw new TypeError('Unsupported delivery guarantee');
     if (m.deliveryTier !== undefined && !['informational','operational-critical'].includes(m.deliveryTier)) throw new TypeError('Unsupported delivery tier');
     if (m.idempotencyKey !== undefined && (typeof m.idempotencyKey !== 'string' || !m.idempotencyKey)) throw new TypeError('Invalid idempotencyKey');
-    if (m.deadLetterTopic !== undefined) dlq(m.deadLetterTopic);
+    if (m.deadLetterTopic !== undefined) dlq(m.deadLetterTopic, expectedTopic);
     if (m.version !== undefined && typeof m.version !== 'string') throw new TypeError('Invalid metadata version');
     if (m.retryCount !== undefined && (!Number.isSafeInteger(m.retryCount) || m.retryCount < 0)) throw new TypeError('Invalid retryCount');
     if (m.originalTimestamp !== undefined && !Number.isSafeInteger(m.originalTimestamp)) throw new TypeError('Invalid originalTimestamp');
   }
+}
+function retryable(error) {
+  if (error instanceof ErrorReply) return RETRYABLE_REPLY.test(error.message);
+  if (TRANSPORT_ERRORS.some(type => error instanceof type)) return true;
+  return typeof error?.code === 'string' && NETWORK_CODES.has(error.code);
+}
+function backoffMs(failures) {
+  const ceiling = Math.min(RECONNECT_MAX_MS, RECONNECT_BASE_MS * 2 ** Math.min(failures, 16));
+  return Math.round(ceiling / 2 + Math.random() * ceiling / 2);
+}
+// The secret is read once; errors name the path and the fault, never the file contents.
+async function readPasswordFile(path) {
+  if (typeof path !== 'string' || !path) throw new TypeError('Invalid passwordFile');
+  const refuse = reason => new Error('Redis password file ' + reason + ': ' + path);
+  let info, handle, value;
+  try { info = await lstat(path); }
+  catch (error) { throw refuse('cannot be read (' + (error?.code ?? 'error') + ')'); }
+  if (info.isSymbolicLink()) throw refuse('must not be a symlink');
+  if (!info.isFile()) throw refuse('must be a regular file');
+  if (info.mode & 0o044) throw refuse('must not be group- or world-readable (use mode 0600 or 0400)');
+  try {
+    handle = await open(path, fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW);
+    const opened = await handle.stat();
+    if (!opened.isFile() || opened.ino !== info.ino || opened.dev !== info.dev || (opened.mode & 0o044)) throw refuse('changed while opening');
+    if (opened.size > PASSWORD_FILE_MAX_BYTES) throw refuse('is larger than ' + PASSWORD_FILE_MAX_BYTES + ' bytes');
+    value = await handle.readFile('utf8');
+  } catch (error) {
+    if (error?.message?.startsWith('Redis password file ')) throw error;
+    throw refuse('cannot be read (' + (error?.code ?? 'error') + ')');
+  } finally { await handle?.close(); }
+  if (value.endsWith('\r\n')) value = value.slice(0, -2);
+  else if (value.endsWith('\n')) value = value.slice(0, -1);
+  if (!value) throw refuse('is empty');
+  return value;
+}
+function authFailure(error) {
+  if (!(error instanceof ErrorReply)) return error;
+  if (/^NOAUTH\b/.test(error.message)) return new Error('Redis requires authentication: configure passwordFile (NOAUTH)', {cause: error});
+  if (/^WRONGPASS\b/.test(error.message)) return new Error('Redis authentication failed: wrong username or password (WRONGPASS)', {cause: error});
+  return error;
 }
 async function bounded(promise, ms) {
   let timer;
@@ -88,26 +147,43 @@ async function bounded(promise, ms) {
 export class RedisStreamsEventBus {
   #client;
   #config;
+  #password;
   #subscriptions = new Set();
   #closing = false;
 
   async connect(config) {
     if (this.#client || this.#closing) throw new Error('Create a new bus instance to reconnect');
-    options(config, ['url','source','streamPrefix','consumerGroup','maxDeliveryAttempts','claimIdleMs','closeTimeoutMs'], 'config');
+    options(config, ['url','source','streamPrefix','consumerGroup','maxDeliveryAttempts','claimIdleMs','closeTimeoutMs',
+      'passwordFile','username'], 'config');
     if (typeof config.url !== 'string') throw new TypeError('Explicit Redis URL required');
     const url = new URL(config.url);
     if (!['redis:','rediss:'].includes(url.protocol) || !url.hostname || url.username || url.password) throw new TypeError('Explicit credential-free Redis URL required');
     for (const key of ['source','streamPrefix','consumerGroup']) if (typeof config[key] !== 'string' || !NAME.test(config[key])) throw new TypeError('Invalid ' + key);
+    if (config.passwordFile !== undefined && (typeof config.passwordFile !== 'string' || !config.passwordFile)) throw new TypeError('Invalid passwordFile');
+    if (config.username !== undefined) {
+      if (typeof config.username !== 'string' || !USERNAME.test(config.username)) throw new TypeError('Invalid username');
+      if (config.passwordFile === undefined) throw new TypeError('username requires passwordFile');
+    }
     const c = {...config, maxDeliveryAttempts: config.maxDeliveryAttempts ?? 5, closeTimeoutMs: config.closeTimeoutMs ?? 2000};
     positive(c.maxDeliveryAttempts, 'maxDeliveryAttempts', 100); positive(c.claimIdleMs, 'claimIdleMs'); positive(c.closeTimeoutMs, 'closeTimeoutMs');
+    const password = c.passwordFile === undefined ? undefined : await readPasswordFile(c.passwordFile);
+    if (this.#client || this.#closing) throw new Error('Create a new bus instance to reconnect');
+    this.#password = password;
     this.#config = Object.freeze(c);
     this.#client = this.#newClient();
-    try { await this.#client.connect(); }
-    catch (error) { if (this.#client.isOpen) await this.#client.disconnect(); throw error; }
+    try {
+      await this.#client.connect();
+      await this.#client.sendCommand(['PING']); // Surfaces NOAUTH here instead of on the first publish.
+    } catch (error) {
+      if (this.#client.isOpen) await this.#client.disconnect();
+      throw authFailure(error);
+    }
   }
 
   #newClient() {
-    const client = createClient({url: this.#config.url, disableOfflineQueue: true,
+    const auth = this.#password === undefined ? {} :
+      {password: this.#password, ...(this.#config.username ? {username: this.#config.username} : {})};
+    const client = createClient({url: this.#config.url, ...auth, disableOfflineQueue: true,
       socket: {connectTimeout: 1000, reconnectStrategy: false}});
     client.on('error', () => {}); // Command/loop promises carry failures; no unhandled EventEmitter error.
     return client;
@@ -148,33 +224,99 @@ export class RedisStreamsEventBus {
     if (supplied.ackMode !== undefined && supplied.ackMode !== 'auto') throw new TypeError('Only auto acknowledgment is supported');
     if (supplied.deliveryGuarantee !== undefined && supplied.deliveryGuarantee !== 'at-least-once') throw new TypeError('Unsupported subscription guarantee');
     if (supplied.fromBeginning !== undefined && typeof supplied.fromBeginning !== 'boolean') throw new TypeError('Invalid fromBeginning');
-    dlq(supplied.deadLetterTopic);
+    dlq(supplied.deadLetterTopic, type);
     const policy = {source: this.#config.source, group: this.#config.consumerGroup,
       maxDeliveryAttempts: supplied.maxDeliveryAttempts ?? this.#config.maxDeliveryAttempts,
       claimIdleMs: this.#config.claimIdleMs, deadLetterTopic: supplied.deadLetterTopic,
       fromBeginning: supplied.fromBeginning ?? false, ackMode: 'auto', deliveryGuarantee: 'at-least-once'};
     positive(policy.maxDeliveryAttempts, 'maxDeliveryAttempts', 100);
-    const sub = {id: randomUUID(), topic: type, active: false, error: undefined};
-    const state = {sub, policy, handler, stopped: false, client: this.#newClient()};
+    const sub = {id: randomUUID(), topic: type, active: false, error: undefined, reconnects: 0, reconnecting: false};
+    let signalStop;
+    const state = {sub, policy, handler, stopped: false, client: this.#newClient(), connecting: undefined,
+      stopSignal: new Promise(resolve => { signalStop = resolve; })};
+    state.stop = () => { state.stopped = true; signalStop(); };
     this.#subscriptions.add(state);
     sub.ready = (async () => {
       try {
-        await state.client.connect();
+        await this.#open(state, state.client);
         if (state.stopped) throw new Error('Subscription closed before readiness');
-        await state.client.sendCommand(['EVAL', REGISTER, '2', this.#stream(type),
-          this.#stream(type) + ':contract:' + policy.group, policy.group, JSON.stringify(policy), policy.fromBeginning ? '0' : '$']);
+        await this.#register(state, policy.fromBeginning ? '0' : '$');
         if (state.stopped) throw new Error('Subscription closed before readiness');
         sub.active = true;
-      } catch (error) { sub.error = error; state.stopped = true; throw error; }
+      } catch (error) { sub.error = authFailure(error); state.stop(); throw sub.error; }
     })();
     // Keep a handled internal branch while the original ready promise remains rejectable by callers.
-    sub.closed = sub.ready.then(() => this.#consume(state)).catch(error => {
+    sub.closed = sub.ready.then(() => this.#run(state)).catch(error => {
       sub.error = error;
     }).finally(async () => {
-      sub.active = false; state.stopped = true;
-      if (state.client.isOpen) await state.client.disconnect();
+      sub.active = false; sub.reconnecting = false; state.stop();
+      await this.#release(state);
     });
     return sub;
+  }
+
+  // Never disconnect a client while its connect() is pending: node-redis would then leak the socket.
+  async #open(state, client) {
+    state.connecting = client.connect();
+    try { await state.connecting; } finally { state.connecting = undefined; }
+  }
+
+  async #release(state) {
+    const client = state.client;
+    if (state.connecting) {
+      state.connecting.then(() => client.isOpen && client.disconnect(), () => {}).catch(() => {});
+      return;
+    }
+    if (client.isOpen) await client.disconnect().catch(() => {});
+  }
+
+  #register(state, start) {
+    const {sub, policy} = state;
+    return state.client.sendCommand(['EVAL', REGISTER, '2', this.#stream(sub.topic),
+      this.#stream(sub.topic) + ':contract:' + policy.group, policy.group, JSON.stringify(policy), start]);
+  }
+
+  async #run(state) {
+    while (!state.stopped) {
+      try { await this.#consume(state); return; }
+      catch (error) {
+        if (state.stopped || !retryable(error)) throw error;
+        if (!await this.#reconnect(state, error)) return;
+      }
+    }
+  }
+
+  // Bounded exponential backoff with jitter. An existing group keeps its cursor and pending entries
+  // (BUSYGROUP); a group lost with broker data is recreated at '0' so entries written since are not skipped.
+  async #reconnect(state, cause) {
+    const {sub} = state;
+    sub.reconnecting = true;
+    let lastError = cause;
+    for (let failures = 0; ; failures++) {
+      let timer;
+      await Promise.race([new Promise(resolve => { timer = setTimeout(resolve, backoffMs(failures)); }), state.stopSignal]);
+      clearTimeout(timer);
+      if (state.stopped) break;
+      try {
+        if (state.client.isOpen && !state.connecting) await state.client.disconnect().catch(() => {});
+        state.client = this.#newClient();
+        const opening = this.#open(state, state.client);
+        opening.catch(() => {});
+        await Promise.race([opening, state.stopSignal]);
+        if (state.stopped) break;
+        await this.#register(state, '0');
+        if (state.stopped) break;
+        sub.reconnecting = false; sub.reconnects++;
+        return true;
+      } catch (error) {
+        lastError = error;
+        if (state.stopped) break;
+        if (!retryable(error)) { sub.reconnecting = false; throw authFailure(error); }
+      }
+    }
+    // Closed while disconnected: the loop ends without a broker connection; report the last cause.
+    sub.reconnecting = false; sub.error = lastError;
+    return false;
   }
 
   async #consume(state) {
@@ -217,7 +359,7 @@ export class RedisStreamsEventBus {
   unsubscribe(subscription) {
     const state = [...this.#subscriptions].find(s => s.sub === subscription);
     if (!state) throw new TypeError('Unknown subscription');
-    state.stopped = true; state.sub.active = false;
+    state.stop(); state.sub.active = false;
   }
 
   async close() {
@@ -226,7 +368,7 @@ export class RedisStreamsEventBus {
     const draining = Promise.all([...this.#subscriptions].map(s => s.sub.closed));
     try { await bounded(draining, this.#config?.closeTimeoutMs ?? 2000); }
     finally {
-      for (const state of this.#subscriptions) if (state.client.isOpen) await state.client.disconnect();
+      for (const state of this.#subscriptions) await this.#release(state);
       if (this.#client?.isOpen) await this.#client.disconnect();
     }
   }

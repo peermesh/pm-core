@@ -957,6 +957,76 @@ post_deploy_security_check() {
 }
 
 # ==============================================================
+# Module Install Gate
+# ==============================================================
+# Runs before any module hook or compose call on `module enable/install`:
+#   1. module.json must exist and pass foundation/schemas/module.schema.json
+#   2. the module compose is rendered (docker compose config, nothing starts)
+#      and refused if it asks for a Docker socket, privileged, host network,
+#      host pid/ipc, cap_add, devices, or a bind mount of /, /etc or $HOME,
+#      unless the operator passed --allow-dangerous=<module>.
+# Helper: scripts/validation/module_install_gate.py (Python 3 stdlib; uses the
+# jsonschema package when installed, no network access).
+
+module_gate_helper() {
+    echo "$(get_project_dir)/scripts/validation/module_install_gate.py"
+}
+
+# module_gate_check <module> <mode: enforce|report> <allow: true|false> [requested_for]
+# Returns 0 when the module may proceed, 1 otherwise.
+module_gate_check() {
+    local gate_module="$1"
+    local gate_mode="$2"
+    local gate_allow="$3"
+    local gate_requested_for="${4:-$1}"
+    local gate_project_dir gate_helper gate_module_dir gate_rc=0
+    gate_project_dir="$(get_project_dir)"
+    gate_helper="$(module_gate_helper)"
+    gate_module_dir="$gate_project_dir/modules/$gate_module"
+
+    if ! cmd_exists python3; then
+        log_error "[$gate_module] python3 is required to verify a module before install"
+        return 1
+    fi
+    if [[ ! -f "$gate_helper" ]]; then
+        log_error "Module install gate helper missing: $gate_helper"
+        return 1
+    fi
+
+    python3 "$gate_helper" manifest \
+        --module "$gate_module" \
+        --manifest "$gate_module_dir/module.json" \
+        --schema-dir "$gate_project_dir/foundation/schemas" || gate_rc=$?
+    if [[ $gate_rc -ne 0 ]]; then
+        log_error "[$gate_module] manifest check failed"
+        return 1
+    fi
+
+    local gate_args=(compose --module "$gate_module" --module-dir "$gate_module_dir" --requested-for "$gate_requested_for")
+    [[ "$gate_mode" == "report" ]] && gate_args+=(--report)
+    if [[ "$gate_allow" == "true" ]]; then
+        gate_args+=(--allow-dangerous)
+        [[ "$gate_mode" == "enforce" ]] && gate_args+=(--audit-log "$gate_project_dir/logs/module-security-overrides.log")
+    fi
+
+    gate_rc=0
+    python3 "$gate_helper" "${gate_args[@]}" || gate_rc=$?
+    case "$gate_rc" in
+        0) return 0 ;;
+        4)
+            if [[ "$gate_mode" == "enforce" ]]; then
+                log_warn "[$gate_module] dangerous host requests ALLOWED by operator override --allow-dangerous=$gate_module (logged to logs/module-security-overrides.log)"
+            else
+                log_warn "[$gate_module] dangerous host requests would be allowed by --allow-dangerous=$gate_module"
+            fi
+            return 0
+            ;;
+        3) log_error "[$gate_module] refused: dangerous host requests in compose"; return 1 ;;
+        *) log_error "[$gate_module] compose check failed"; return 1 ;;
+    esac
+}
+
+# ==============================================================
 # Module Command
 # ==============================================================
 
@@ -1008,9 +1078,11 @@ cmd_module() {
             local resolver_modules_dir=""
             local module_order=()
             local dep_module=""
-            if [[ -z "$module" ]]; then
+            local allow_dangerous_modules=()
+            local enable_usage="Usage: $SCRIPT_NAME module enable <name> [--dry-run] [--allow-dangerous=<module>]..."
+            if [[ -z "$module" || "$module" == -* ]]; then
                 log_error "Module name required"
-                echo "Usage: $SCRIPT_NAME module enable <name> [--dry-run]"
+                echo "$enable_usage"
                 return 1
             fi
             shift || true
@@ -1020,14 +1092,39 @@ cmd_module() {
                     --dry-run)
                         dry_run=true
                         ;;
+                    --allow-dangerous=*)
+                        if [[ -z "${1#--allow-dangerous=}" ]]; then
+                            log_error "--allow-dangerous needs a module name"
+                            echo "$enable_usage"
+                            return 1
+                        fi
+                        allow_dangerous_modules+=("${1#--allow-dangerous=}")
+                        ;;
+                    --allow-dangerous)
+                        if [[ -z "${2:-}" || "${2:-}" == -* ]]; then
+                            log_error "--allow-dangerous needs a module name"
+                            echo "$enable_usage"
+                            return 1
+                        fi
+                        allow_dangerous_modules+=("$2")
+                        shift
+                        ;;
                     *)
                         log_error "Unknown option for module enable: $1"
-                        echo "Usage: $SCRIPT_NAME module enable <name> [--dry-run]"
+                        echo "$enable_usage"
                         return 1
                         ;;
                 esac
                 shift
             done
+
+            _module_allowed_dangerous() {
+                local candidate
+                for candidate in "${allow_dangerous_modules[@]:-}"; do
+                    [[ "$candidate" == "$1" ]] && return 0
+                done
+                return 1
+            }
 
             local module_dir="$project_dir/modules/$module"
             if [[ ! -d "$module_dir" ]]; then
@@ -1035,21 +1132,28 @@ cmd_module() {
                 return 1
             fi
 
-            # Validate module.json
+            # Validate module.json against foundation/schemas/module.schema.json.
+            # A missing or invalid manifest stops here, before anything else runs.
             local manifest="$module_dir/module.json"
-            if [[ -f "$manifest" ]]; then
-                if ! jq empty "$manifest" 2>/dev/null; then
-                    log_error "Invalid module.json for $module (malformed JSON)"
-                    return 1
-                fi
-                log_debug "module.json validated for $module"
-            else
-                log_warn "No module.json found for $module — skipping manifest validation"
+            if [[ ! -f "$manifest" ]]; then
+                log_error "No module.json found for $module — a manifest is required to install a module"
+                return 1
+            fi
+            if ! cmd_exists python3; then
+                log_error "python3 is required to verify a module before install"
+                return 1
+            fi
+            if ! python3 "$(module_gate_helper)" manifest --module "$module" \
+                    --manifest "$manifest" --schema-dir "$project_dir/foundation/schemas"; then
+                log_error "Invalid module.json for $module — enable stopped before any hook ran"
+                return 1
             fi
 
             # Propagate foundation DOMAIN to module .env if not already set
+            # (skipped on --dry-run, which writes nothing; load_env exports
+            # DOMAIN, so the dry-run compose render still sees it).
             load_env
-            if [[ -n "${DOMAIN:-}" ]] && [[ "${DOMAIN}" != "example.com" ]]; then
+            if [[ "$dry_run" != true ]] && [[ -n "${DOMAIN:-}" ]] && [[ "${DOMAIN}" != "example.com" ]]; then
                 local mod_env="$module_dir/.env"
                 if [[ -f "$mod_env" ]]; then
                     if ! grep -q "^DOMAIN=" "$mod_env" 2>/dev/null; then
@@ -1078,8 +1182,9 @@ cmd_module() {
 
             if [[ "$dry_run" == true ]]; then
                 log_info "Dependency dry-run for module: $module"
-                "$resolver" "$module" --modules-dir "$resolver_modules_dir" --dry-run
-                return $?
+                if ! "$resolver" "$module" --modules-dir "$resolver_modules_dir" --dry-run; then
+                    return 1
+                fi
             fi
 
             if ! mapfile -t module_order < <("$resolver" "$module" --modules-dir "$resolver_modules_dir" --order-only); then
@@ -1093,6 +1198,42 @@ cmd_module() {
             fi
 
             log_info "Resolved enable order: ${module_order[*]}"
+
+            local allowed_name
+            for allowed_name in "${allow_dangerous_modules[@]:-}"; do
+                [[ -z "$allowed_name" ]] && continue
+                if [[ " ${module_order[*]} " != *" $allowed_name "* ]]; then
+                    log_warn "--allow-dangerous=$allowed_name names a module that is not in the enable order; it has no effect"
+                fi
+            done
+
+            # --- Install gate: every module in the order, before any hook or compose up ---
+            local gate_mode="enforce"
+            [[ "$dry_run" == true ]] && gate_mode="report"
+            local gate_failed=()
+            for dep_module in "${module_order[@]}"; do
+                local gate_allow=false
+                _module_allowed_dangerous "$dep_module" && gate_allow=true
+                log_info "Install gate: $dep_module"
+                if ! module_gate_check "$dep_module" "$gate_mode" "$gate_allow" "$module"; then
+                    gate_failed+=("$dep_module")
+                    [[ "$dry_run" == true ]] || break
+                fi
+            done
+
+            if [[ "$dry_run" == true ]]; then
+                if [[ ${#gate_failed[@]} -gt 0 ]]; then
+                    log_error "Dry run: enable would be refused (module(s): ${gate_failed[*]}). No hook ran; nothing started."
+                    return 1
+                fi
+                log_success "Dry run: all ${#module_order[@]} module(s) pass the install gate. No hook ran; nothing started."
+                return 0
+            fi
+
+            if [[ ${#gate_failed[@]} -gt 0 ]]; then
+                log_error "Enable of $module refused by install gate (module: ${gate_failed[*]}). No hook ran; nothing started."
+                return 1
+            fi
 
             # --- Connection resolution (after deps, before hooks) ---
             for dep_module in "${module_order[@]}"; do
@@ -2284,7 +2425,13 @@ COMMAND OPTIONS:
 
     module [ACTION] [NAME]
         list                List available modules
-        enable NAME         Enable a module (with dependency resolution and lifecycle hooks)
+        enable NAME         Enable a module (with dependency resolution and lifecycle hooks).
+                            Every module in the order must pass the install gate first:
+                            module.json valid against foundation/schemas/module.schema.json,
+                            and no dangerous compose requests (Docker socket, privileged,
+                            host network/pid/ipc, cap_add, devices, bind of / /etc or $HOME).
+            --dry-run                   Validate and report per-service host requests; run no hook
+            --allow-dangerous=MODULE    Let exactly MODULE through the dangerous-request check (logged)
         disable NAME        Disable a module (reverse order, teardown hooks)
         update NAME         Update a running module to its latest image (pull + recreate)
         status NAME         Show module status

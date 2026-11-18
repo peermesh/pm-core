@@ -1,0 +1,4 @@
+# Install gate fixture: dangerous request hidden in the override file.
+services:
+  app:
+    privileged: true

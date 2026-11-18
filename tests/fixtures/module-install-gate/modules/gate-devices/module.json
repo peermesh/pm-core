@@ -1,0 +1,8 @@
+{
+  "id": "gate-devices",
+  "version": "0.1.0",
+  "name": "Install gate fixture: gate-devices",
+  "description": "Test fixture for the launch_core.sh module install gate (WO-PMSYS-20261102-290 L5)",
+  "foundation": { "minVersion": "1.0.0" },
+  "requires": { "connections": [], "modules": [] }
+}
